@@ -1,0 +1,28 @@
+
+model Court {
+  id        String       @id @default(cuid())
+  name      String
+  location  String
+  bookings  Booking[]
+  schedules CourtSchedule[]
+  closures  CourtClosure[]
+}
+
+
+model CourtSchedule {
+  id        String     @id @default(cuid())
+  court     Court   @relation(fields: [courtId], references: [id])
+  courtId   String
+  dayOfWeek String
+  startTime String
+  endTime   String
+}
+
+model CourtClosure {
+  id        String      @id @default(cuid())
+  court     Court    @relation(fields: [courtId], references: [id])
+  courtId   String
+  date      DateTime
+  startTime String?
+  endTime   String?
+}

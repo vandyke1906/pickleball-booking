@@ -1,0 +1,11 @@
+
+model Booking {
+  id         String      @id @default(cuid())
+  courtId    String
+  court      Court    @relation(fields: [courtId], references: [id])
+  userName   String
+  startTime  DateTime
+  endTime    DateTime
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+}
