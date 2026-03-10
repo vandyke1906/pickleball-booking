@@ -1,17 +1,17 @@
 model Booking {
-  id          String      @id @default(cuid())
-  court       Court       @relation(fields: [courtId], references: [id], onDelete: Cascade)
-  courtId     String
+  id      String @id @default(cuid())
+  court   Court  @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  courtId String
 
-  userName    String
-  startTime   DateTime
-  endTime     DateTime
+  userName  String
+  startTime DateTime
+  endTime   DateTime
 
-  status      String      @default("pending")   // pending, confirmed, cancelled, completed
+  status String @default("pending") // pending, confirmed, cancelled, completed
 
-  totalPrice  Float?
-  notes       String?
+  totalPrice Float?
+  notes      String?
 
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

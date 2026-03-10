@@ -1,10 +1,12 @@
 model Organization {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   name      String
-  openTime  String 
-  closeTime String 
+  openTime  String
+  closeTime String
 
-  courts    Court[]
+  courtLimit Int
+  courts     Court[]
+  users      User[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

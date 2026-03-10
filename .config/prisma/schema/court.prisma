@@ -1,15 +1,15 @@
 model Court {
-  id             String         @id @default(cuid())
+  id             String       @id @default(cuid())
   name           String
   location       String
-  organization   Organization   @relation(fields: [organizationId], references: [id])
   organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
 
-  bookings       Booking[]
+  bookings         Booking[]
   specialSchedules CourtSchedule[]
-  pricePerHour   Float? 
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  pricePerHour     Float?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 }
 
 model CourtSchedule {
@@ -23,5 +23,5 @@ model CourtSchedule {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([courtId, date]) 
+  @@unique([courtId, date])
 }
