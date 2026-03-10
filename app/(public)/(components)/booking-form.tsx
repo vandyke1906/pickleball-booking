@@ -15,17 +15,12 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
-import { useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { AvailabilityCourt } from "@/app/(public)/(components)/availability-court"
 import { cn } from "@/lib/utils"
-
-// ──────────────────────────────────────────────────────────────
-const COURTS = [
-  { id: "court1", name: "QC Hub - Court 1 (Indoor)", price: 550 },
-  { id: "court2", name: "QC Hub - Court 2 (Indoor)", price: 550 },
-  { id: "court3", name: "Fairview - Court A (Outdoor)", price: 450 },
-  { id: "court4", name: "UP Diliman - Court 3 (Covered)", price: 500 },
-]
+import { useBookings } from "@/lib/hooks/booking/booking.hook"
+import { useCourts } from "@/lib/hooks/court/court.hook"
+import { Booking } from "@prisma/client"
 
 const TIME_SLOTS = [
   "06:00",
@@ -46,95 +41,114 @@ const TIME_SLOTS = [
   "21:00",
   "22:00",
 ]
+// const COURTS = [
+//   { id: "court1", name: "QC Hub - Court 1 (Indoor)", price: 550 },
+//   { id: "court2", name: "QC Hub - Court 2 (Indoor)", price: 550 },
+//   { id: "court3", name: "Fairview - Court A (Outdoor)", price: 450 },
+//   { id: "court4", name: "UP Diliman - Court 3 (Covered)", price: 500 },
+//  ]
 
-const DUMMY_BOOKINGS = [
-  {
-    courtId: "court1",
-    courtName: "QC Hub - Court 1 (Indoor)",
-    startTime: "08:00",
-    endTime: "10:00",
-  },
-  {
-    courtId: "court1",
-    courtName: "QC Hub - Court 1 (Indoor)",
-    startTime: "18:00",
-    endTime: "20:00",
-  },
-  {
-    courtId: "court2",
-    courtName: "QC Hub - Court 2 (Indoor)",
-    startTime: "10:00",
-    endTime: "13:00",
-  },
-  {
-    courtId: "court3",
-    courtName: "Fairview - Court A (Outdoor)",
-    startTime: "07:00",
-    endTime: "08:00",
-  },
-  {
-    courtId: "court3",
-    courtName: "Fairview - Court A (Outdoor)",
-    startTime: "14:00",
-    endTime: "16:00",
-  },
-  {
-    courtId: "court4",
-    courtName: "UP Diliman - Court 3 (Covered)",
-    startTime: "09:00",
-    endTime: "10:00",
-  },
-  {
-    courtId: "court4",
-    courtName: "UP Diliman - Court 3 (Covered)",
-    startTime: "13:00",
-    endTime: "14:00",
-  },
-  {
-    courtId: "court4",
-    courtName: "UP Diliman - Court 3 (Covered)",
-    startTime: "21:00",
-    endTime: "22:00",
-  },
-]
-
-// ─── Helpers ───────────────────────────────────────────────────
+// const DUMMY_BOOKINGS = [
+//   {
+//     courtId: "court1",
+//     courtName: "QC Hub - Court 1 (Indoor)",
+//     startTime: "08:00",
+//     endTime: "10:00",
+//   },
+//   {
+//     courtId: "court1",
+//     courtName: "QC Hub - Court 1 (Indoor)",
+//     startTime: "18:00",
+//     endTime: "20:00",
+//   },
+//   {
+//     courtId: "court2",
+//     courtName: "QC Hub - Court 2 (Indoor)",
+//     startTime: "10:00",
+//     endTime: "13:00",
+//   },
+//   {
+//     courtId: "court3",
+//     courtName: "Fairview - Court A (Outdoor)",
+//     startTime: "07:00",
+//     endTime: "08:00",
+//   },
+//   {
+//     courtId: "court3",
+//     courtName: "Fairview - Court A (Outdoor)",
+//     startTime: "14:00",
+//     endTime: "16:00",
+//   },
+//   {
+//     courtId: "court4",
+//     courtName: "UP Diliman - Court 3 (Covered)",
+//     startTime: "09:00",
+//     endTime: "10:00",
+//   },
+//   {
+//     courtId: "court4",
+//     courtName: "UP Diliman - Court 3 (Covered)",
+//     startTime: "13:00",
+//     endTime: "14:00",
+//   },
+//   {
+//     courtId: "court4",
+//     courtName: "UP Diliman - Court 3 (Covered)",
+//     startTime: "21:00",
+//     endTime: "22:00",
+//   },
+// ]
 function getEndTime(start: string, durationHours: number): string {
   const [h, m] = start.split(":").map(Number)
   const totalMin = h * 60 + m + durationHours * 60
-  const endH = Math.floor(totalMin / 60)
+  const endH = Math.floor(totalMin / 60) % 24
   const endM = totalMin % 60
   return `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`
 }
-
-function isBlockOverlappingWithBookings(
-  courtId: string,
-  proposedStart: string,
-  proposedDurationHours: number,
-): boolean {
-  const proposedEnd = getEndTime(proposedStart, proposedDurationHours)
-
-  const toMinutes = (time: string) => {
-    const [h, m] = time.split(":").map(Number)
-    return h * 60 + m
-  }
-
-  const propStartMin = toMinutes(proposedStart)
-  const propEndMin = toMinutes(proposedEnd)
-
-  const courtBookings = DUMMY_BOOKINGS.filter((b) => b.courtId === courtId)
-
-  for (const booking of courtBookings) {
-    const bookStartMin = toMinutes(booking.startTime)
-    const bookEndMin = toMinutes(booking.endTime)
-
-    if (!(propEndMin <= bookStartMin || propStartMin >= bookEndMin)) {
-      return true // overlap
-    }
-  }
-
-  return false
+function toMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number)
+  return h * 60 + m
 }
+
+function toMinutesFromDateTime(dateTime: string | Date): number {
+  const date = typeof dateTime === "string" ? new Date(dateTime) : dateTime
+  return date.getHours() * 60 + date.getMinutes()
+}
+
+/**
+ * Converts a Date to "HH:mm" string
+ */
+// function dateToTimeString(date: Date) {
+//   const h = date.getHours()
+//   const m = date.getMinutes()
+//   return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`
+// }
+
+//  function isBlockOverlappingWithBookings(
+//   courtId: string,
+//   proposedStart: string,
+//   proposedDurationHours: number,
+//   bookings: Booking[],
+// ): boolean {
+//   const proposedStartDate = new Date()
+//   const [h, m] = proposedStart.split(":").map(Number)
+//   proposedStartDate.setHours(h, m, 0, 0)
+//   const proposedEndDate = new Date(
+//     proposedStartDate.getTime() + proposedDurationHours * 60 * 60 * 1000,
+//   )
+
+//   const courtBookings = bookings.filter((b) => b.courtId === courtId)
+
+//   for (const booking of courtBookings) {
+//     const bookStart = new Date(booking.startTime)
+//     const bookEnd = new Date(booking.endTime)
+
+//     if (!(proposedEndDate <= bookStart || proposedStartDate >= bookEnd)) {
+//       return true
+//     }
+//   }
+//   return false
+// }
 
 // ──────────────────────────────────────────────────────────────
 export default function BookingPage() {
@@ -142,6 +156,33 @@ export default function BookingPage() {
   const [startTime, setStartTime] = useState<string>("18:00")
   const [duration, setDuration] = useState<number>(1)
   const [selectedCourtIds, setSelectedCourtIds] = useState<string[]>([])
+
+  const { data: bookings, isLoadingBookings } = useBookings({ date: date?.toDateString() })
+  const { data: courts, isLoadingCourts } = useCourts()
+  console.info({ bookings, courts })
+
+  const isBlockOverlappingWithBookings = useCallback(
+    (courtId: string, proposedStart: string, proposedDurationHours: number): boolean => {
+      if (!bookings) return false
+
+      const proposedStartMin = toMinutes(proposedStart)
+      const proposedEndMin = proposedStartMin + proposedDurationHours * 60
+
+      const courtBookings = bookings.filter((b) => b.courtId === courtId)
+
+      for (const booking of courtBookings) {
+        const bookStartMin = toMinutesFromDateTime(booking.startTime)
+        const bookEndMin = toMinutesFromDateTime(booking.endTime)
+
+        if (!(proposedEndMin <= bookStartMin || proposedStartMin >= bookEndMin)) {
+          return true // overlap
+        }
+      }
+
+      return false
+    },
+    [bookings],
+  )
 
   const toggleCourt = (courtId: string) => {
     setSelectedCourtIds((prev) =>
@@ -162,7 +203,8 @@ export default function BookingPage() {
     if (!canBook) return
 
     const formattedDate = date ? format(date, "MMMM d, yyyy") : "—"
-    const selectedCourts = COURTS.filter((c) => selectedCourtIds.includes(c.id))
+    const selectedCourts = courts
+      .filter((c) => selectedCourtIds.includes(c.id))
       .map((c) => c.name)
       .join(", ")
 
@@ -254,7 +296,7 @@ export default function BookingPage() {
               <div className="space-y-2 lg:row-span-2">
                 <Label className="font-semibold text-slate-700">Courts</Label>
                 <div className="border rounded-md p-4 bg-slate-50/60 max-h-48 overflow-y-auto space-y-3">
-                  {COURTS.map((court) => (
+                  {courts.map((court) => (
                     <div key={court.id} className="flex items-center space-x-3">
                       <Checkbox
                         id={court.id}
@@ -312,7 +354,7 @@ export default function BookingPage() {
           duration={duration}
           selectedCourtIds={selectedCourtIds}
           timeSlots={TIME_SLOTS}
-          courts={COURTS}
+          courts={courts}
           isBlockOverlapping={isBlockOverlappingWithBookings}
         />
       )}

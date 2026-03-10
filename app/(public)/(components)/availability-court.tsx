@@ -2,6 +2,7 @@
 
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import { Court } from "@prisma/client"
 
 interface AvailabilityCourtProps {
   date: Date
@@ -9,7 +10,7 @@ interface AvailabilityCourtProps {
   duration: number
   selectedCourtIds: string[]
   timeSlots: string[]
-  courts: { id: string; name: string; price: number }[]
+  courts: Court[]
   // Fixed: now correctly matches the function signature from parent
   isBlockOverlapping: (courtId: string, proposedStart: string, proposedDuration: number) => boolean
 }
@@ -23,9 +24,7 @@ export function AvailabilityCourt({
   courts,
   isBlockOverlapping,
 }: AvailabilityCourtProps) {
-  // Helper – checks if full block is available
   const isBlockAvailableForCourt = (courtId: string, start: string, dur: number) => {
-    // No need to loop over individual slots anymore – the overlap function already does it
     return !isBlockOverlapping(courtId, start, dur)
   }
 
@@ -60,7 +59,7 @@ export function AvailabilityCourt({
                     )}
                   >
                     {court.name}
-                    <div className="text-xs text-slate-500 mt-1">₱{court.price}/hr</div>
+                    <div className="text-xs text-slate-500 mt-1">₱{court.pricePerHour}/hr</div>
                   </th>
                 ))}
               </tr>

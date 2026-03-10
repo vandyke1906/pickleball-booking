@@ -3,7 +3,6 @@ model User {
   email          String       @unique
   name           String
   password       String?
-  orgId          String
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
   role           String       @default("user")

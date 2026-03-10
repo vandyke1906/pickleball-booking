@@ -9,4 +9,6 @@ model Court {
   pricePerHour     Float?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
+  
+  @@unique([organizationId, name])
 }
