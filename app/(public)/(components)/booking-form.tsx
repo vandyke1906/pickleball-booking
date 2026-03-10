@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { CalendarDays, Clock } from "lucide-react"
+import { CalendarDays, Clock, AlertCircle } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
 import { useState } from "react"
 import { AvailabilityCourt } from "@/app/(public)/(components)/availability-court"
+import { cn } from "@/lib/utils"
 
 // ──────────────────────────────────────────────────────────────
 const COURTS = [
@@ -127,9 +128,8 @@ function isBlockOverlappingWithBookings(
     const bookStartMin = toMinutes(booking.startTime)
     const bookEndMin = toMinutes(booking.endTime)
 
-    // Overlap if NOT (proposed ends before booking OR proposed starts after booking)
     if (!(propEndMin <= bookStartMin || propStartMin >= bookEndMin)) {
-      return true // overlap → cannot book
+      return true // overlap
     }
   }
 
@@ -150,6 +150,37 @@ export default function BookingPage() {
   }
 
   const endTime = getEndTime(startTime, duration)
+
+  // Check if ALL selected courts are available for the chosen slot
+  const canBook =
+    selectedCourtIds.length > 0 &&
+    selectedCourtIds.every(
+      (courtId) => !isBlockOverlappingWithBookings(courtId, startTime, duration),
+    )
+
+  const handleBookNow = () => {
+    if (!canBook) return
+
+    const formattedDate = date ? format(date, "MMMM d, yyyy") : "—"
+    const selectedCourts = COURTS.filter((c) => selectedCourtIds.includes(c.id))
+      .map((c) => c.name)
+      .join(", ")
+
+    alert(
+      `Booking Confirmation (Demo)\n\n` +
+        `Date: ${formattedDate}\n` +
+        `Time: ${startTime} – ${endTime} (${duration} hour${duration > 1 ? "s" : ""})\n` +
+        `Courts: ${selectedCourts}\n\n` +
+        `Total courts: ${selectedCourtIds.length}\n` +
+        `This would be one transaction for all selected courts.\n\n` +
+        `→ In real app: open payment / confirmation modal here`,
+    )
+
+    // Future:
+    // - calculate total price
+    // - send to backend (POST /api/bookings)
+    // - show success toast / redirect to confirmation page
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-20">
@@ -221,7 +252,7 @@ export default function BookingPage() {
               </div>
 
               <div className="space-y-2 lg:row-span-2">
-                <Label className="font-semibold text-slate-700">Highlight Courts</Label>
+                <Label className="font-semibold text-slate-700">Courts</Label>
                 <div className="border rounded-md p-4 bg-slate-50/60 max-h-48 overflow-y-auto space-y-3">
                   {COURTS.map((court) => (
                     <div key={court.id} className="flex items-center space-x-3">
@@ -239,14 +270,41 @@ export default function BookingPage() {
               </div>
             </div>
 
-            <div className="mt-6 text-center text-sm text-slate-600">
-              Showing {duration}h blocks • {startTime} – {endTime}
+            {/* Book Now button – in the form */}
+            <div className="mt-8 flex flex-col items-center gap-3">
+              <Button
+                size="lg"
+                className="w-full max-w-md h-14 text-lg font-semibold"
+                disabled={!canBook}
+                onClick={handleBookNow}
+              >
+                Book Now – {selectedCourtIds.length} court{selectedCourtIds.length !== 1 ? "s" : ""}
+              </Button>
+
+              {!canBook && selectedCourtIds.length > 0 && (
+                <div className="flex items-center gap-2 text-sm text-amber-700">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>Some selected courts are not available at this time</span>
+                </div>
+              )}
+
+              {selectedCourtIds.length === 0 && (
+                <p className="text-sm text-slate-500">Select at least one court to continue</p>
+              )}
+            </div>
+
+            <div className="mt-4 text-center text-sm text-slate-500">
+              {selectedCourtIds.length > 0 && canBook && (
+                <>
+                  One transaction for all selected courts at {startTime} – {endTime}
+                </>
+              )}
             </div>
           </div>
         </div>
       </motion.section>
 
-      {/* Table – always visible when date is set */}
+      {/* Availability Table */}
       {date && (
         <AvailabilityCourt
           date={date}
@@ -255,7 +313,6 @@ export default function BookingPage() {
           selectedCourtIds={selectedCourtIds}
           timeSlots={TIME_SLOTS}
           courts={COURTS}
-          // Pass the correct overlap-checking function
           isBlockOverlapping={isBlockOverlappingWithBookings}
         />
       )}
