@@ -1,0 +1,13 @@
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  openTime  String 
+  closeTime String 
+
+  courts    Court[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("organizations")
+}
