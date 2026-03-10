@@ -45,3 +45,6 @@ next-env.d.ts
 
 #remove generated prisma
 .config/prisma/generated/
+
+.prettierrc
+package-lock.json
