@@ -67,11 +67,14 @@ export default function BookingPage() {
   const duration = form.watch("duration")
   const selectedCourtIds = form.watch("courtIds")
 
+  const mutation = useCreateBooking()
+
   const { data: courts, isLoading: isLoadingCourts } = useCourts()
   const { data: courtBookings, isLoading: isLoadingCourtBookings } = useCourtBookings({
     date: dateString,
   })
-  const mutation = useCreateBooking()
+
+  console.info({ courtBookings })
 
   const isBlockOverlappingWithBookings = useCallback(
     (courtId: string, proposedStart: string, proposedDurationHours: number): boolean => {

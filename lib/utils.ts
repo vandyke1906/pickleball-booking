@@ -18,9 +18,9 @@ export const toMinutesFromDateTime = (dt: Date): number => {
 }
 
 // Parse "yyyy-MM-dd HH:mm:ss" → Date (local)
-export const parseLocalDateTime = (dateTimeStr: string): Date => {
-  return parseISO(dateTimeStr.replace(" ", "T"))
-}
+// export const parseLocalDateTime = (dateTimeStr: string): Date => {
+//   return parseISO(dateTimeStr.replace(" ", "T"))
+// }
 
 export const getEndTime = (start: string, durationHours: number): string => {
   const [h, m] = start.split(":").map(Number)
@@ -46,4 +46,9 @@ export function makeBookingDate(dateString: string, timeString: string, duration
   const end = addMinutes(start, durationHours * 60)
 
   return { start, end }
+}
+
+export const parseLocalDateTime = (datetime: string): Date => {
+  const utc = new Date(datetime + "Z") // Force UTC interpretation
+  return new Date(utc.getTime() + 8 * 60 * 60 * 1000) // Shift into local time (Asia/Manila is UTC+8)
 }

@@ -34,12 +34,13 @@ export function AvailabilityCourt({
 
     return !court.bookings.some((b) => {
       const bookingStart = parseLocalDateTime(b.startTime)
+      console.log({
+        startTime: b.startTime,
+        bookingStart: bookingStart.toLocaleString("en-PH", { hour12: false }),
+      })
       const bookingEnd = parseLocalDateTime(b.endTime)
 
-      const sameDay =
-        bookingStart.getFullYear() === date.getFullYear() &&
-        bookingStart.getMonth() === date.getMonth() &&
-        bookingStart.getDate() === date.getDate()
+      const sameDay = bookingStart.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH")
 
       if (!sameDay) return false
 
