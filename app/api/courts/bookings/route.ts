@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { format } from "date-fns"
-import { formatInTimeZone } from "date-fns-tz"
 
 export async function GET(request: Request) {
   try {
@@ -30,19 +29,17 @@ export async function GET(request: Request) {
           where: dateParam
             ? {
                 startTime: {
-                  gte: new Date(dateParam + "T00:00:00.000Z"),
+                  gte: new Date(`${dateParam}T00:00:00`), // local midnight
                 },
                 endTime: {
-                  lt: new Date(dateParam + "T23:59:59.999Z"),
+                  lt: new Date(`${dateParam}T23:59:59`),
                 },
                 status: { in: ["pending", "confirmed"] },
               }
-            : {
-                status: { in: ["pending", "confirmed"] },
-              },
+            : { status: { in: ["pending", "confirmed"] } },
           select: {
             id: true,
-            userName: true,
+            fullName: true,
             startTime: true,
             endTime: true,
             status: true,
@@ -64,18 +61,13 @@ export async function GET(request: Request) {
         openTime: court.organization.openTime,
         closeTime: court.organization.closeTime,
       },
-      bookings: court.bookings.map((b) => {
-        return {
-          id: b.id,
-          userName: b.userName,
-          startTime: format(
-            new Date(b.startTime.toISOString().slice(0, 19)),
-            "yyyy-MM-dd HH:mm:ss",
-          ),
-          endTime: format(new Date(b.endTime.toISOString().slice(0, 19)), "yyyy-MM-dd HH:mm:ss"),
-          status: b.status,
-        }
-      }),
+      bookings: court.bookings.map((b) => ({
+        id: b.id,
+        fullName: b.fullName,
+        startTime: format(new Date(b.startTime.toISOString().slice(0, 19)), "yyyy-MM-dd HH:mm:ss"),
+        endTime: format(new Date(b.endTime.toISOString().slice(0, 19)), "yyyy-MM-dd HH:mm:ss"),
+        status: b.status,
+      })),
     }))
 
     return NextResponse.json(formatted)

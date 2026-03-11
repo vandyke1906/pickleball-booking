@@ -10,6 +10,7 @@
     "postinstall": "npx prisma generate"
   },
   "dependencies": {
+    "@faker-js/faker": "^10.3.0",
     "@hookform/resolvers": "^5.2.2",
     "@next-auth/prisma-adapter": "^1.0.7",
     "@prisma/adapter-pg": "^7.4.0",

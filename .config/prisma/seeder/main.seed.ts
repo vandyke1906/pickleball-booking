@@ -2,6 +2,7 @@ import { PrismaClient } from "../generated/prisma/client"
 import { PrismaPg } from "@prisma/adapter-pg"
 import { hash } from "bcrypt"
 import * as dotenv from "dotenv"
+import { faker } from "@faker-js/faker"
 
 dotenv.config()
 
@@ -110,90 +111,43 @@ async function seedCourts(organizationId: string) {
 // 4. Seed Dummy Bookings
 // ──────────────────────────────────────────────────────────────
 async function seedDummyBookings(courts: Array<{ id: string }>) {
-  const now = new Date()
-  const tomorrow = new Date(now)
-  tomorrow.setDate(tomorrow.getDate() + 1)
+  const today = new Date()
+  const bookingsPerCourt = 5 // how many bookings per court
 
-  const nextWeek = new Date(now)
-  nextWeek.setDate(nextWeek.getDate() + 7)
+  for (const court of courts) {
+    for (let i = 0; i < bookingsPerCourt; i++) {
+      // Random start hour between 6 AM and 21 PM
+      const startHour = faker.number.int({ min: 6, max: 21 })
+      const durationHours = faker.number.int({ min: 1, max: 2 })
 
-  const bookingData = [
-    // Today
-    {
-      courtId: courts[0].id,
-      userName: "Ronie",
-      start: now.setHours(8, 0, 0, 0),
-      end: now.setHours(9, 0, 0, 0),
-      status: "confirmed",
-    },
-    {
-      courtId: courts[0].id,
-      userName: "Guest 1",
-      start: now.setHours(13, 0, 0, 0),
-      end: now.setHours(14, 0, 0, 0),
-      status: "confirmed",
-    },
-    {
-      courtId: courts[1].id,
-      userName: "Team Alpha",
-      start: now.setHours(16, 0, 0, 0),
-      end: now.setHours(17, 0, 0, 0),
-      status: "confirmed",
-    },
+      const start = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate() + faker.number.int({ min: 0, max: 7 }), // today + up to 7 days
+        startHour,
+        0,
+        0,
+        0,
+      )
+      const end = new Date(start.getTime() + durationHours * 60 * 60 * 1000)
 
-    // Tomorrow
-    {
-      courtId: courts[2].id,
-      userName: "Ronie",
-      start: tomorrow.setHours(7, 0, 0, 0),
-      end: tomorrow.setHours(8, 0, 0, 0),
-      status: "pending",
-    },
-    {
-      courtId: courts[2].id,
-      userName: "Family B",
-      start: tomorrow.setHours(14, 0, 0, 0),
-      end: tomorrow.setHours(16, 0, 0, 0),
-      status: "confirmed",
-    },
+      await prisma.booking.create({
+        data: {
+          code: `BOOK-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          courts: { connect: { id: court.id } },
+          fullName: faker.person.fullName(),
+          contactNumber: faker.phone.number({ style: "human" }),
+          emailAddress: faker.internet.email(),
+          startTime: start,
+          endTime: end,
+          status: faker.helpers.arrayElement(["pending", "confirmed", "cancelled"]),
+          totalPrice: court.pricePerHour * durationHours,
+          notes: faker.lorem.sentence(),
+        },
+      })
 
-    // Next week
-    {
-      courtId: courts[3].id,
-      userName: "Corporate Event",
-      start: nextWeek.setHours(9, 0, 0, 0),
-      end: nextWeek.setHours(10, 0, 0, 0),
-      status: "pending",
-    },
-    {
-      courtId: courts[3].id,
-      userName: "League Match",
-      start: nextWeek.setHours(13, 0, 0, 0),
-      end: nextWeek.setHours(14, 0, 0, 0),
-      status: "confirmed",
-    },
-    {
-      courtId: courts[3].id,
-      userName: "Night Training",
-      start: nextWeek.setHours(21, 0, 0, 0),
-      end: nextWeek.setHours(22, 0, 0, 0),
-      status: "pending",
-    },
-  ]
-
-  for (const data of bookingData) {
-    await prisma.booking.create({
-      data: {
-        courtId: data.courtId,
-        userName: data.userName,
-        startTime: new Date(data.start),
-        endTime: new Date(data.end),
-        status: data.status,
-      },
-    })
-    console.log(
-      `Booking created → ${data.userName} @ ${new Date(data.start).toISOString().slice(0, 16)}`,
-    )
+      console.log(`Booking created → ${court.name} @ ${start.toISOString().slice(0, 16)}`)
+    }
   }
 }
 

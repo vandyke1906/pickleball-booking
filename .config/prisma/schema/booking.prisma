@@ -1,12 +1,14 @@
 model Booking {
-  id      String @id @default(cuid())
-  code    String @unique
-  court   Court  @relation(fields: [courtId], references: [id], onDelete: Cascade)
-  courtId String
+  id   String @id @default(cuid())
+  code String @unique
 
-  userName  String
-  startTime DateTime
-  endTime   DateTime
+  courts Court[] @relation("BookingCourts")
+
+  fullName      String
+  contactNumber String?
+  emailAddress  String?
+  startTime     DateTime
+  endTime       DateTime
 
   status String @default("pending") // pending, confirmed, cancelled, completed
 
