@@ -1,5 +1,6 @@
 model Booking {
   id      String @id @default(cuid())
+  code    String @unique
   court   Court  @relation(fields: [courtId], references: [id], onDelete: Cascade)
   courtId String
 

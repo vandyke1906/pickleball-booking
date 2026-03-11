@@ -1,37 +1,15 @@
 "use client"
 
-import { format, parseISO } from "date-fns"
+import { format } from "date-fns"
 import { cn, parseLocalDateTime, toMinutes } from "@/lib/utils"
-
-interface Booking {
-  id: string
-  userName: string
-  startTime: string // "yyyy-MM-dd HH:mm:ss" from API
-  endTime: string // "yyyy-MM-dd HH:mm:ss" from API
-  status: string
-}
-
-interface CourtWithBookings {
-  id: string
-  name: string
-  location: string
-  pricePerHour: number
-  organization: {
-    id: string
-    name: string
-    openTime: string
-    closeTime: string
-  }
-  bookings: Booking[]
-}
-
+import { TCourtWithBooking } from "@/lib/hooks/court/court.hook"
 interface AvailabilityCourtProps {
   date: Date
   startTime: string
   duration: number
   selectedCourtIds: string[]
   timeSlots: string[]
-  courts: CourtWithBookings[]
+  courtWithBookings: TCourtWithBooking[]
 }
 
 export function AvailabilityCourt({
@@ -40,10 +18,10 @@ export function AvailabilityCourt({
   duration,
   selectedCourtIds,
   timeSlots,
-  courts,
+  courtWithBookings,
 }: AvailabilityCourtProps) {
   const isBlockAvailableForCourt = (
-    court: CourtWithBookings,
+    court: TCourtWithBooking,
     proposedStart: string,
     dur: number,
     date: Date,
@@ -91,7 +69,7 @@ export function AvailabilityCourt({
                 <th className="sticky left-0 z-10 bg-slate-100 p-4 text-left font-semibold border-b border-r border-slate-200 min-w-[140px]">
                   Start Time
                 </th>
-                {courts.map((court) => (
+                {courtWithBookings.map((court) => (
                   <th
                     key={court.id}
                     className={cn(
@@ -112,7 +90,7 @@ export function AvailabilityCourt({
                     {time}
                   </td>
 
-                  {courts.map((court) => {
+                  {courtWithBookings.map((court) => {
                     const isAvailable = isBlockAvailableForCourt(court, time, duration, date)
                     const isSelected = selectedCourtIds.includes(court.id)
 

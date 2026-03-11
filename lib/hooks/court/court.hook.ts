@@ -1,6 +1,13 @@
 import { fetcher } from "@/lib/hooks/common.hook"
-import { Court } from "@prisma/client"
+import { Booking, Court } from "@prisma/client"
 import { useQuery } from "@tanstack/react-query"
+
+type TBookingWithStringTime = Omit<Booking, "startTime" | "endTime"> & {
+  startTime: string
+  endTime: string
+}
+
+export type TCourtWithBooking = Court & { bookings: TBookingWithStringTime[] }
 
 export const qKeyCourts = {
   all: ["courts"] as const,
@@ -32,16 +39,6 @@ export function useCourts({ organizationId }: { organizationId?: string } = {}) 
   }
 }
 
-interface CourtWithBookings extends Court {
-  bookings: {
-    id: string
-    userName: string
-    startTime: string
-    endTime: string
-    status: string
-  }[]
-}
-
 export function useCourtBookings({
   date,
   organizationId,
@@ -52,7 +49,7 @@ export function useCourtBookings({
 
   const url = `/api/courts/bookings${params.toString() ? `?${params.toString()}` : ""}`
 
-  const query = useQuery<Array<CourtWithBookings>>({
+  const query = useQuery<Array<TCourtWithBooking>>({
     queryKey: qKeyCourts.bookings({ organizationId, date }),
     queryFn: () => fetcher(url),
   })

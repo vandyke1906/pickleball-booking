@@ -11,8 +11,6 @@ export async function GET(request: Request) {
 
     const where = organizationId ? { organizationId } : {}
 
-    console.info({ organizationId, dateParam })
-
     const courts = await prisma.court.findMany({
       where,
       select: {
@@ -67,9 +65,6 @@ export async function GET(request: Request) {
         closeTime: court.organization.closeTime,
       },
       bookings: court.bookings.map((b) => {
-        console.info({
-          d: format(new Date(b.startTime.toISOString().slice(0, 19)), "yyyy-MM-dd HH:mm:ss"),
-        })
         return {
           id: b.id,
           userName: b.userName,

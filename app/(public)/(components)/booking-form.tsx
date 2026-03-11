@@ -15,12 +15,10 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useState } from "react"
 import { AvailabilityCourt } from "@/app/(public)/(components)/availability-court"
 import { cn, parseLocalDateTime, toMinutes, toMinutesFromDateTime } from "@/lib/utils"
-import { useBookings } from "@/lib/hooks/booking/booking.hook"
 import { useCourtBookings, useCourts } from "@/lib/hooks/court/court.hook"
-import { Booking } from "@prisma/client"
 
 const TIME_SLOTS = [
   "06:00",
@@ -61,6 +59,8 @@ export default function BookingPage() {
     date: date ? format(date, "yyyy-MM-dd") : undefined,
   })
 
+  console.info({ courts, courtBookings })
+
   const isBlockOverlappingWithBookings = useCallback(
     (courtId: string, proposedStart: string, proposedDurationHours: number): boolean => {
       if (!courtBookings || !date) return false
@@ -71,7 +71,6 @@ export default function BookingPage() {
       const currentCourt = courtBookings.find((b) => b.id === courtId)
       const currentBookings = currentCourt?.bookings || []
       for (const booking of currentBookings) {
-        console.info({ booking })
         const bookingStart = parseLocalDateTime(booking.startTime)
         const bookingEnd = parseLocalDateTime(booking.endTime)
 
@@ -261,10 +260,10 @@ export default function BookingPage() {
         <AvailabilityCourt
           date={date}
           startTime="06:00"
-          duration={1} // 1 hour blocks
+          duration={1}
           selectedCourtIds={selectedCourtIds}
           timeSlots={TIME_SLOTS}
-          courts={courtBookings}
+          courtWithBookings={courtBookings}
         />
       )}
 
