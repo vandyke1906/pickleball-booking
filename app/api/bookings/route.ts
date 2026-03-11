@@ -3,6 +3,7 @@ import { addMinutes } from "date-fns"
 import { NextRequest, NextResponse } from "next/server"
 import { promises as fs } from "fs"
 import path from "path"
+import { makeBookingDate } from "@/lib/utils"
 
 export async function GET(request: NextRequest) {
   try {
@@ -57,9 +58,11 @@ export async function POST(req: Request) {
   const emailAddress = formData.get("emailAddress") as string
   const proofOfPayment = formData.get("proofOfPayment") as File
 
-  const start = new Date(`${date}T${startTime}:00`)
-  const end = addMinutes(start, duration * 60)
+  const { start, end } = makeBookingDate(date, startTime, duration)
+  console.log("Raw:", start) // shows UTC representation
+  console.log("Local:", start.toLocaleString("en-PH", { hour12: false }))
 
+  // return NextResponse.json({ success: true, result: "okay" })
   try {
     const result = await prisma.$transaction(async (tx) => {
       const conflicts = await tx.booking.findMany({

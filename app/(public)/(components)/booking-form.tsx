@@ -17,8 +17,14 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
 import { useCallback, useState } from "react"
 import { AvailabilityCourt } from "@/app/(public)/(components)/availability-court"
-import { cn, parseLocalDateTime, toMinutes, toMinutesFromDateTime } from "@/lib/utils"
+import { cn, getEndTime, parseLocalDateTime, toMinutes, toMinutesFromDateTime } from "@/lib/utils"
 import { useCourtBookings, useCourts } from "@/lib/hooks/court/court.hook"
+import { useCreateBooking } from "@/lib/mutations/booking/booking.mutation"
+import { useForm } from "react-hook-form"
+import { BookingPayload, bookingSchema } from "@/lib/validation/booking/booking.validation"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { start } from "repl"
+import { Input } from "@/components/ui/input"
 
 const TIME_SLOTS = [
   "06:00",
@@ -40,26 +46,32 @@ const TIME_SLOTS = [
   "22:00",
 ]
 
-function getEndTime(start: string, durationHours: number): string {
-  const [h, m] = start.split(":").map(Number)
-  const totalMin = h * 60 + m + durationHours * 60
-  const endH = Math.floor(totalMin / 60) % 24
-  const endM = totalMin % 60
-  return `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`
-}
-
 export default function BookingPage() {
-  const [date, setDate] = useState<Date | undefined>(new Date())
-  const [startTime, setStartTime] = useState<string>("18:00")
-  const [duration, setDuration] = useState<number>(1)
-  const [selectedCourtIds, setSelectedCourtIds] = useState<string[]>([])
-
-  const { data: courts, isLoadingCourts } = useCourts()
-  const { data: courtBookings, isLoadingCourtBookings } = useCourtBookings({
-    date: date ? format(date, "yyyy-MM-dd") : undefined,
+  const form = useForm<BookingPayload>({
+    resolver: zodResolver(bookingSchema),
+    defaultValues: {
+      date: "",
+      startTime: "06:00",
+      duration: 1,
+      courtIds: [],
+      fullName: "",
+      contactNumber: "",
+      emailAddress: "",
+      proofOfPayment: undefined as any,
+    },
   })
 
-  console.info({ courts, courtBookings })
+  const dateString = form.watch("date")
+  const date = dateString ? new Date(dateString) : undefined
+  const startTime = form.watch("startTime")
+  const duration = form.watch("duration")
+  const selectedCourtIds = form.watch("courtIds")
+
+  const { data: courts, isLoading: isLoadingCourts } = useCourts()
+  const { data: courtBookings, isLoading: isLoadingCourtBookings } = useCourtBookings({
+    date: dateString,
+  })
+  const mutation = useCreateBooking()
 
   const isBlockOverlappingWithBookings = useCallback(
     (courtId: string, proposedStart: string, proposedDurationHours: number): boolean => {
@@ -94,43 +106,18 @@ export default function BookingPage() {
     [courtBookings, date],
   )
 
-  // Check if ALL selected courts are available for the chosen slot
-  const endTime = getEndTime(startTime, duration)
   const canBook =
-    selectedCourtIds.length > 0 &&
-    selectedCourtIds.every(
-      (courtId) => !isBlockOverlappingWithBookings(courtId, startTime, duration),
-    )
+    form.watch("courtIds").length > 0 &&
+    form
+      .watch("courtIds")
+      .every(
+        (courtId) =>
+          !isBlockOverlappingWithBookings(courtId, form.watch("startTime"), form.watch("duration")),
+      )
 
-  const toggleCourt = (courtId: string) => {
-    setSelectedCourtIds((prev) =>
-      prev.includes(courtId) ? prev.filter((id) => id !== courtId) : [...prev, courtId],
-    )
-  }
-
-  const handleBookNow = () => {
+  const onSubmit = (values: BookingPayload) => {
     if (!canBook) return
-
-    const formattedDate = date ? format(date, "MMMM d, yyyy") : "—"
-    const selectedCourts = courts
-      .filter((c) => selectedCourtIds.includes(c.id))
-      .map((c) => c.name)
-      .join(", ")
-
-    alert(
-      `Booking Confirmation (Demo)\n\n` +
-        `Date: ${formattedDate}\n` +
-        `Time: ${startTime} – ${endTime} (${duration} hour${duration > 1 ? "s" : ""})\n` +
-        `Courts: ${selectedCourts}\n\n` +
-        `Total courts: ${selectedCourtIds.length}\n` +
-        `This would be one transaction for all selected courts.\n\n` +
-        `→ In real app: open payment / confirmation modal here`,
-    )
-
-    // Future:
-    // - calculate total price
-    // - send to backend (POST /api/bookings)
-    // - show success toast / redirect to confirmation page
+    mutation.mutate(values)
   }
 
   return (
@@ -145,32 +132,44 @@ export default function BookingPage() {
           <h1 className="text-3xl sm:text-4xl font-bold text-center mb-10">
             Book Pickleball Court
           </h1>
+          {/* form booking */}
 
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="bg-white border border-slate-200 rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10 space-y-8"
+          >
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Date */}
               <div className="space-y-2">
                 <Label className="font-semibold text-slate-700">Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full h-12 justify-start text-left">
                       <CalendarDays className="mr-3 h-5 w-5 text-primary" />
-                      {date ? format(date, "PPP") : "Select date"}
+                      {form.watch("date") ? format(date, "PPP") : "Select date"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
-                      selected={date}
-                      onSelect={setDate}
+                      selected={form.watch("date") ? date : undefined}
+                      onSelect={(d) => form.setValue("date", format(d!, "yyyy-MM-dd"))}
                       disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
                     />
                   </PopoverContent>
                 </Popover>
+                {form.formState.errors.date && (
+                  <p className="text-sm text-red-600">{form.formState.errors.date.message}</p>
+                )}
               </div>
 
+              {/* Start Time */}
               <div className="space-y-2">
                 <Label className="font-semibold text-slate-700">Start Time</Label>
-                <Select value={startTime} onValueChange={setStartTime}>
+                <Select
+                  value={form.watch("startTime")}
+                  onValueChange={(v) => form.setValue("startTime", v)}
+                >
                   <SelectTrigger className="h-12">
                     <Clock className="mr-3 h-5 w-5 text-primary" />
                     <SelectValue />
@@ -183,11 +182,18 @@ export default function BookingPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                {form.formState.errors.startTime && (
+                  <p className="text-sm text-red-600">{form.formState.errors.startTime.message}</p>
+                )}
               </div>
 
+              {/* Duration */}
               <div className="space-y-2">
                 <Label className="font-semibold text-slate-700">Duration</Label>
-                <Select value={duration.toString()} onValueChange={(v) => setDuration(Number(v))}>
+                <Select
+                  value={form.watch("duration").toString()}
+                  onValueChange={(v) => form.setValue("duration", Number(v))}
+                >
                   <SelectTrigger className="h-12">
                     <Clock className="mr-3 h-5 w-5 text-primary" />
                     <SelectValue />
@@ -202,6 +208,7 @@ export default function BookingPage() {
                 </Select>
               </div>
 
+              {/* Courts */}
               <div className="space-y-2 lg:row-span-2">
                 <Label className="font-semibold text-slate-700">Courts</Label>
                 <div className="border rounded-md p-4 bg-slate-50/60 max-h-48 overflow-y-auto space-y-3">
@@ -209,8 +216,18 @@ export default function BookingPage() {
                     <div key={court.id} className="flex items-center space-x-3">
                       <Checkbox
                         id={court.id}
-                        checked={selectedCourtIds.includes(court.id)}
-                        onCheckedChange={() => toggleCourt(court.id)}
+                        checked={form.watch("courtIds").includes(court.id)}
+                        onCheckedChange={() => {
+                          const current = form.getValues("courtIds")
+                          if (current.includes(court.id)) {
+                            form.setValue(
+                              "courtIds",
+                              current.filter((id) => id !== court.id),
+                            )
+                          } else {
+                            form.setValue("courtIds", [...current, court.id])
+                          }
+                        }}
                       />
                       <label htmlFor={court.id} className="text-sm cursor-pointer leading-none">
                         {court.name}
@@ -218,52 +235,125 @@ export default function BookingPage() {
                     </div>
                   ))}
                 </div>
+                {form.formState.errors.courtIds && (
+                  <p className="text-sm text-red-600">{form.formState.errors.courtIds.message}</p>
+                )}
               </div>
             </div>
 
-            {/* Book Now button – in the form */}
+            {/* fullName */}
+            <div className="space-y-2">
+              <Label htmlFor="fullName" className="font-semibold text-slate-700">
+                Full Name
+              </Label>
+              <Input
+                id="fullName"
+                type="text"
+                placeholder="Enter Name"
+                {...form.register("fullName")}
+              />
+              {form.formState.errors.fullName && (
+                <p className="text-sm text-red-600">{form.formState.errors.fullName.message}</p>
+              )}
+            </div>
+
+            {/* contactNumber */}
+            <div className="space-y-2">
+              <Label htmlFor="contactNumber" className="font-semibold text-slate-700">
+                Contact Number
+              </Label>
+              <Input
+                id="contactNumber"
+                type="text"
+                placeholder="Enter Contact Number"
+                {...form.register("contactNumber")}
+              />
+              {form.formState.errors.contactNumber && (
+                <p className="text-sm text-red-600">
+                  {form.formState.errors.contactNumber.message}
+                </p>
+              )}
+            </div>
+
+            {/* emailAddress */}
+            <div className="space-y-2">
+              <Label htmlFor="emailAddress" className="font-semibold text-slate-700">
+                Contact Number
+              </Label>
+              <Input
+                id="emailAddress"
+                type="email"
+                placeholder="Enter Email"
+                {...form.register("emailAddress")}
+              />
+              {form.formState.errors.emailAddress && (
+                <p className="text-sm text-red-600">{form.formState.errors.emailAddress.message}</p>
+              )}
+            </div>
+
+            {/* Proof of Payment */}
+            <div className="space-y-2">
+              <Label className="font-semibold text-slate-700">Proof of Payment</Label>
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => form.setValue("proofOfPayment", e.target.files?.[0] as File)}
+                className="block w-full text-sm text-slate-600"
+              />
+              {form.formState.errors.proofOfPayment && (
+                <p className="text-sm text-red-600">
+                  {form.formState.errors.proofOfPayment.message}
+                </p>
+              )}
+            </div>
+
+            {/* Book Now button */}
             <div className="mt-8 flex flex-col items-center gap-3">
               <Button
+                type="submit"
                 size="lg"
                 className="w-full max-w-md h-14 text-lg font-semibold"
-                disabled={!canBook}
-                onClick={handleBookNow}
+                disabled={mutation.isPending || !canBook}
               >
-                Book Now – {selectedCourtIds.length} court{selectedCourtIds.length !== 1 ? "s" : ""}
+                {mutation.isPending
+                  ? "Booking..."
+                  : `Book Now – ${form.watch("courtIds").length} court${form.watch("courtIds").length !== 1 ? "s" : ""}`}
               </Button>
 
-              {!canBook && selectedCourtIds.length > 0 && (
+              {form.watch("courtIds").length === 0 && (
+                <p className="text-sm text-slate-500">Select at least one court to continue</p>
+              )}
+
+              {!canBook && form.watch("courtIds").length > 0 && (
                 <div className="flex items-center gap-2 text-sm text-amber-700">
                   <AlertCircle className="h-4 w-4" />
                   <span>Some selected courts are not available at this time</span>
                 </div>
               )}
-
-              {selectedCourtIds.length === 0 && (
-                <p className="text-sm text-slate-500">Select at least one court to continue</p>
-              )}
             </div>
-
-            <div className="mt-4 text-center text-sm text-slate-500">
-              {selectedCourtIds.length > 0 && canBook && (
-                <>
-                  One transaction for all selected courts at {startTime} – {endTime}
-                </>
-              )}
-            </div>
+          </form>
+          {/* form booking */}
+          <div className="mt-4 text-center text-sm text-slate-500">
+            {selectedCourtIds.length > 0 && canBook && (
+              <>
+                One transaction for all selected courts at {startTime} –{" "}
+                {getEndTime(startTime, duration)}
+              </>
+            )}
           </div>
         </div>
       </motion.section>
 
       {/* Availability Table */}
-      {date && (
+      {dateString && (
         <AvailabilityCourt
-          date={date}
-          startTime="06:00"
-          duration={1}
+          date={date as Date}
+          startTime={startTime}
+          duration={duration}
           selectedCourtIds={selectedCourtIds}
           timeSlots={TIME_SLOTS}
           courtWithBookings={courtBookings}
+          isLoading={isLoadingCourtBookings || isLoadingCourts}
         />
       )}
 

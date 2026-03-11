@@ -1,5 +1,5 @@
 import { clsx, type ClassValue } from "clsx"
-import { parseISO } from "date-fns"
+import { addMinutes, parseISO } from "date-fns"
 import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
@@ -28,4 +28,22 @@ export const getEndTime = (start: string, durationHours: number): string => {
   const endH = Math.floor(totalMin / 60) % 24
   const endM = totalMin % 60
   return `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`
+}
+
+/**
+ * Build local Date objects from date + time strings
+ * @param dateString - "yyyy-MM-dd"
+ * @param timeString - "HH:mm"
+ * @param durationHours - duration in hours
+ * @returns { start: Date, end: Date }
+ */
+export function makeBookingDate(dateString: string, timeString: string, durationHours: number) {
+  const [year, month, day] = dateString.split("-").map(Number)
+  const [hour, minute] = timeString.split(":").map(Number)
+
+  // Construct local Date (no UTC conversion)
+  const start = new Date(year, month - 1, day, hour, minute)
+  const end = addMinutes(start, durationHours * 60)
+
+  return { start, end }
 }
