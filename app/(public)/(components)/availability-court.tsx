@@ -1,8 +1,29 @@
 "use client"
 
-import { format } from "date-fns"
-import { cn } from "@/lib/utils"
-import { Court } from "@prisma/client"
+import { format, parseISO } from "date-fns"
+import { cn, parseLocalDateTime, toMinutes } from "@/lib/utils"
+
+interface Booking {
+  id: string
+  userName: string
+  startTime: string // "yyyy-MM-dd HH:mm:ss" from API
+  endTime: string // "yyyy-MM-dd HH:mm:ss" from API
+  status: string
+}
+
+interface CourtWithBookings {
+  id: string
+  name: string
+  location: string
+  pricePerHour: number
+  organization: {
+    id: string
+    name: string
+    openTime: string
+    closeTime: string
+  }
+  bookings: Booking[]
+}
 
 interface AvailabilityCourtProps {
   date: Date
@@ -10,9 +31,7 @@ interface AvailabilityCourtProps {
   duration: number
   selectedCourtIds: string[]
   timeSlots: string[]
-  courts: Court[]
-  // Fixed: now correctly matches the function signature from parent
-  isBlockOverlapping: (courtId: string, proposedStart: string, proposedDuration: number) => boolean
+  courts: CourtWithBookings[]
 }
 
 export function AvailabilityCourt({
@@ -22,10 +41,32 @@ export function AvailabilityCourt({
   selectedCourtIds,
   timeSlots,
   courts,
-  isBlockOverlapping,
 }: AvailabilityCourtProps) {
-  const isBlockAvailableForCourt = (courtId: string, start: string, dur: number) => {
-    return !isBlockOverlapping(courtId, start, dur)
+  const isBlockAvailableForCourt = (
+    court: CourtWithBookings,
+    proposedStart: string,
+    dur: number,
+    date: Date,
+  ) => {
+    const proposedStartMin = toMinutes(proposedStart)
+    const proposedEndMin = proposedStartMin + dur * 60
+
+    return !court.bookings.some((b) => {
+      const bookingStart = parseLocalDateTime(b.startTime)
+      const bookingEnd = parseLocalDateTime(b.endTime)
+
+      const sameDay =
+        bookingStart.getFullYear() === date.getFullYear() &&
+        bookingStart.getMonth() === date.getMonth() &&
+        bookingStart.getDate() === date.getDate()
+
+      if (!sameDay) return false
+
+      const bookStartMin = bookingStart.getHours() * 60 + bookingStart.getMinutes()
+      const bookEndMin = bookingEnd.getHours() * 60 + bookingEnd.getMinutes()
+
+      return proposedStartMin < bookEndMin && proposedEndMin > bookStartMin
+    })
   }
 
   const endTimeDisplay = (() => {
@@ -65,39 +106,37 @@ export function AvailabilityCourt({
               </tr>
             </thead>
             <tbody>
-              {timeSlots.map((time) => {
-                return (
-                  <tr key={time} className="border-b border-slate-100 hover:bg-slate-50/40">
-                    <td className="sticky left-0 z-10 bg-white p-4 font-medium border-r border-slate-200">
-                      {time}
-                    </td>
+              {timeSlots.map((time) => (
+                <tr key={time} className="border-b border-slate-100 hover:bg-slate-50/40">
+                  <td className="sticky left-0 z-10 bg-white p-4 font-medium border-r border-slate-200">
+                    {time}
+                  </td>
 
-                    {courts.map((court) => {
-                      const isAvailable = isBlockAvailableForCourt(court.id, time, duration)
-                      const isSelected = selectedCourtIds.includes(court.id)
+                  {courts.map((court) => {
+                    const isAvailable = isBlockAvailableForCourt(court, time, duration, date)
+                    const isSelected = selectedCourtIds.includes(court.id)
 
-                      return (
-                        <td key={court.id} className="p-3 text-center">
-                          <div
-                            className={cn(
-                              "py-3 px-4 rounded font-medium text-sm transition-colors",
-                              isSelected
-                                ? isAvailable
-                                  ? "bg-green-100 border border-green-300 text-green-800 font-semibold"
-                                  : "bg-red-100 border border-red-300 text-red-800"
-                                : isAvailable
-                                  ? "bg-green-50/60 text-green-700"
-                                  : "bg-slate-100 text-slate-500",
-                            )}
-                          >
-                            {isAvailable ? "Available" : "Booked"}
-                          </div>
-                        </td>
-                      )
-                    })}
-                  </tr>
-                )
-              })}
+                    return (
+                      <td key={court.id} className="p-3 text-center">
+                        <div
+                          className={cn(
+                            "py-3 px-4 rounded font-medium text-sm transition-colors",
+                            isSelected
+                              ? isAvailable
+                                ? "bg-green-100 border border-green-300 text-green-800 font-semibold"
+                                : "bg-red-100 border border-red-300 text-red-800"
+                              : isAvailable
+                                ? "bg-green-50/60 text-green-700"
+                                : "bg-slate-100 text-slate-500",
+                          )}
+                        >
+                          {isAvailable ? "Available" : "Booked"}
+                        </div>
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
