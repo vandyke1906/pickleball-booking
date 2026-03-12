@@ -1,22 +1,8 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import { CalendarDays, MapPin, Users, Clock, Search } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { format } from "date-fns"
+import { CalendarDays, MapPin, Users } from "lucide-react"
 import { useState } from "react"
-import { cn } from "@/lib/utils"
 import BookingForm from "@/app/(public)/(components)/booking-form"
 
 const container = {
@@ -33,29 +19,8 @@ const item = {
 }
 
 export function Hero() {
-  const [date, setDate] = useState<Date | undefined>(new Date())
-  const [startTime, setStartTime] = useState<string>("18:00")
-  const [endTime, setEndTime] = useState<string>("20:00")
-  const [selectedCourts, setSelectedCourts] = useState<string[]>([])
-
-  // Mock data – replace with real API fetch
-  const availableCourts = [
-    { id: "qc1", name: "QC Sports Hub – Court 1 (Indoor)" },
-    { id: "qc2", name: "QC Sports Hub – Court 2 (Indoor)" },
-    { id: "fairview", name: "Fairview Terraces – Outdoor" },
-    { id: "up", name: "UP Diliman – Covered Courts" },
-    { id: "eastwood", name: "Eastwood City – Premium" },
-  ]
-
-  const timeSlots = Array.from({ length: 48 }, (_, i) => {
-    const hour = Math.floor(i / 2)
-    const minute = i % 2 === 0 ? "00" : "30"
-    return `${hour.toString().padStart(2, "0")}:${minute}`
-  }).filter((t) => t >= "06:00" && t <= "23:00")
-
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center px-5 sm:px-8 pt-20 pb-24 md:pb-32 bg-gradient-to-br from-slate-50 via-white to-primary/5">
-      {/* Background pattern */}
       <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:28px_28px] opacity-50 pointer-events-none" />
 
       <motion.div
@@ -67,7 +32,7 @@ export function Hero() {
         <motion.div variants={item}>
           <span className="inline-flex items-center gap-2 px-5 py-2 mb-6 text-sm font-semibold tracking-wide text-primary bg-primary/10 border border-primary/20 rounded-full shadow-sm">
             <MapPin className="h-4 w-4" />
-            NOW BOOKING IN QUEZON CITY & METRO MANILA
+            NOW BOOKING IN DIGOS CITY
           </span>
         </motion.div>
 
@@ -84,7 +49,7 @@ export function Hero() {
           variants={item}
           className="text-xl sm:text-2xl text-slate-600 mb-10 max-w-3xl mx-auto leading-relaxed"
         >
-          Real-time court availability • Instant confirmation • No phone calls, no waiting lists
+          Real-time court availability
         </motion.p>
 
         {/* ─── Booking Form ──────────────────────────────────────── */}
