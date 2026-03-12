@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { format, formatISO } from "date-fns"
+import { formatISO } from "date-fns"
+import { isServerAuthenticated } from "@/lib/auth/auth.server"
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const organizationId = searchParams.get("organizationId")
+    const allParam = searchParams.get("all")
     const dateParam = searchParams.get("date")
+    const all = allParam === "true"
+    if (all) {
+      // const session = await isServerAuthenticated()
+    }
 
     const where = organizationId ? { organizationId } : {}
 
@@ -28,15 +34,13 @@ export async function GET(request: Request) {
         bookings: {
           where: dateParam
             ? {
-                startTime: {
-                  gte: new Date(`${dateParam}T00:00:00`), // local midnight
-                },
-                endTime: {
-                  lt: new Date(`${dateParam}T23:59:59`),
-                },
-                status: { in: ["pending", "confirmed"] },
+                startTime: { gte: new Date(`${dateParam}T00:00:00`) },
+                endTime: { lt: new Date(`${dateParam}T23:59:59`) },
+                ...(all ? {} : { status: { in: ["pending", "confirmed"] } }),
               }
-            : { status: { in: ["pending", "confirmed"] } },
+            : all
+              ? {}
+              : { status: { in: ["pending", "confirmed"] } },
           select: {
             id: true,
             fullName: true,

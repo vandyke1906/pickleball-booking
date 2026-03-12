@@ -21,10 +21,12 @@ export const qKeyCourts = {
   bookings: ({
     organizationId = "all",
     date = "all",
+    isAll = false,
   }: {
     organizationId?: string
     date?: string
-  }) => [...qKeyCourts.all, "bookings", organizationId, date] as const,
+    isAll?: boolean
+  }) => [...qKeyCourts.all, "bookings", organizationId, date, isAll ? "all" : "filtered"] as const,
   detail: (courtId: string) => [...qKeyCourts.all, "detail", courtId] as const,
 } as const
 
@@ -67,15 +69,17 @@ export function useOrganizationCourts({ organizationId }: { organizationId?: str
 export function useCourtBookings({
   date,
   organizationId,
-}: { date?: string; organizationId?: string } = {}) {
+  isAll,
+}: { date?: string; organizationId?: string; isAll?: boolean } = {}) {
   const params = new URLSearchParams()
   if (organizationId) params.set("organizationId", organizationId)
   if (date) params.set("date", date)
+  if (isAll) params.set("all", "true")
 
   const url = `/api/courts/bookings${params.toString() ? `?${params.toString()}` : ""}`
 
   const query = useQuery<Array<TCourtWithBooking>>({
-    queryKey: qKeyCourts.bookings({ organizationId, date }),
+    queryKey: qKeyCourts.bookings({ organizationId, date, isAll }),
     queryFn: () => fetcher(url),
   })
 

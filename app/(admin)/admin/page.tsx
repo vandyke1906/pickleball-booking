@@ -8,7 +8,9 @@ import { useMemo } from "react"
 
 export default function Page() {
   const { data: orgWithCourts, isLoading: isLoadingOrgWithCourts } = useOrganizationCourts()
-  const { data: courtBookings, isLoading: isLoadingCourtBookings } = useCourtBookings()
+  const { data: courtBookings, isLoading: isLoadingCourtBookings } = useCourtBookings({
+    isAll: true,
+  })
 
   const selectedOrganization = useMemo(() => {
     if (!orgWithCourts || !orgWithCourts.length) {
@@ -18,7 +20,7 @@ export default function Page() {
     return orgWithCourts[0]
   }, [orgWithCourts])
 
-  const { timeSlots, min, max } = useMemo(() => {
+  const { min, max } = useMemo(() => {
     const defaultOpenHour = 8
     const defaultCloseHour = 20
 
@@ -39,7 +41,7 @@ export default function Page() {
         0,
       )
 
-      return { timeSlots: [], min, max }
+      return { min, max }
     }
 
     const slots: { value: string; label: string }[] = []
@@ -86,11 +88,19 @@ export default function Page() {
   }, [selectedOrganization, courtBookings])
 
   const getEventClassNames = (event: any) => {
-    if (event.status === "confirmed") return "event-variant-primary"
-    if (event.status === "pending") return "event-variant-warning"
-    if (event.status === "cancelled") return "event-variant-destructive"
-    return "event-variant-outline"
+    switch (event.status) {
+      case "confirmed":
+        return { className: "confirmed" }
+      case "pending":
+        return { className: "pending" }
+      case "cancelled":
+        return { className: "cancelled" }
+      default:
+        return { className: "default" }
+    }
   }
+
+  console.info({ events })
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
@@ -98,9 +108,7 @@ export default function Page() {
       <main style={{ flex: 1 }}>
         <BigCalendar
           className="rbc-calendar"
-          // eventPropGetter={(event) => ({
-          //   className: getEventClassNames(event),
-          // })}
+          eventPropGetter={getEventClassNames}
           components={{
             event: CustomEvent,
           }}
@@ -141,9 +149,9 @@ function CustomEvent({ event }: { event: any }) {
       <Badge
         variant={
           event.status === "confirmed"
-            ? "default"
+            ? "success"
             : event.status === "pending"
-              ? "secondary"
+              ? "warning"
               : "destructive"
         }
         className="ml-2"

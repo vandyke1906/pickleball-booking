@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "react-big-calendar/lib/css/react-big-calendar.css";
-@import 'react-big-calendar/lib/addons/dragAndDrop/styles'; 
+@import "react-big-calendar/lib/addons/dragAndDrop/styles";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -125,4 +125,29 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* CUSTOM EVENTS IN CALENDAR */
+/* Base event style reset */
+/* Reset the default background */
+.rbc-event.rbc-event {
+  @apply rounded-md shadow-sm p-1 text-xs;
+  background-color: transparent;
+}
+
+/* Status-specific overrides */
+.rbc-event.confirmed {
+  @apply bg-green-100 border border-green-300 text-green-800;
+}
+
+.rbc-event.pending {
+  @apply bg-orange-100 border border-orange-300 text-orange-800;
+}
+
+.rbc-event.cancelled {
+  @apply bg-red-100 border border-red-300 text-red-800;
+}
+
+.rbc-event.default {
+  @apply bg-gray-100 border border-gray-300 text-gray-800;
 }

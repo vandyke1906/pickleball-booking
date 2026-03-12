@@ -4,9 +4,9 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 10, // 10 minutes
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
       refetchOnReconnect: false, // stops refetch on network reconnect
-      retry: false // stops retrying failed requests automatically
-    }
-  }
+      retry: false, // stops retrying failed requests automatically
+    },
+  },
 })
