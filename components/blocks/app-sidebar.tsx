@@ -26,12 +26,11 @@ import {
 import { NavMain } from "./nav-main"
 import { NavUser } from "./nav-user"
 
-// This is sample data.
 const data = {
   user: {
     name: "shadcn",
     email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+    avatar: "/avatars/avatar.jpg",
   },
   teams: [
     {
