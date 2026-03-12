@@ -139,13 +139,13 @@ export default function BookingPage() {
             onSubmit={form.handleSubmit(onSubmit)}
             className="bg-white border border-slate-200 rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10 space-y-8"
           >
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               {/* Date */}
-              <div className="space-y-2">
+              <div className="rounded w-full space-y-2">
                 <Label className="font-semibold text-slate-700">Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full h-12 justify-start text-left">
+                    <Button variant="outline" className="w-full justify-start text-left">
                       <CalendarDays className="mr-3 h-5 w-5 text-primary" />
                       {date ? format(date, "MMMM dd, yyyy") : "Select date"}
                     </Button>
@@ -165,13 +165,13 @@ export default function BookingPage() {
               </div>
 
               {/* Start Time */}
-              <div className="space-y-2">
+              <div className="rounded w-full space-y-2">
                 <Label className="font-semibold text-slate-700">Start Time</Label>
                 <Select
                   value={form.watch("startTime")}
                   onValueChange={(v) => form.setValue("startTime", v)}
                 >
-                  <SelectTrigger className="h-12">
+                  <SelectTrigger className="h-12 w-full">
                     <Clock className="mr-3 h-5 w-5 text-primary" />
                     <SelectValue />
                   </SelectTrigger>
@@ -189,13 +189,13 @@ export default function BookingPage() {
               </div>
 
               {/* Duration */}
-              <div className="space-y-2">
+              <div className="rounded w-full space-y-2">
                 <Label className="font-semibold text-slate-700">Duration</Label>
                 <Select
                   value={form.watch("duration").toString()}
                   onValueChange={(v) => form.setValue("duration", Number(v))}
                 >
-                  <SelectTrigger className="h-12">
+                  <SelectTrigger className="h-12 w-full">
                     <Clock className="mr-3 h-5 w-5 text-primary" />
                     <SelectValue />
                   </SelectTrigger>
@@ -210,7 +210,7 @@ export default function BookingPage() {
               </div>
 
               {/* Courts */}
-              <div className="space-y-2 lg:row-span-2">
+              <div className="lg:col-span-3 space-y-2">
                 <Label className="font-semibold text-slate-700">Courts</Label>
                 <div className="border rounded-md p-4 bg-slate-50/60 max-h-48 overflow-y-auto space-y-3">
                   {courts.map((court) => (
