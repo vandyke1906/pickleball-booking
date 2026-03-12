@@ -15,8 +15,17 @@ export type CalendarEvent = {
   variant?: "primary" | "secondary" | "outline"
 }
 
-const locales = { "en-PH": enUS }
-const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales })
+const locales = {
+  "en-PH": enUS,
+}
+
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales,
+})
 
 const DnDCalendar = withDragAndDrop(Calendar) as React.ComponentType<
   CalendarProps<CalendarEvent> & {
@@ -28,8 +37,22 @@ const DnDCalendar = withDragAndDrop(Calendar) as React.ComponentType<
   }
 >
 
-export default function BigCalendar(
-  props: Omit<typeof DnDCalendar extends React.ComponentType<infer P> ? P : never, "localizer">,
-) {
-  return <DnDCalendar localizer={localizer} {...props} />
+export default function Page() {
+  return (
+    <div>
+      {/* <Calendar
+        localizer={localizer}
+        // events={myEventsList}
+        startAccessor="start"
+        endAccessor="end"
+        style={{ height: 500 }}
+      /> */}
+      <DnDCalendar
+        localizer={localizer}
+        startAccessor="start"
+        endAccessor="end"
+        style={{ height: 500 }}
+      />
+    </div>
+  )
 }

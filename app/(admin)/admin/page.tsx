@@ -1,14 +1,14 @@
 "use client"
 
-import BigCalendar from "@/components/big-calendar/big-calendar"
+import BigCalendar, { CalendarEvent } from "@/components/big-calendar/big-calendar"
+import { Badge } from "@/components/ui/badge"
 import { useCourtBookings, useOrganizationCourts } from "@/lib/hooks/court/court.hook"
-import { title } from "process"
-import { useMemo, useState } from "react"
+import { formatDateTime } from "@/lib/utils"
+import { useMemo } from "react"
 
 export default function Page() {
   const { data: orgWithCourts, isLoading: isLoadingOrgWithCourts } = useOrganizationCourts()
   const { data: courtBookings, isLoading: isLoadingCourtBookings } = useCourtBookings()
-  console.info(courtBookings)
 
   const selectedOrganization = useMemo(() => {
     if (!orgWithCourts || !orgWithCourts.length) {
@@ -19,7 +19,6 @@ export default function Page() {
   }, [orgWithCourts])
 
   const { timeSlots, min, max } = useMemo(() => {
-    // default open/close hours
     const defaultOpenHour = 8
     const defaultCloseHour = 20
 
@@ -61,7 +60,7 @@ export default function Page() {
     const max = new Date(today.getFullYear(), today.getMonth(), today.getDate(), closeHour, 0)
 
     return { timeSlots: slots, min, max }
-  }, [selectedOrganization])
+  }, [selectedOrganization, courtBookings])
 
   const courtResources = useMemo(() => {
     if (!selectedOrganization?.courts) return []
@@ -69,77 +68,88 @@ export default function Page() {
       id: court.id,
       title: court.name,
     }))
-  }, [selectedOrganization])
+  }, [selectedOrganization, courtBookings])
 
   const events = useMemo(() => {
-    courtBookings.flatMap((court) =>
-      court.bookings.map((booking) => ({
+    if (!courtBookings || !Array.isArray(courtBookings)) return []
+
+    return courtBookings.flatMap((court) =>
+      (court.bookings ?? []).map((booking) => ({
         id: booking.id,
-        title: `${booking.fullName ?? ""} (${booking.status})`,
-        start: new Date(booking.startTime),
-        end: new Date(booking.endTime),
-        resourceId: court.id, // link booking to its court
+        status: booking.status,
+        title: `${booking.fullName ?? ""}`,
+        start: formatDateTime(booking.startTime),
+        end: formatDateTime(booking.endTime),
+        resourceId: court.id,
       })),
     )
-  }, [selectedOrganization])
-
-  const handleSelectSlot = (slotInfo: any) => {
-    setEvents([
-      ...events,
-      {
-        id: String(events.length + 1),
-        title: "New Booking",
-        start: slotInfo.start,
-        end: slotInfo.end,
-        resourceId: slotInfo.resourceId || "court1", // fallback if none
-      },
-    ])
-  }
-
-  const handleEventDrop = ({ event, start, end, resourceId }: any) => {
-    setEvents(events.map((e) => (e.id === event.id ? { ...e, start, end, resourceId } : e)))
-  }
-
-  const handleEventResize = ({ event, start, end }: any) => {
-    setEvents(events.map((e) => (e.id === event.id ? { ...e, start, end } : e)))
-  }
+  }, [selectedOrganization, courtBookings])
 
   const getEventClassNames = (event: any) => {
-    if (event.type === "meeting") return "event-variant-primary"
-    if (event.type === "personal") return "event-variant-secondary"
-    if (event.isImportant) return "event-variant-destructive"
+    if (event.status === "confirmed") return "event-variant-primary"
+    if (event.status === "pending") return "event-variant-warning"
+    if (event.status === "cancelled") return "event-variant-destructive"
     return "event-variant-outline"
   }
 
-  console.info({ timeSlots })
-
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
-      <div className="flex-1 min-h-[500px] w-full">
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      <header style={{ height: "60px" }}>Header</header>
+      <main style={{ flex: 1 }}>
         <BigCalendar
           className="rbc-calendar"
-          eventPropGetter={(event) => ({
-            className: getEventClassNames(event),
-          })}
+          // eventPropGetter={(event) => ({
+          //   className: getEventClassNames(event),
+          // })}
+          components={{
+            event: CustomEvent,
+          }}
           selectable
-          resizable
+          resizable={false}
           draggableAccessor={() => true}
-          resizableAccessor={() => true}
+          resizableAccessor={() => false}
           step={60}
           min={min}
           max={max}
           timeslots={1}
           events={events}
           resources={courtResources}
-          onSelectSlot={handleSelectSlot}
-          onEventDrop={handleEventDrop}
-          onEventResize={handleEventResize}
+          // onSelectSlot={handleSelectSlot}
+          // onEventDrop={handleEventDrop}
+          // onEventResize={handleEventResize}
           startAccessor="start"
           endAccessor="end"
           defaultView="day"
+          views={["month", "day", "week"]}
           style={{ height: "100%", width: "100%" }}
+          onSelectEvent={(event) => {
+            console.log("Selected event:", event)
+          }}
         />
-      </div>
+      </main>
+    </div>
+  )
+}
+
+function CustomEvent({ event }: { event: any }) {
+  return (
+    <div key={event.id} className="flex items-center justify-between p-1 text-xs">
+      {/* Title on the left */}
+      <span className="font-medium truncate">{event.title}</span>
+
+      {/* Status badge on the right */}
+      <Badge
+        variant={
+          event.status === "confirmed"
+            ? "default"
+            : event.status === "pending"
+              ? "secondary"
+              : "destructive"
+        }
+        className="ml-2"
+      >
+        {event.status}
+      </Badge>
     </div>
   )
 }
