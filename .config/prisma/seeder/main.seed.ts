@@ -3,11 +3,15 @@ import { PrismaPg } from "@prisma/adapter-pg"
 import { hash } from "bcrypt"
 import * as dotenv from "dotenv"
 import { faker } from "@faker-js/faker"
+import { customAlphabet } from "nanoid"
 
 dotenv.config()
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
 const prisma = new PrismaClient({ adapter })
+
+const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+const nanoid = customAlphabet(alphabet, 6)
 
 // ──────────────────────────────────────────────────────────────
 // Helper: Hash password once
@@ -15,6 +19,10 @@ const prisma = new PrismaClient({ adapter })
 async function hashPassword(): Promise<string> {
   const password = process.env.DEFAULT_PASSWORD || "12345"
   return hash(password, 10)
+}
+
+export function generateBookingRef(): string {
+  return `BK-${nanoid()}`
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -110,7 +118,9 @@ async function seedCourts(organizationId: string) {
 // ──────────────────────────────────────────────────────────────
 // 4. Seed Dummy Bookings
 // ──────────────────────────────────────────────────────────────
-async function seedDummyBookings(courts: Array<{ id: string }>) {
+async function seedDummyBookings(
+  courts: Array<{ id: string; name: string; pricePerHour: number }>,
+) {
   const today = new Date()
   const bookingsPerCourt = 5 // how many bookings per court
 
@@ -133,7 +143,7 @@ async function seedDummyBookings(courts: Array<{ id: string }>) {
 
       await prisma.booking.create({
         data: {
-          code: `BOOK-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          code: generateBookingRef(),
           courts: { connect: { id: court.id } },
           fullName: faker.person.fullName(),
           contactNumber: faker.phone.number({ style: "human" }),
@@ -142,6 +152,7 @@ async function seedDummyBookings(courts: Array<{ id: string }>) {
           endTime: end,
           status: faker.helpers.arrayElement(["pending", "confirmed", "cancelled"]),
           totalPrice: court.pricePerHour * durationHours,
+          proofOfPaymentLink: "",
           notes: faker.lorem.sentence(),
         },
       })

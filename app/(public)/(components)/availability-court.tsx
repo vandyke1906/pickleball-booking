@@ -64,84 +64,95 @@ export function AvailabilityCourt({
         </h3>
 
         <div className="overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
-          <table className="w-full min-w-[1000px] bg-white">
-            <thead>
-              <tr className="bg-slate-100">
-                <th className="sticky left-0 z-10 bg-slate-100 p-4 text-left font-semibold border-b border-r border-slate-200 min-w-[140px]">
-                  Start Time
-                </th>
-                {isLoading
-                  ? Array.from({ length: 4 }).map((_, i) => (
-                      <th key={i} className="p-4 border-b border-slate-200 min-w-[180px]">
-                        <Skeleton className="h-5 w-24 mx-auto" />
-                      </th>
-                    ))
-                  : courtWithBookings.map((court) => (
-                      <th
-                        key={court.id}
-                        className={cn(
-                          "p-4 font-semibold border-b border-slate-200 min-w-[180px] text-center",
-                          selectedCourtIds.includes(court.id) && "bg-blue-50/70",
-                        )}
-                      >
-                        {court.name}
-                        <div className="text-xs text-slate-500 mt-1">₱{court.pricePerHour}/hr</div>
-                      </th>
-                    ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading
-                ? Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={i} className="border-b border-slate-100">
-                      <td className="sticky left-0 z-10 bg-white p-4 border-r border-slate-200">
-                        <Skeleton className="h-5 w-16" />
-                      </td>
-                      {Array.from({ length: 4 }).map((_, j) => (
-                        <td key={j} className="p-3 text-center">
-                          <Skeleton className="h-8 w-24 mx-auto rounded-md" />
-                        </td>
+          {courtWithBookings.length ? (
+            <table className="w-full min-w-[1000px] bg-white">
+              <thead>
+                <tr className="bg-slate-100">
+                  <th className="sticky left-0 z-10 bg-slate-100 p-4 text-left font-semibold border-b border-r border-slate-200 min-w-[140px]">
+                    Start Time
+                  </th>
+                  {isLoading
+                    ? Array.from({ length: 4 }).map((_, i) => (
+                        <th key={i} className="p-4 border-b border-slate-200 min-w-[180px]">
+                          <Skeleton className="h-5 w-24 mx-auto" />
+                        </th>
+                      ))
+                    : courtWithBookings.map((court) => (
+                        <th
+                          key={court.id}
+                          className={cn(
+                            "p-4 font-semibold border-b border-slate-200 min-w-[180px] text-center",
+                            selectedCourtIds.includes(court.id) && "bg-blue-50/70",
+                          )}
+                        >
+                          {court.name}
+                          <div className="text-xs text-slate-500 mt-1">
+                            ₱{court.pricePerHour}/hr
+                          </div>
+                        </th>
                       ))}
-                    </tr>
-                  ))
-                : timeSlots.map((time) => (
-                    <tr key={time.value} className="border-b border-slate-100 hover:bg-slate-50/40">
-                      <td className="sticky left-0 z-10 bg-white p-4 font-medium border-r border-slate-200">
-                        {time.label}
-                      </td>
-                      {courtWithBookings.map((court) => {
-                        const isAvailable = isBlockAvailableForCourt(
-                          court,
-                          time.value,
-                          duration,
-                          date,
-                        )
-                        const isSelected = selectedCourtIds.includes(court.id)
-
-                        return (
-                          <td key={court.id} className="p-3 text-center">
-                            <div
-                              className={cn(
-                                "py-2.5 px-4 rounded-md text-sm font-medium transition-colors duration-200",
-                                isSelected &&
-                                  isAvailable &&
-                                  "bg-green-100 border border-green-300 text-green-800 font-semibold",
-                                isSelected &&
-                                  !isAvailable &&
-                                  "bg-amber-100 border border-amber-300 text-amber-800 font-semibold",
-                                !isSelected && isAvailable && "bg-green-50 text-green-700",
-                                !isSelected && !isAvailable && "bg-amber-50 text-amber-700",
-                              )}
-                            >
-                              {isAvailable ? "Available" : "Booked"}
-                            </div>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoading
+                  ? Array.from({ length: 6 }).map((_, i) => (
+                      <tr key={i} className="border-b border-slate-100">
+                        <td className="sticky left-0 z-10 bg-white p-4 border-r border-slate-200">
+                          <Skeleton className="h-5 w-16" />
+                        </td>
+                        {Array.from({ length: 4 }).map((_, j) => (
+                          <td key={j} className="p-3 text-center">
+                            <Skeleton className="h-8 w-24 mx-auto rounded-md" />
                           </td>
-                        )
-                      })}
-                    </tr>
-                  ))}
-            </tbody>
-          </table>
+                        ))}
+                      </tr>
+                    ))
+                  : timeSlots.map((time) => (
+                      <tr
+                        key={time.value}
+                        className="border-b border-slate-100 hover:bg-slate-50/40"
+                      >
+                        <td className="sticky left-0 z-10 bg-white p-4 font-medium border-r border-slate-200">
+                          {time.label}
+                        </td>
+                        {courtWithBookings.map((court) => {
+                          const isAvailable = isBlockAvailableForCourt(
+                            court,
+                            time.value,
+                            duration,
+                            date,
+                          )
+                          const isSelected = selectedCourtIds.includes(court.id)
+
+                          return (
+                            <td key={court.id} className="p-3 text-center">
+                              <div
+                                className={cn(
+                                  "py-2.5 px-4 rounded-md text-sm font-medium transition-colors duration-200",
+                                  isSelected &&
+                                    isAvailable &&
+                                    "bg-green-100 border border-green-300 text-green-800 font-semibold",
+                                  isSelected &&
+                                    !isAvailable &&
+                                    "bg-amber-100 border border-amber-300 text-amber-800 font-semibold",
+                                  !isSelected && isAvailable && "bg-green-50 text-green-700",
+                                  !isSelected && !isAvailable && "bg-amber-50 text-amber-700",
+                                )}
+                              >
+                                {isAvailable ? "Available" : "Booked"}
+                              </div>
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="m-6 p-6 font-semibold text-amber-600 text-center">
+              No available <strong>courts</strong>
+            </div>
+          )}
         </div>
 
         {!isLoading && (

@@ -12,8 +12,9 @@ model Booking {
 
   status String @default("pending") // pending, confirmed, cancelled, completed
 
-  totalPrice Float?
-  notes      String?
+  totalPrice         Float?
+  proofOfPaymentLink String
+  notes              String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -1,9 +1,15 @@
 import { prisma } from "@/lib/prisma"
-import { addMinutes } from "date-fns"
 import { NextRequest, NextResponse } from "next/server"
-import { promises as fs } from "fs"
-import path from "path"
 import { makeBookingDate } from "@/lib/utils"
+import { put } from "@vercel/blob"
+import { customAlphabet } from "nanoid"
+
+const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+const nanoid = customAlphabet(alphabet, 6)
+
+export function generateBookingRef(): string {
+  return `BK-${nanoid()}`
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -59,11 +65,36 @@ export async function POST(req: Request) {
   const proofOfPayment = formData.get("proofOfPayment") as File
 
   const { start, end } = makeBookingDate(date, startTime, duration)
-  console.log("Raw:", start) // shows UTC representation
-  console.log("Local:", start.toLocaleString("en-PH", { hour12: false }))
 
-  // return NextResponse.json({ success: true, result: "okay" })
   try {
+    if (!proofOfPayment) return NextResponse.json({ error: "No file uploaded" }, { status: 400 })
+    const blob = await put(`proofs/${Date.now()}-${proofOfPayment.name}`, proofOfPayment, {
+      access: "private",
+    })
+
+    let code: string = ""
+    let attempts = 0
+    while (attempts < 5) {
+      const generatedCode = generateBookingRef()
+      const existing = await prisma.booking.findUnique({ where: { code: generatedCode } })
+      if (!existing) {
+        code = generatedCode
+        break
+      }
+
+      attempts++
+    }
+
+    if (!code) throw new Error("Cannot book at this moment. Please try again later.")
+
+    const courts = await prisma.court.findMany({
+      where: { id: { in: courtIds } },
+      select: { id: true, pricePerHour: true },
+    })
+
+    // 4. Calculate total price
+    const totalPrice = courts.reduce((sum, court) => sum + court.pricePerHour * duration, 0)
+
     const result = await prisma.$transaction(async (tx) => {
       const conflicts = await tx.booking.findMany({
         where: {
@@ -74,17 +105,10 @@ export async function POST(req: Request) {
       })
       if (conflicts.length > 0) throw new Error("One or more courts already booked in this slot")
 
-      // Save proof file to disk (or cloud storage)
-      // const uploadDir = path.join(process.cwd(), "uploads")
-      // await fs.mkdir(uploadDir, { recursive: true })
-      // const filePath = path.join(uploadDir, `${Date.now()}-${proofOfPayment.name}`)
-      // const buffer = Buffer.from(await proofOfPayment.arrayBuffer())
-      // await fs.writeFile(filePath, buffer)
-
       // Create one booking with many courts
       const created = await tx.booking.create({
         data: {
-          code: `PICKLEBALL-REF-#-${Date.now()}`, // unique booking code
+          code,
           fullName,
           contactNumber,
           emailAddress,
@@ -92,11 +116,11 @@ export async function POST(req: Request) {
           endTime: end,
           status: "pending",
           notes: "Awaiting payment verification",
+          proofOfPaymentLink: blob.url,
+          totalPrice,
           courts: {
             connect: courtIds.map((id: string) => ({ id })),
           },
-          // optional: store proof path
-          // proofOfPaymentPath: filePath,
         },
         include: { courts: true },
       })
@@ -107,6 +131,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, result })
   } catch (err: any) {
     console.error("Booking error:", err)
-    return NextResponse.json({ success: false, error: err.message }, { status: 400 })
+    return NextResponse.json(
+      { success: false, error: "Something went wrong. Please try again later" },
+      { status: 400 },
+    )
   }
 }

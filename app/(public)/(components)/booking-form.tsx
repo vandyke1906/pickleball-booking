@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { CalendarDays, Clock, AlertCircle } from "lucide-react"
+import { CalendarDays, Clock, AlertCircle, Loader2 } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
@@ -331,9 +331,14 @@ export default function BookingPage() {
                 className="w-full max-w-md h-14 text-lg font-semibold"
                 disabled={mutation.isPending || !canBook}
               >
-                {mutation.isPending
-                  ? "Booking..."
-                  : `Book Now – ${form.watch("courtIds").length} court${form.watch("courtIds").length !== 1 ? "s" : ""}`}
+                {mutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Please wait...
+                  </>
+                ) : (
+                  `Book Now – ${form.watch("courtIds").length} court${form.watch("courtIds").length !== 1 ? "s" : ""}`
+                )}
               </Button>
 
               {form.watch("courtIds").length === 0 && (
