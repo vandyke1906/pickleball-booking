@@ -1,7 +1,7 @@
 "use client"
 
 import { format } from "date-fns"
-import { cn, parseLocalDateTime, toMinutes } from "@/lib/utils"
+import { cn, formatDateTime, parseLocalDateTime, toMinutes } from "@/lib/utils"
 import { TCourtWithBooking } from "@/lib/hooks/court/court.hook"
 import { Skeleton } from "@/components/ui/skeleton"
 interface AvailabilityCourtProps {
@@ -21,7 +21,7 @@ export function AvailabilityCourt({
   selectedCourtIds,
   timeSlots,
   courtWithBookings,
-  isLoading, // <-- pass loading state from parent
+  isLoading,
 }: AvailabilityCourtProps & { isLoading?: boolean }) {
   const isBlockAvailableForCourt = (
     court: TCourtWithBooking,
@@ -33,15 +33,12 @@ export function AvailabilityCourt({
     const proposedEndMin = proposedStartMin + dur * 60
 
     return !court.bookings.some((b) => {
-      const bookingStart = parseLocalDateTime(b.startTime)
-      console.log({
-        startTime: b.startTime,
-        bookingStart: bookingStart.toLocaleString("en-PH", { hour12: false }),
-      })
-      const bookingEnd = parseLocalDateTime(b.endTime)
+      // Convert to PH time for comparison
+      const bookingStart = formatDateTime(b.startTime)
+      const bookingEnd = formatDateTime(b.endTime)
 
+      // Compare only if same day
       const sameDay = bookingStart.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH")
-
       if (!sameDay) return false
 
       const bookStartMin = bookingStart.getHours() * 60 + bookingStart.getMinutes()

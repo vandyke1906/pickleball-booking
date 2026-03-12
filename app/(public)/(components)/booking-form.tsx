@@ -17,7 +17,15 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
 import { useCallback, useState } from "react"
 import { AvailabilityCourt } from "@/app/(public)/(components)/availability-court"
-import { cn, getEndTime, parseLocalDateTime, toMinutes, toMinutesFromDateTime } from "@/lib/utils"
+import {
+  cn,
+  DEFAULT_TIMEZONE,
+  formatDateTime,
+  getEndTime,
+  parseLocalDateTime,
+  toMinutes,
+  toMinutesFromDateTime,
+} from "@/lib/utils"
 import { useCourtBookings, useCourts } from "@/lib/hooks/court/court.hook"
 import { useCreateBooking } from "@/lib/mutations/booking/booking.mutation"
 import { useForm } from "react-hook-form"
@@ -74,8 +82,6 @@ export default function BookingPage() {
     date: dateString,
   })
 
-  console.info({ courtBookings })
-
   const isBlockOverlappingWithBookings = useCallback(
     (courtId: string, proposedStart: string, proposedDurationHours: number): boolean => {
       if (!courtBookings || !date) return false
@@ -83,21 +89,22 @@ export default function BookingPage() {
       const proposedStartMin = toMinutes(proposedStart)
       const proposedEndMin = proposedStartMin + proposedDurationHours * 60
 
-      const currentCourt = courtBookings.find((b) => b.id === courtId)
+      const currentCourt = courtBookings.find((c) => c.id === courtId)
       const currentBookings = currentCourt?.bookings || []
+
       for (const booking of currentBookings) {
-        const bookingStart = parseLocalDateTime(booking.startTime)
-        const bookingEnd = parseLocalDateTime(booking.endTime)
+        // Convert to PH time for comparison
+        const bookingStart = formatDateTime(booking.startTime)
+        const bookingEnd = formatDateTime(booking.endTime)
+
+        // Compare only if same day
 
         const sameDay =
-          bookingStart.getFullYear() === date.getFullYear() &&
-          bookingStart.getMonth() === date.getMonth() &&
-          bookingStart.getDate() === date.getDate()
+          bookingStart.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH")
+        if (!sameDay) return false
 
-        if (!sameDay) continue
-
-        const bookStartMin = toMinutesFromDateTime(bookingStart)
-        const bookEndMin = toMinutesFromDateTime(bookingEnd)
+        const bookStartMin = bookingStart.getHours() * 60 + bookingStart.getMinutes()
+        const bookEndMin = bookingEnd.getHours() * 60 + bookingEnd.getMinutes()
 
         if (proposedStartMin < bookEndMin && proposedEndMin > bookStartMin) {
           return true
@@ -149,13 +156,13 @@ export default function BookingPage() {
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full h-12 justify-start text-left">
                       <CalendarDays className="mr-3 h-5 w-5 text-primary" />
-                      {form.watch("date") ? format(date, "PPP") : "Select date"}
+                      {date ? format(date, "MMMM dd, yyyy") : "Select date"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
-                      selected={form.watch("date") ? date : undefined}
+                      selected={dateString ? date : undefined}
                       onSelect={(d) => form.setValue("date", format(d!, "yyyy-MM-dd"))}
                       disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
                     />

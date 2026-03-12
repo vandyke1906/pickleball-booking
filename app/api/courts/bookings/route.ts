@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { format } from "date-fns"
+import { format, formatISO } from "date-fns"
 
 export async function GET(request: Request) {
   try {
@@ -64,9 +64,9 @@ export async function GET(request: Request) {
       bookings: court.bookings.map((b) => ({
         id: b.id,
         fullName: b.fullName,
-        startTime: format(new Date(b.startTime.toISOString().slice(0, 19)), "yyyy-MM-dd HH:mm:ss"),
-        endTime: format(new Date(b.endTime.toISOString().slice(0, 19)), "yyyy-MM-dd HH:mm:ss"),
         status: b.status,
+        startTime: formatISO(new Date(b.startTime)),
+        endTime: formatISO(new Date(b.endTime)),
       })),
     }))
 
