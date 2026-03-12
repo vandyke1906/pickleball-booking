@@ -3,13 +3,14 @@ import { toast } from "sonner"
 import { format } from "date-fns"
 import { BookingPayload, bookingSchema } from "@/lib/validation/booking/booking.validation"
 import { qKeyBookings } from "@/lib/hooks/booking/booking.hook"
+import { qKeyCourts } from "@/lib/hooks/court/court.hook"
 
 async function createBooking(payload: BookingPayload) {
   const parsed = bookingSchema.parse(payload)
   if (!parsed.proofOfPayment) throw new Error("Please upload proof of payment before booking.")
 
   const formData = new FormData()
-  formData.append("date", parsed.date)
+  formData.append("date", parsed.date ?? "")
   formData.append("startTime", parsed.startTime)
   formData.append("duration", parsed.duration.toString())
   formData.append("courtIds", JSON.stringify(parsed.courtIds))
@@ -66,6 +67,7 @@ export function useCreateBooking() {
     },
 
     onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: qKeyCourts.all, exact: false })
       queryClient.invalidateQueries({ queryKey: qKeyBookings.all, exact: false })
     },
 

@@ -1,3 +1,4 @@
+import { Organization } from "@/.config/prisma/generated/prisma"
 import { fetcher } from "@/lib/hooks/common.hook"
 import { Booking, Court } from "@prisma/client"
 import { useQuery } from "@tanstack/react-query"
@@ -7,11 +8,16 @@ type TBookingWithStringTime = Omit<Booking, "startTime" | "endTime"> & {
   endTime: string
 }
 
-export type TCourtWithBooking = Court & { bookings: TBookingWithStringTime[] }
+export type TCourtWithBooking = Court & {
+  pricePerHour?: number
+  bookings: TBookingWithStringTime[]
+}
 
 export const qKeyCourts = {
   all: ["courts"] as const,
   list: (organizationId?: string) => [...qKeyCourts.all, "list", organizationId ?? "all"] as const,
+  organizationCourts: (organizationId?: string) =>
+    [...qKeyCourts.all, "organization", "list", organizationId ?? "all"] as const,
   bookings: ({
     organizationId = "all",
     date = "all",
@@ -27,6 +33,25 @@ export function useCourts({ organizationId }: { organizationId?: string } = {}) 
 
   const query = useQuery<Array<Court>>({
     queryKey: qKeyCourts.list(organizationId),
+    queryFn: () => fetcher(url),
+  })
+
+  return {
+    data: query.data ?? [],
+    isLoading: query.isPending,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
+  }
+}
+
+export function useOrganizationCourts({ organizationId }: { organizationId?: string } = {}) {
+  const url = organizationId
+    ? `/api/organization/courts?organizationId=${organizationId}`
+    : "/api/organization/courts"
+
+  const query = useQuery<Array<Organization & { courts: Array<Court> }>>({
+    queryKey: qKeyCourts.organizationCourts(organizationId),
     queryFn: () => fetcher(url),
   })
 

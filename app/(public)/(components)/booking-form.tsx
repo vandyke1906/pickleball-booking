@@ -15,35 +15,15 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
-import { useCallback } from "react"
+import { useCallback, useEffect, useMemo } from "react"
 import { AvailabilityCourt } from "@/app/(public)/(components)/availability-court"
 import { formatDateTime, getEndTime, toMinutes } from "@/lib/utils"
-import { useCourtBookings, useCourts } from "@/lib/hooks/court/court.hook"
+import { useCourtBookings, useOrganizationCourts } from "@/lib/hooks/court/court.hook"
 import { useCreateBooking } from "@/lib/mutations/booking/booking.mutation"
 import { useForm } from "react-hook-form"
 import { BookingPayload, bookingSchema } from "@/lib/validation/booking/booking.validation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Input } from "@/components/ui/input"
-
-const TIME_SLOTS = [
-  "06:00",
-  "07:00",
-  "08:00",
-  "09:00",
-  "10:00",
-  "11:00",
-  "12:00",
-  "13:00",
-  "14:00",
-  "15:00",
-  "16:00",
-  "17:00",
-  "18:00",
-  "19:00",
-  "20:00",
-  "21:00",
-  "22:00",
-]
 
 export default function BookingPage() {
   const form = useForm<BookingPayload>({
@@ -68,10 +48,41 @@ export default function BookingPage() {
 
   const mutation = useCreateBooking()
 
-  const { data: courts, isLoading: isLoadingCourts } = useCourts()
+  const { data: orgWithCourts, isLoading: isLoadingOrgWithCourts } = useOrganizationCourts()
   const { data: courtBookings, isLoading: isLoadingCourtBookings } = useCourtBookings({
     date: dateString,
   })
+
+  const selectedOrganization = useMemo(() => {
+    if (!orgWithCourts || !orgWithCourts.length) {
+      const defaultObj = { openTime: "08:00", closeTime: "20:00", courts: [] }
+      return defaultObj
+    }
+    return orgWithCourts[0]
+  }, [orgWithCourts])
+
+  const timeSlots = useMemo(() => {
+    if (!selectedOrganization) return []
+
+    const slots: { value: string; label: string }[] = []
+    const [openHour] = selectedOrganization.openTime.split(":").map(Number)
+    const [closeHour] = selectedOrganization.closeTime.split(":").map(Number)
+
+    for (let hour = openHour; hour <= closeHour; hour++) {
+      const value = hour.toString().padStart(2, "0") + ":00"
+      const hour12 = hour % 12 === 0 ? 12 : hour % 12
+      const suffix = hour < 12 ? "AM" : "PM"
+      const label = `${hour12.toString().padStart(2, "0")}:00 ${suffix}`
+
+      slots.push({ value, label })
+    }
+
+    if (!form.getValues("startTime")) {
+      form.setValue("startTime", selectedOrganization.openTime, { shouldDirty: false })
+    }
+
+    return slots
+  }, [selectedOrganization, form])
 
   const isBlockOverlappingWithBookings = useCallback(
     (courtId: string, proposedStart: string, proposedDurationHours: number): boolean => {
@@ -118,7 +129,11 @@ export default function BookingPage() {
 
   const onSubmit = (values: BookingPayload) => {
     if (!canBook) return
-    mutation.mutate(values)
+    mutation.mutate(values, {
+      onSuccess: () => {
+        form.reset()
+      },
+    })
   }
 
   return (
@@ -176,9 +191,9 @@ export default function BookingPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {TIME_SLOTS.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
+                    {timeSlots.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -213,7 +228,7 @@ export default function BookingPage() {
               <div className="lg:col-span-3 space-y-2">
                 <Label className="font-semibold text-slate-700">Courts</Label>
                 <div className="border rounded-md p-4 bg-slate-50/60 max-h-48 overflow-y-auto space-y-3">
-                  {courts.map((court) => (
+                  {(selectedOrganization?.courts || []).map((court) => (
                     <div key={court.id} className="flex items-center space-x-3">
                       <Checkbox
                         id={court.id}
@@ -352,9 +367,9 @@ export default function BookingPage() {
           startTime={startTime}
           duration={duration}
           selectedCourtIds={selectedCourtIds}
-          timeSlots={TIME_SLOTS}
+          timeSlots={timeSlots}
           courtWithBookings={courtBookings}
-          isLoading={isLoadingCourtBookings || isLoadingCourts}
+          isLoading={isLoadingCourtBookings || isLoadingOrgWithCourts}
         />
       )}
 

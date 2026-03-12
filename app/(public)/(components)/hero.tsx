@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion"
 import { CalendarDays, MapPin, Users } from "lucide-react"
-import { useState } from "react"
 import BookingForm from "@/app/(public)/(components)/booking-form"
 
 const container = {

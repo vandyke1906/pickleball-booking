@@ -9,7 +9,7 @@ interface AvailabilityCourtProps {
   startTime: string
   duration: number
   selectedCourtIds: string[]
-  timeSlots: string[]
+  timeSlots: { value: string; label: string }[]
   courtWithBookings: TCourtWithBooking[]
   isLoading: boolean
 }
@@ -105,12 +105,17 @@ export function AvailabilityCourt({
                     </tr>
                   ))
                 : timeSlots.map((time) => (
-                    <tr key={time} className="border-b border-slate-100 hover:bg-slate-50/40">
+                    <tr key={time.value} className="border-b border-slate-100 hover:bg-slate-50/40">
                       <td className="sticky left-0 z-10 bg-white p-4 font-medium border-r border-slate-200">
-                        {time}
+                        {time.label}
                       </td>
                       {courtWithBookings.map((court) => {
-                        const isAvailable = isBlockAvailableForCourt(court, time, duration, date)
+                        const isAvailable = isBlockAvailableForCourt(
+                          court,
+                          time.value,
+                          duration,
+                          date,
+                        )
                         const isSelected = selectedCourtIds.includes(court.id)
 
                         return (
