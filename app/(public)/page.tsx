@@ -8,7 +8,7 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       <Hero />
       <Features />
-      <CourtGrid />
+      {/* <CourtGrid /> */}
       <Footer />
     </div>
   )

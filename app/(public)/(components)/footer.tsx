@@ -11,7 +11,8 @@ export function Footer() {
           <div className="col-span-2 md:col-span-1">
             <h3 className="text-2xl font-bold text-white mb-4">PickleCourt PH</h3>
             <p className="text-slate-400 mb-6 max-w-xs">
-              The easiest way to find and book pickleball courts in Quezon City and Metro Manila.
+              The easiest way to find and book pickleball courts in Digos City, Province of Davao
+              del Sur.
             </p>
             <div className="flex gap-4">
               <Button
@@ -98,7 +99,7 @@ export function Footer() {
             <ul className="space-y-4">
               <li className="flex items-start gap-3">
                 <MapPin className="h-5 w-5 text-primary mt-0.5" />
-                <span>Quezon City, Metro Manila, Philippines</span>
+                <span>Digos City, Davao del Sur, Philippines</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone className="h-5 w-5 text-primary" />

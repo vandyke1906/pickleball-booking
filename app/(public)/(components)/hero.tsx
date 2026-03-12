@@ -65,11 +65,11 @@ export function Hero() {
           </div>
           <div className="flex items-center gap-2.5">
             <CalendarDays className="h-6 w-6 text-primary" />
-            <span>Book up to 14 days ahead</span>
+            <span>Book schedule ahead</span>
           </div>
           <div className="flex items-center gap-2.5">
             <MapPin className="h-6 w-6 text-primary" />
-            <span>10+ venues in Metro Manila</span>
+            <span>Accessbile Venue</span>
           </div>
         </motion.div>
       </motion.div>
