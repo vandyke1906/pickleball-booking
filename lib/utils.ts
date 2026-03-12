@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
-import { addMinutes, parseISO } from "date-fns"
-import { toZonedTime, format } from "date-fns-tz"
+import { addMinutes } from "date-fns"
+import { toZonedTime } from "date-fns-tz"
 import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
@@ -14,16 +14,6 @@ export const toMinutes = (time: string): number => {
   const [h, m] = time.split(":").map(Number)
   return h * 60 + m
 }
-
-// Convert Date → minutes since midnight
-export const toMinutesFromDateTime = (dt: Date): number => {
-  return dt.getHours() * 60 + dt.getMinutes()
-}
-
-// Parse "yyyy-MM-dd HH:mm:ss" → Date (local)
-// export const parseLocalDateTime = (dateTimeStr: string): Date => {
-//   return parseISO(dateTimeStr.replace(" ", "T"))
-// }
 
 export const getEndTime = (start: string, durationHours: number): string => {
   const [h, m] = start.split(":").map(Number)
@@ -44,16 +34,10 @@ export function makeBookingDate(dateString: string, timeString: string, duration
   const [year, month, day] = dateString.split("-").map(Number)
   const [hour, minute] = timeString.split(":").map(Number)
 
-  // Construct local Date (no UTC conversion)
   const start = new Date(year, month - 1, day, hour, minute)
   const end = addMinutes(start, durationHours * 60)
 
   return { start, end }
-}
-
-export const parseLocalDateTime = (datetime: string): Date => {
-  const utc = new Date(datetime + "Z") // Force UTC interpretation
-  return new Date(utc.getTime() + 8 * 60 * 60 * 1000) // Shift into local time (Asia/Manila is UTC+8)
 }
 
 /**

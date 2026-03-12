@@ -1,7 +1,7 @@
 "use client"
 
 import { format } from "date-fns"
-import { cn, formatDateTime, parseLocalDateTime, toMinutes } from "@/lib/utils"
+import { cn, formatDateTime, toMinutes } from "@/lib/utils"
 import { TCourtWithBooking } from "@/lib/hooks/court/court.hook"
 import { Skeleton } from "@/components/ui/skeleton"
 interface AvailabilityCourtProps {

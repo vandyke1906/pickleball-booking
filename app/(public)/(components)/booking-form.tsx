@@ -15,23 +15,14 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
-import { useCallback, useState } from "react"
+import { useCallback } from "react"
 import { AvailabilityCourt } from "@/app/(public)/(components)/availability-court"
-import {
-  cn,
-  DEFAULT_TIMEZONE,
-  formatDateTime,
-  getEndTime,
-  parseLocalDateTime,
-  toMinutes,
-  toMinutesFromDateTime,
-} from "@/lib/utils"
+import { formatDateTime, getEndTime, toMinutes } from "@/lib/utils"
 import { useCourtBookings, useCourts } from "@/lib/hooks/court/court.hook"
 import { useCreateBooking } from "@/lib/mutations/booking/booking.mutation"
 import { useForm } from "react-hook-form"
 import { BookingPayload, bookingSchema } from "@/lib/validation/booking/booking.validation"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { start } from "repl"
 import { Input } from "@/components/ui/input"
 
 const TIME_SLOTS = [
