@@ -53,8 +53,6 @@ export function makeBookingDate(dateString: string, timeString: string, duration
 export function formatDateTime(utcString: string, timeZone: string = DEFAULT_TIMEZONE) {
   const zoned = toZonedTime(new Date(utcString), timeZone)
   return zoned
-  // const formatted = format(zoned, "MMM dd, yyyy · hh:mm a", { timeZone })
-  // return `${formatted} PHT`
 }
 
 export function formatISODateString(isoString: string) {
