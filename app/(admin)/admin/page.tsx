@@ -4,6 +4,7 @@ import { BookingDialog } from "@/app/(admin)/admin/(component)/booking-dialog"
 import BigCalendar, { CalendarEvent } from "@/components/big-calendar/big-calendar"
 import BadgeStatus from "@/components/common/badge-status"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useCourtBookings, useOrganizationCourts } from "@/lib/hooks/court/court.hook"
 import { formatDateTime, formatFloat } from "@/lib/utils"
 import { Court } from "@prisma/client"
@@ -136,13 +137,12 @@ export default function Page() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <header style={{ height: "60px" }}>Booking Calendar</header>
-      <main style={{ flex: 1 }}>
+      <main style={{ flex: 1 }} className="relative">
+        {/* Calendar always mounted */}
         <BigCalendar
           className="rbc-calendar"
           eventPropGetter={getEventClassNames}
-          components={{
-            event: CustomEvent,
-          }}
+          components={{ event: CustomEvent }}
           selectable
           resizable={false}
           draggableAccessor={() => true}
@@ -164,7 +164,20 @@ export default function Page() {
             setOpenEventDialog(true)
           }}
         />
+
+        {/* Overlay skeleton while loading */}
+        {(isLoadingOrgWithCourts || isLoadingCourtBookings) && (
+          <div className="absolute inset-0 bg-white/70 flex flex-col gap-4 p-4">
+            <Skeleton className="h-8 w-32" /> {/* toolbar placeholder */}
+            <div className="grid grid-cols-7 gap-2 flex-1">
+              {Array.from({ length: 35 }).map((_, i) => (
+                <Skeleton key={i} className="h-24 w-full" />
+              ))}
+            </div>
+          </div>
+        )}
       </main>
+
       {selectedBooking && (
         <BookingDialog
           booking={selectedBooking as TBookingDetails}
@@ -182,6 +195,19 @@ function CustomEvent({ event }: { event: any }) {
       <span className="font-medium truncate leading-none flex items-center">{event.title}</span>
       <div className="flex items-center">
         <BadgeStatus status={event.status} />
+      </div>
+    </div>
+  )
+}
+
+function CalendarSkeleton() {
+  return (
+    <div className="space-y-4 p-4">
+      <Skeleton className="h-6 w-48" />
+      <div className="grid grid-cols-7 gap-2">
+        {Array.from({ length: 35 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full" />
+        ))}
       </div>
     </div>
   )
