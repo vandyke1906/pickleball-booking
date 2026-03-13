@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import QueryProvider from "@/lib/providers/query-provider"
 import { Toaster } from "@/components/ui/sonner"
+import { NuqsAdapter } from "nuqs/adapters/next/app"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -36,10 +37,12 @@ export default function RootLayout({
         suppressHydrationWarning={true}
         className={`${geistSans.className} ${geistMono.variable} antialiased`}
       >
-        <QueryProvider>
-          {children}
-          <Toaster position="top-right" richColors closeButton />
-        </QueryProvider>
+        <NuqsAdapter>
+          <QueryProvider>
+            {children}
+            <Toaster position="top-right" richColors closeButton />
+          </QueryProvider>
+        </NuqsAdapter>
       </body>
     </html>
   )

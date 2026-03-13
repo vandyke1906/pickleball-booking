@@ -1,10 +1,11 @@
 import { prisma } from "@/lib/prisma"
 import { NextRequest, NextResponse } from "next/server"
-import { makeBookingDate } from "@/lib/utils"
+import { formatTimeOnly, makeBookingDate } from "@/lib/utils"
 import { put } from "@vercel/blob"
 import { customAlphabet } from "nanoid"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { BroadcastEventTypes } from "@/lib/sse-broadcaster.type"
+import { formatISO } from "date-fns"
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const nanoid = customAlphabet(alphabet, 6)
@@ -35,17 +36,34 @@ export async function GET(request: NextRequest) {
 
     const bookings = await prisma.booking.findMany({
       where: whereClause,
-      include: { courts: true }, // now many-to-many
+      select: {
+        id: true,
+        code: true,
+        startTime: true,
+        endTime: true,
+        status: true,
+        fullName: true,
+        contactNumber: true,
+        emailAddress: true,
+        totalPrice: true,
+        createdAt: true,
+        courts: { select: { name: true } },
+      },
       orderBy: [{ startTime: "asc" }],
     })
 
     const formattedBookings = bookings.map((booking) => ({
       bookingId: booking.id,
       code: booking.code,
-      courts: booking.courts.map((c) => c.name).join(", "),
-      startTime: booking.startTime.toTimeString().slice(0, 5),
-      endTime: booking.endTime.toTimeString().slice(0, 5),
+      fullName: booking.fullName,
+      emailAddress: booking.emailAddress,
+      totalPrice: booking.totalPrice,
+      courts: booking.courts.map((c) => c.name),
       status: booking.status,
+      startTime: formatTimeOnly(booking.startTime.toISOString()),
+      endTime: formatTimeOnly(booking.endTime.toISOString()),
+      bookedDate: booking.startTime.toDateString(),
+      createdAt: formatISO(new Date(booking.createdAt)),
     }))
 
     return NextResponse.json(formattedBookings)
