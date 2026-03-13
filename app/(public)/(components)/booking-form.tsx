@@ -17,7 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
 import { useCallback, useMemo, useRef, useState } from "react"
 import { AvailabilityCourt } from "@/app/(public)/(components)/availability-court"
-import { formatDateTime, getEndTime, toMinutes } from "@/lib/utils"
+import { formatDateTime, formatFloat, getEndTime, toMinutes } from "@/lib/utils"
 import { useCourtBookings, useOrganizationCourts } from "@/lib/hooks/court/court.hook"
 import { useCreateBooking, useGetBookingByCode } from "@/lib/mutations/booking/booking.mutation"
 import { useForm } from "react-hook-form"
@@ -96,6 +96,18 @@ export default function BookingPage() {
 
     return slots
   }, [selectedOrganization, form])
+
+  const totalPayment = useMemo(() => {
+    const courtIds = form.watch("courtIds") || []
+    const duration = form.watch("duration") || 0
+    const courts = selectedOrganization?.courts || []
+
+    // Filter courts that match the selected IDs
+    const selectedCourts = courts.filter((court) => courtIds.includes(court.id))
+
+    // Sum up their pricePerHour multiplied by duration
+    return selectedCourts.reduce((sum, court) => sum + court.pricePerHour * duration, 0)
+  }, [form.watch("courtIds"), form.watch("duration"), selectedOrganization?.courts])
 
   const isBlockOverlappingWithBookings = useCallback(
     (courtId: string, proposedStart: string, proposedDurationHours: number): boolean => {
@@ -397,7 +409,16 @@ export default function BookingPage() {
                       Please wait...
                     </>
                   ) : (
-                    `Book Now – ${form.watch("courtIds").length} court${form.watch("courtIds").length !== 1 ? "s" : ""}`
+                    <span className="flex flex-col sm:flex-row items-center sm:justify-center gap-2 sm:gap-4 text-center">
+                      <span className="text-base sm:text-lg font-medium">
+                        {`Book Now – ${form.watch("courtIds").length} court${
+                          form.watch("courtIds").length !== 1 ? "s" : ""
+                        }`}
+                      </span>
+                      <span className="font-extrabold text-green-700 text-xl sm:text-2xl">
+                        {formatFloat(totalPayment)}
+                      </span>
+                    </span>
                   )}
                 </Button>
 
