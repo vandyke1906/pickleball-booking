@@ -109,29 +109,25 @@ export default function BookingPage() {
     return selectedCourts.reduce((sum, court) => sum + court.pricePerHour * duration, 0)
   }, [form.watch("courtIds"), form.watch("duration"), selectedOrganization?.courts])
 
-  const isBlockOverlappingWithBookings = useCallback(
-    (courtId: string, proposedStart: string, proposedDurationHours: number): boolean => {
-      if (!courtBookings || !date) return false
+  const canBook = useMemo(() => {
+    if (!courtBookings || !date) return false
 
-      const proposedStartMin = toMinutes(proposedStart)
-      const proposedEndMin = proposedStartMin + proposedDurationHours * 60
+    const courtIds = form.watch("courtIds")
+    const startTime = form.watch("startTime")
+    const duration = form.watch("duration")
 
+    if (courtIds.length === 0) return false
+
+    const proposedStartMin = toMinutes(startTime)
+    const proposedEndMin = proposedStartMin + duration * 60
+
+    return courtIds.every((courtId) => {
       const currentCourt = courtBookings.find((c) => c.id === courtId)
       const currentBookings = currentCourt?.bookings || []
 
       for (const booking of currentBookings) {
-        // Convert to PH time for comparison
         const bookingStart = formatDateTime(booking.startTime)
         const bookingEnd = formatDateTime(booking.endTime)
-
-        // Compare only if same day
-
-        console.info({
-          bookingStart,
-          bookingEnd,
-          bookingStartLocal: bookingStart.toLocaleDateString("en-PH"),
-          date: date.toLocaleDateString("en-PH"),
-        })
 
         const sameDay =
           bookingStart.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH")
@@ -139,27 +135,15 @@ export default function BookingPage() {
 
         const bookStartMin = bookingStart.getHours() * 60 + bookingStart.getMinutes()
         const bookEndMin = bookingEnd.getHours() * 60 + bookingEnd.getMinutes()
-        console.log("Proposed:", proposedStartMin, proposedEndMin)
-        console.log("Booking:", bookStartMin, bookEndMin)
 
-        if (proposedStartMin < bookEndMin && proposedEndMin > bookStartMin) return true
+        if (proposedStartMin < bookEndMin && proposedEndMin > bookStartMin) {
+          return false // overlap found
+        }
       }
 
-      return false
-    },
-    [courtBookings, date, startTime, duration, selectedCourtIds],
-  )
-
-  const canBook =
-    form.watch("courtIds").length > 0 &&
-    form
-      .watch("courtIds")
-      .every(
-        (courtId) =>
-          !isBlockOverlappingWithBookings(courtId, form.watch("startTime"), form.watch("duration")),
-      )
-
-  console.info({ canBook })
+      return true // no overlap for this court
+    })
+  }, [courtBookings, date, form])
 
   const handleFindBooking = () => {
     const code: string = refCode?.current?.value || ""
