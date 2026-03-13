@@ -36,11 +36,12 @@ export function makeBookingDate(dateString: string, timeString: string, duration
   const [year, month, day] = dateString.split("-").map(Number)
   const [hour, minute] = timeString.split(":").map(Number)
 
-  const start = new Date(year, month - 1, day, hour, minute)
+  // Construct UTC date
+  const start = new Date(Date.UTC(year, month - 1, day, hour, minute))
   const end = addMinutes(start, durationHours * 60)
 
   return { start, end }
-}
+
 
 /**
  * Converts a UTC ISO string to PH time and formats it.
