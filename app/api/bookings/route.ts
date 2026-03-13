@@ -126,10 +126,15 @@ export async function POST(req: Request) {
     if (!proofOfPayment) return NextResponse.json({ error: "No file provided" }, { status: 400 })
     if (Array.isArray(proofOfPayment)) throw new Error("Only one image is allowed")
     if (!proofOfPayment.type.startsWith("image/")) throw new Error("File must be an image")
-
-    const blob = await put(`proofs/${Date.now()}-${proofOfPayment.name}`, proofOfPayment, {
-      access: "public",
-    })
+    let url = ""
+    try {
+      const blob = await put(`proofs/${Date.now()}-${proofOfPayment.name}`, proofOfPayment, {
+        access: "public",
+      })
+      url = blob.url
+    } catch (error) {
+      throw new Error("Error uploading proof of payment. Please try again later.")
+    }
 
     let code: string = ""
     let attempts = 0
@@ -175,7 +180,7 @@ export async function POST(req: Request) {
           endTime: end,
           status: "pending",
           notes: "Awaiting payment verification",
-          proofOfPaymentLink: blob.url,
+          proofOfPaymentLink: url,
           totalPrice,
           courts: {
             connect: courtIds.map((id: string) => ({ id })),
@@ -196,7 +201,7 @@ export async function POST(req: Request) {
   } catch (err: any) {
     console.error("Booking error:", err)
     return NextResponse.json(
-      { success: false, error: "Something went wrong. Please try again later" },
+      { success: false, error: err.message || "Something went wrong. Please try again later" },
       { status: 400 },
     )
   }

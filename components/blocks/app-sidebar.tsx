@@ -21,6 +21,7 @@ import {
 import { NavMain } from "./nav-main"
 import { NavUser } from "./nav-user"
 import { useSession } from "next-auth/react"
+import Image from "next/image"
 
 const navMain = [
   {
@@ -52,8 +53,8 @@ const navMain = [
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession()
   const user = {
-    name: session?.user?.name,
-    email: session?.user?.email,
+    name: session?.user?.name || "",
+    email: session?.user?.email || "",
     avatar: "/avatars/avatar.jpg",
   }
   return (
@@ -64,10 +65,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton size="lg" asChild>
               <a href="#">
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <GalleryVerticalEnd className="size-4" />
+                  {/* <GalleryVerticalEnd className="size-4 /> */}
+                  <Image src="/images/logo.jpg" width={300} height={300} alt="PICKL. Digos Logo" />
                 </div>
                 <div className="flex flex-col gap-0.5 leading-none">
-                  <span className="font-medium">Pickle Ball</span>
+                  <span className="font-medium">PICKL. Digos</span>
                   <span className="">v1.0.0</span>
                 </div>
               </a>
