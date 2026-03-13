@@ -191,9 +191,6 @@ export default function BookingPage() {
           className="py-10 px-5 sm:px-8"
         >
           <div className="max-w-5xl mx-auto">
-            <h1 className="text-3xl sm:text-4xl font-bold text-center mb-10">
-              Book Pickleball Court
-            </h1>
             {/* Search Bookings */}
             <div className="py-4 my-4 relative flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <div className="w-full relative">
@@ -220,6 +217,9 @@ export default function BookingPage() {
                 )}
               </Button>
             </div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-center mb-10">
+              Book Pickleball Court
+            </h1>
             <form
               onSubmit={form.handleSubmit(onSubmit)}
               className="bg-white border border-slate-200 rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10 space-y-8"
