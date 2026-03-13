@@ -1,28 +1,29 @@
+import { getToken } from "next-auth/jwt"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl
-  const token = request.cookies.get("auth-token")?.value
+export async function proxy(request: NextRequest) {
+  const token = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  })
 
-  if (pathname.startsWith("/admin")) {
-    // const userRole = request.cookies.get("user-role")?.value
-    // if (userRole !== "admin") {
-    //   return NextResponse.redirect(new URL("/login", request.url))
-    // }
-    return NextResponse.next()
+  const { pathname } = request.nextUrl
+
+  // If user is logged in and tries to visit /auth/signin → redirect to /admin
+  if (token && pathname.startsWith("/auth/signin")) {
+    return NextResponse.redirect(new URL("/admin", request.url))
   }
 
-  // 2. Protect User Routes (Future-proof)
-  // if (pathname.startsWith("/user") )) {
-  //   if (!token) {
-  //     return NextResponse.redirect(new URL("/login", request.url))
-  //   }
-  // }
+  // If user is not logged in and tries to visit /admin → redirect to /auth/signin
+  if (!token && pathname.startsWith("/admin")) {
+    return NextResponse.redirect(new URL("/auth/signin", request.url))
+  }
 
+  // Otherwise allow request
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/auth/signin"],
 }
