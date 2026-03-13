@@ -297,7 +297,13 @@ export default function BookingPage() {
 
                 {/* Courts */}
                 <div className="lg:col-span-3 space-y-2">
-                  <Label className="font-semibold text-slate-700">Courts</Label>
+                  <Label className="font-semibold text-slate-700">
+                    Courts (select multiple to book in one transaction)
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    You can book multiple courts at once by checking more than one option.
+                  </p>
+
                   <div className="border rounded-md p-4 bg-slate-50/60 max-h-48 overflow-y-auto space-y-3">
                     {(selectedOrganization?.courts || []).map((court) => (
                       <div key={court.id} className="flex items-center space-x-3">
