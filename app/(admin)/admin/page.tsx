@@ -1,7 +1,7 @@
 "use client"
 
 import { BookingDialog } from "@/app/(admin)/admin/(component)/booking-dialog"
-import BigCalendar, { CalendarEvent } from "@/components/big-calendar/big-calendar"
+import BigCalendar from "@/components/big-calendar/big-calendar"
 import BadgeStatus from "@/components/common/badge-status"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
