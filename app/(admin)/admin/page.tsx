@@ -97,6 +97,7 @@ export default function Page() {
 
     return courtBookings.flatMap((court) =>
       (court.bookings ?? []).map((booking: any) => {
+        console.info(booking.proofOfPaymentLink)
         return {
           id: booking.id,
           code: booking.code,

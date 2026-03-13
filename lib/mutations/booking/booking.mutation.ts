@@ -4,6 +4,7 @@ import { format } from "date-fns"
 import { BookingPayload, bookingSchema } from "@/lib/validation/booking/booking.validation"
 import { qKeyBookings } from "@/lib/hooks/booking/booking.hook"
 import { qKeyCourts } from "@/lib/hooks/court/court.hook"
+import { fetcher } from "@/lib/hooks/common.hook"
 
 async function createBooking(payload: BookingPayload) {
   const parsed = bookingSchema.parse(payload)
@@ -39,7 +40,7 @@ export function useCreateBooking() {
     mutationKey: ["create-booking"],
     mutationFn: createBooking,
 
-    onMutate: async (newBooking) => {
+    onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["bookings"] })
       const previousBookings = queryClient.getQueryData(["bookings"])
       return { previousBookings }
@@ -61,8 +62,54 @@ export function useCreateBooking() {
     },
 
     onSuccess: () => {
-      toast.success("Booking confirmed", {
-        description: "Your booking has been saved with proof of payment.",
+      toast.success("Booking Created", {
+        description: "Your booking has been created and it is under review.",
+      })
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: qKeyCourts.all, exact: false })
+      queryClient.invalidateQueries({ queryKey: qKeyBookings.all, exact: false })
+    },
+
+    retry: 1,
+  })
+}
+
+export function useConfirmBooking() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationKey: ["confirm-booking"],
+    mutationFn: (bookingId: string) =>
+      fetcher(`/api/bookings/confirm/${bookingId}`, {
+        method: "POST",
+      }),
+
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["bookings"] })
+      const previousBookings = queryClient.getQueryData(["bookings"])
+      return { previousBookings }
+    },
+
+    onError: (error, _values, context) => {
+      if (context?.previousBookings) {
+        queryClient.setQueryData(["bookings"], context.previousBookings)
+      }
+      if (error instanceof Error && "issues" in error) {
+        const zodErr = error as any
+        toast.error("Validation failed", {
+          description: zodErr.issues.map((e: any) => e.message).join(", "),
+        })
+        return
+      }
+
+      toast.error("Confirm Booking failed", { description: (error as Error).message })
+    },
+
+    onSuccess: () => {
+      toast.success("Confirm Booking", {
+        description: "Booking has been confirmed.",
       })
     },
 

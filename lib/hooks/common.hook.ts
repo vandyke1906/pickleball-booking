@@ -1,12 +1,22 @@
-export async function fetcher<T = unknown>(url: string): Promise<T> {
+export async function fetcher<T = unknown>(url: string, options?: RequestInit): Promise<T> {
   if (!url) return null as T
-  const res = await fetch(url)
+
+  const res = await fetch(url, {
+    method: options?.method ?? "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options?.headers ?? {}),
+    },
+    ...options,
+  })
 
   let data: any = null
 
   try {
     data = await res.json()
-  } catch {}
+  } catch {
+    // If response is empty or not JSON, leave data as null
+  }
 
   if (!res.ok) {
     const error = new Error(data?.error || data?.message || res.statusText || "Request failed")

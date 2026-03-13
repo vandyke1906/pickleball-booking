@@ -15,5 +15,4 @@ export const bookingSchema = z.object({
       message: "File size must be less than or equal to 5MB",
     }),
 })
-
 export type BookingPayload = z.infer<typeof bookingSchema>
