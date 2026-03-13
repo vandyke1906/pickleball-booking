@@ -10,15 +10,7 @@ export function SSEProvider({ children }: { children: React.ReactNode }) {
   const sourceRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
-    // ✅ Safe: runs only in browser
-    let browserId = localStorage.getItem("browserId")
-
-    if (!browserId) {
-      browserId = crypto.randomUUID()
-      localStorage.setItem("browserId", browserId)
-    }
-
-    const source = new EventSource(`/api/server-events?browserId=${browserId}`)
+    const source = new EventSource(`/api/server-events?id=guest`)
     sourceRef.current = source
 
     source.onopen = () => {

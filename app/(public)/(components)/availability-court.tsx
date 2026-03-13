@@ -63,96 +63,29 @@ export function AvailabilityCourt({
           Court Availability — {format(date, "MMMM d, yyyy")}
         </h3>
 
-        <div className="overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
-          {courtWithBookings.length ? (
-            <table className="w-full min-w-[1000px] bg-white">
-              <thead>
-                <tr className="bg-slate-100">
-                  <th className="sticky left-0 z-10 bg-slate-100 p-4 text-left font-semibold border-b border-r border-slate-200 min-w-[140px]">
-                    Start Time
-                  </th>
-                  {isLoading
-                    ? Array.from({ length: 4 }).map((_, i) => (
-                        <th key={i} className="p-4 border-b border-slate-200 min-w-[180px]">
-                          <Skeleton className="h-5 w-24 mx-auto" />
-                        </th>
-                      ))
-                    : courtWithBookings.map((court) => (
-                        <th
-                          key={court.id}
-                          className={cn(
-                            "p-4 font-semibold border-b border-slate-200 min-w-[180px] text-center",
-                            selectedCourtIds.includes(court.id) && "bg-blue-50/70",
-                          )}
-                        >
-                          {court.name}
-                          <div className="text-xs text-slate-500 mt-1">
-                            ₱{court.pricePerHour}/hr
-                          </div>
-                        </th>
-                      ))}
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading
-                  ? Array.from({ length: 6 }).map((_, i) => (
-                      <tr key={i} className="border-b border-slate-100">
-                        <td className="sticky left-0 z-10 bg-white p-4 border-r border-slate-200">
-                          <Skeleton className="h-5 w-16" />
-                        </td>
-                        {Array.from({ length: 4 }).map((_, j) => (
-                          <td key={j} className="p-3 text-center">
-                            <Skeleton className="h-8 w-24 mx-auto rounded-md" />
-                          </td>
-                        ))}
-                      </tr>
-                    ))
-                  : timeSlots.map((time) => (
-                      <tr
-                        key={time.value}
-                        className="border-b border-slate-100 hover:bg-slate-50/40"
-                      >
-                        <td className="sticky left-0 z-10 bg-white p-4 font-medium border-r border-slate-200">
-                          {time.label}
-                        </td>
-                        {courtWithBookings.map((court) => {
-                          const isAvailable = isBlockAvailableForCourt(
-                            court,
-                            time.value,
-                            duration,
-                            date,
-                          )
-                          const isSelected = selectedCourtIds.includes(court.id)
+        {/* Show table on lg+, cards on md and below */}
+        <div className="hidden lg:block">
+          <CourtAvailabilityTable
+            isBlockAvailableForCourt={isBlockAvailableForCourt}
+            courtWithBookings={courtWithBookings}
+            timeSlots={timeSlots}
+            isLoading={isLoading}
+            selectedCourtIds={selectedCourtIds}
+            duration={duration}
+            date={date}
+          />
+        </div>
 
-                          return (
-                            <td key={court.id} className="p-3 text-center">
-                              <div
-                                className={cn(
-                                  "py-2.5 px-4 rounded-md text-sm font-medium transition-colors duration-200",
-                                  isSelected &&
-                                    isAvailable &&
-                                    "bg-green-100 border border-green-300 text-green-800 font-semibold",
-                                  isSelected &&
-                                    !isAvailable &&
-                                    "bg-amber-100 border border-amber-300 text-amber-800 font-semibold",
-                                  !isSelected && isAvailable && "bg-green-50 text-green-700",
-                                  !isSelected && !isAvailable && "bg-amber-50 text-amber-700",
-                                )}
-                              >
-                                {isAvailable ? "Available" : "Booked"}
-                              </div>
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="m-6 p-6 font-semibold text-amber-600 text-center">
-              No available <strong>courts</strong>
-            </div>
-          )}
+        <div className="block lg:hidden">
+          <CourtAvailabilityCards
+            isBlockAvailableForCourt={isBlockAvailableForCourt}
+            courtWithBookings={courtWithBookings}
+            timeSlots={timeSlots}
+            isLoading={isLoading}
+            selectedCourtIds={selectedCourtIds}
+            duration={duration}
+            date={date}
+          />
         </div>
 
         {!isLoading && (
@@ -163,5 +96,215 @@ export function AvailabilityCourt({
         )}
       </div>
     </section>
+  )
+}
+
+interface CourtAvailabilityProps {
+  isBlockAvailableForCourt: (
+    court: TCourtWithBooking,
+    proposedStart: string,
+    dur: number,
+    date: Date,
+  ) => boolean
+  courtWithBookings: TCourtWithBooking[]
+  timeSlots: { value: string; label: string }[]
+  isLoading: boolean
+  selectedCourtIds: string[]
+  duration: number
+  date: Date
+}
+
+interface CourtAvailabilitySkeletonProps {
+  courtCount: number
+  timeSlotCount: number
+}
+
+function CourtAvailabilityTable({
+  isBlockAvailableForCourt,
+  courtWithBookings,
+  timeSlots,
+  isLoading,
+  selectedCourtIds,
+  duration,
+  date,
+}: CourtAvailabilityProps) {
+  if (isLoading) {
+    return (
+      <CourtAvailabilityTableSkeleton
+        courtCount={courtWithBookings.length || 3}
+        timeSlotCount={timeSlots.length || 4}
+      />
+    )
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
+      <table className="w-full min-w-[1000px] bg-white text-sm">
+        <thead>
+          <tr className="bg-slate-100">
+            <th className="sticky left-0 z-10 bg-slate-100 p-4 text-left font-semibold border-b border-r border-slate-200 min-w-[140px]">
+              Start Time
+            </th>
+            {courtWithBookings.map((court) => (
+              <th
+                key={court.id}
+                className="p-4 font-semibold border-b border-slate-200 min-w-[180px] text-center"
+              >
+                {court.name}
+                <div className="text-xs text-slate-500 mt-1">₱{court.pricePerHour}/hr</div>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {timeSlots.map((time) => (
+            <tr key={time.value} className="border-b border-slate-100 hover:bg-slate-50/40">
+              <td className="sticky left-0 z-10 bg-white p-4 font-medium border-r border-slate-200">
+                {time.label}
+              </td>
+              {courtWithBookings.map((court) => {
+                const isAvailable = isBlockAvailableForCourt(court, time.value, duration, date)
+                const isSelected = selectedCourtIds.includes(court.id)
+
+                return (
+                  <td key={court.id} className="p-3 text-center">
+                    <div
+                      className={cn(
+                        "py-2.5 px-4 rounded-md text-sm font-medium transition-colors duration-200",
+                        isSelected &&
+                          isAvailable &&
+                          "bg-green-100 border border-green-300 text-green-800 font-semibold",
+                        isSelected &&
+                          !isAvailable &&
+                          "bg-red-100 border border-red-300 text-red-800 font-semibold",
+                        !isSelected && isAvailable && "bg-green-50 text-green-700",
+                        !isSelected &&
+                          !isAvailable &&
+                          "bg-red-50 border border-red-300 text-red-700",
+                      )}
+                    >
+                      {isAvailable ? "Available" : "Booked"}
+                    </div>
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+export function CourtAvailabilityTableSkeleton({
+  courtCount,
+  timeSlotCount,
+}: CourtAvailabilitySkeletonProps) {
+  return (
+    <div className="overflow-x-auto rounded-lg border border-slate-200 shadow-sm">
+      <table className="w-full min-w-[1000px] bg-white text-sm">
+        <thead>
+          <tr className="bg-slate-100">
+            <th className="sticky left-0 z-10 bg-slate-100 p-4 text-left font-semibold border-b border-r border-slate-200 min-w-[140px]">
+              Start Time
+            </th>
+            {Array.from({ length: courtCount }).map((_, i) => (
+              <th key={i} className="p-4 border-b border-slate-200 min-w-[180px] text-center">
+                <Skeleton className="h-5 w-24 mx-auto" />
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: timeSlotCount }).map((_, i) => (
+            <tr key={i} className="border-b border-slate-100">
+              <td className="sticky left-0 z-10 bg-white p-4 border-r border-slate-200">
+                <Skeleton className="h-5 w-16" />
+              </td>
+              {Array.from({ length: courtCount }).map((_, j) => (
+                <td key={j} className="p-3 text-center">
+                  <Skeleton className="h-8 w-24 mx-auto rounded-md" />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function CourtAvailabilityCards({
+  isBlockAvailableForCourt,
+  courtWithBookings,
+  timeSlots,
+  isLoading,
+  selectedCourtIds,
+  duration,
+  date,
+}: CourtAvailabilityProps) {
+  if (isLoading) {
+    return (
+      <CourtAvailabilityCardSkeleton
+        courtCount={courtWithBookings.length || 3}
+        timeSlotCount={timeSlots.length || 4}
+      />
+    )
+  }
+
+  return (
+    <div className="grid gap-4">
+      {timeSlots.map((time) => (
+        <div key={time.value} className="rounded-lg border border-slate-200 shadow-sm p-4">
+          <h4 className="text-sm font-semibold mb-3">{time.label}</h4>
+          <div className="grid gap-3">
+            {courtWithBookings.map((court) => {
+              const isAvailable = isBlockAvailableForCourt(court, time.value, duration, date)
+              const isSelected = selectedCourtIds.includes(court.id)
+
+              return (
+                <div
+                  key={court.id}
+                  className={cn(
+                    "flex items-center justify-between rounded-md p-3 text-xs sm:text-sm transition-colors duration-200",
+                    isSelected &&
+                      isAvailable &&
+                      "bg-green-100 border border-green-300 text-green-800 font-semibold",
+                    isSelected &&
+                      !isAvailable &&
+                      "bg-red-100 border border-red-300 text-red-800 font-semibold",
+                    !isSelected && isAvailable && "bg-green-50 text-green-700",
+                    !isSelected && !isAvailable && "bg-red-50 border border-red-300 text-red-700",
+                  )}
+                >
+                  <span className="font-medium">{court.name}</span>
+                  <span>{isAvailable ? "Available" : "Booked"}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function CourtAvailabilityCardSkeleton({
+  courtCount,
+  timeSlotCount,
+}: CourtAvailabilitySkeletonProps) {
+  return (
+    <div className="grid gap-4">
+      {Array.from({ length: timeSlotCount }).map((_, i) => (
+        <div key={i} className="rounded-lg border border-slate-200 shadow-sm p-4">
+          <Skeleton className="h-5 w-24 mb-3" />
+          <div className="grid gap-3">
+            {Array.from({ length: courtCount }).map((_, j) => (
+              <Skeleton key={j} className="h-8 w-full rounded-md" />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }

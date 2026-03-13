@@ -1,3 +1,4 @@
+import { isServerAuthenticated } from "@/lib/auth/auth.server"
 import { EventSubscribe } from "@/lib/server-event/broadcaster.event"
 import { TBroadcastEvent } from "@/lib/sse-broadcaster.type"
 import { NextRequest, NextResponse } from "next/server"
@@ -8,7 +9,8 @@ export const maxDuration = 300
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const browserId = searchParams.get("browserId") || crypto.randomUUID()
+  const session = await isServerAuthenticated()
+  const accountId = session?.user?.id || searchParams.get("id") || crypto.randomUUID()
 
   const encoder = new TextEncoder()
 
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest) {
       }
 
       ;(async () => {
-        unsubscribe = await EventSubscribe(browserId, send)
+        unsubscribe = await EventSubscribe(accountId, send)
 
         send({
           type: "connection",

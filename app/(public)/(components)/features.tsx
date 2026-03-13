@@ -1,18 +1,18 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Clock, Smartphone, CreditCard, ShieldCheck } from "lucide-react"
+import { Clock, Smartphone, Store, Coffee } from "lucide-react"
 
 const features = [
   { icon: Clock, title: "24/7 Booking", desc: "Book courts any time of day" },
   { icon: Smartphone, title: "Mobile Ready", desc: "Book from your phone in seconds" },
-  { icon: CreditCard, title: "Secure Payment", desc: "Pay easily and safely" },
-  { icon: ShieldCheck, title: "Guaranteed Spot", desc: "No double bookings" },
+  { icon: Store, title: "Indigos Shop", desc: "Exclusive gear and partner deals" },
+  { icon: Coffee, title: "Coffee & Chill", desc: "Relax with drinks after a game" },
 ]
 
 export function Features() {
   return (
-    <section className="py-24 px-5 sm:px-8 bg-white">
+    <div className="py-24 px-5 sm:px-8 bg-slate-50">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-4xl sm:text-5xl font-bold mb-5">Why players choose us</h2>
@@ -40,6 +40,6 @@ export function Features() {
           ))}
         </div>
       </div>
-    </section>
+    </div>
   )
 }

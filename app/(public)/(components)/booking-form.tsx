@@ -140,7 +140,7 @@ export default function BookingPage() {
 
       return false
     },
-    [courtBookings, date],
+    [courtBookings, date, startTime, duration, selectedCourtIds],
   )
 
   const canBook =
@@ -183,7 +183,7 @@ export default function BookingPage() {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-20">
+      <div className="min-h-screen">
         {/* Form */}
         <motion.section
           initial={{ y: 20, opacity: 0 }}
@@ -194,31 +194,32 @@ export default function BookingPage() {
             <h1 className="text-3xl sm:text-4xl font-bold text-center mb-10">
               Book Pickleball Court
             </h1>
-
-            <div className="py-4 my-4 relative flex items-center gap-2">
-              <Label htmlFor="search" className="sr-only">
-                Search
-              </Label>
-              <Input
-                type="search"
-                ref={refCode}
-                id="search"
-                placeholder="Enter booking number..."
-                className="pl-8 flex-1 uppercase"
-              />
-              <Search className="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 opacity-50 select-none" />
-              <Button type="button" onClick={handleFindBooking}>
+            {/* Search Bookings */}
+            <div className="py-4 my-4 relative flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div className="w-full relative">
+                <Label htmlFor="search" className="sr-only">
+                  Search
+                </Label>
+                <Input
+                  type="search"
+                  ref={refCode}
+                  id="search"
+                  placeholder="Enter booking number..."
+                  className="pl-8 flex-1 uppercase"
+                />
+                <Search className="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 opacity-50 select-none" />
+              </div>
+              <Button type="button" onClick={handleFindBooking} className="w-full sm:w-auto">
                 {mutationGetBooking.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Please wait...
                   </>
                 ) : (
-                  " Search Booking"
+                  "Search Booking"
                 )}
               </Button>
             </div>
-
             <form
               onSubmit={form.handleSubmit(onSubmit)}
               className="bg-white border border-slate-200 rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10 space-y-8"

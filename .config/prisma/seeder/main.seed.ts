@@ -4,6 +4,7 @@ import { hash } from "bcrypt"
 import * as dotenv from "dotenv"
 import { faker } from "@faker-js/faker"
 import { customAlphabet } from "nanoid"
+import slugify from "slugify"
 
 dotenv.config()
 
@@ -36,14 +37,24 @@ async function clearAllRecords() {
 // ──────────────────────────────────────────────────────────────
 async function seedOrganization() {
   const orgData = {
-    name: "Pickleball Hub",
+    slug: "",
+    name: "PICKL. Digos",
+    address:
+      "Sta Ana Road , Beside Citta de Oro Subdivision (Inside Calibjo Rice Milling), Brgy Tres de Mayo , Digos City , Davao del sur , 8002 Philippines",
+    contactNumber: "0962 814 9964",
+    facebookPage: "https://www.facebook.com/profile.php?id=61554303354722",
+    tiktokPage: "https://www.tiktok.com/@pickl.digos",
+    email: "pickl.digos@gmail.com",
     openTime: "06:00",
-    closeTime: "22:00",
-    courtLimit: 10,
+    closeTime: "23:00",
+    courtLimit: 5,
   }
 
+  const slug = slugify(orgData.name)
+  orgData.slug = slug
+
   const organization = await prisma.organization.upsert({
-    where: { name: orgData.name },
+    where: { slug },
     update: orgData,
     create: orgData,
   })
@@ -86,10 +97,11 @@ async function seedAdminUser(organizationId: string) {
 // ──────────────────────────────────────────────────────────────
 async function seedCourts(organizationId: string) {
   const courtData = [
-    { name: "Court 1 (Indoor)", location: "Main Arena", pricePerHour: 550 },
-    { name: "Court 2 (Indoor)", location: "Main Arena", pricePerHour: 550 },
-    { name: "Court 3 (Left)", location: "Left Area", pricePerHour: 450 },
-    { name: "Court 4 (Right)", location: "Right Area", pricePerHour: 500 },
+    { name: "Court 1 (Indoor)", location: "Main Arena", pricePerHour: 500 },
+    { name: "Court 2 (Indoor)", location: "Main Arena", pricePerHour: 500 },
+    { name: "Court 3 (Indoor)", location: "Left Area", pricePerHour: 500 },
+    { name: "Court 4 (Left)", location: "Right Area", pricePerHour: 450 },
+    { name: "Court 5 (Right)", location: "Right Area", pricePerHour: 450 },
   ]
 
   const courts = []

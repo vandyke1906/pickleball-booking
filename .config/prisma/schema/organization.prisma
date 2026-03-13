@@ -1,8 +1,17 @@
 model Organization {
-  id        String @id @default(cuid())
-  name      String @unique
-  openTime  String
-  closeTime String
+  id            String  @id @default(cuid())
+  slug          String  @unique
+  name          String
+  description   String?
+  address       String
+  contactNumber String?
+  email         String?
+  facebookPage  String?
+  tiktokPage    String?
+  instagramPage String?
+  youtubePage   String?
+  openTime      String
+  closeTime     String
 
   courtLimit Int
   courts     Court[]

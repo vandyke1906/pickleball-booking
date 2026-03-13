@@ -3,6 +3,7 @@
 import { motion } from "framer-motion"
 import { CalendarDays, MapPin, Users } from "lucide-react"
 import BookingForm from "@/app/(public)/(components)/booking-form"
+import Image from "next/image"
 
 const container = {
   hidden: { opacity: 0 },
@@ -28,10 +29,34 @@ export function Hero() {
         animate="show"
         className="relative z-10 w-full max-w-6xl mx-auto text-center"
       >
+        <motion.div variants={item} className="flex flex-col items-center mb-6">
+          <div className="w-48 h-48 mb-2 rounded-full overflow-hidden bg-white flex items-center justify-center">
+            <Image
+              src="/images/logo.jpg"
+              width={300}
+              height={300}
+              alt="PICKL. Digos Logo"
+              className="w-32 h-32 mb-2 rounded-full object-cover"
+            />
+          </div>
+          <p className="text-slate-600 text-sm sm:text-base">
+            At <span className="font-semibold">PICKL. Digos</span>, we bring together sport,
+            wellness, and social life in one vibrant destination.
+          </p>
+          <p className="text-slate-600 text-sm sm:text-base">
+            Step onto our courts and feel the excitement of pickleball, then cool down with our
+            freshly made smoothies, juices, and healthy meals. Our relaxing tambayan area is the
+            perfect spot to laugh, bond, and create memories after every game.
+          </p>
+          <p className="text-slate-600 text-sm sm:text-base">
+            This is not just a place to play — it’s a place to belong.
+          </p>
+        </motion.div>
+
         <motion.div variants={item}>
           <span className="inline-flex items-center gap-2 px-5 py-2 mb-6 text-sm font-semibold tracking-wide text-primary bg-primary/10 border border-primary/20 rounded-full shadow-sm">
             <MapPin className="h-4 w-4" />
-            NOW BOOKING IN DIGOS CITY
+            NOW BOOKING @ PICKL. Digos
           </span>
         </motion.div>
 
@@ -69,7 +94,7 @@ export function Hero() {
           </div>
           <div className="flex items-center gap-2.5">
             <MapPin className="h-6 w-6 text-primary" />
-            <span>Accessbile Venue</span>
+            <span>Accessible Venue</span>
           </div>
         </motion.div>
       </motion.div>
