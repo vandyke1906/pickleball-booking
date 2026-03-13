@@ -14,6 +14,33 @@ interface AvailabilityCourtProps {
   isLoading: boolean
 }
 
+const isBlockAvailableForCourt = (
+  court: TCourtWithBooking,
+  proposedStart: string,
+  dur: number,
+  date: Date,
+) => {
+  const proposedStartMin = toMinutes(proposedStart)
+  const proposedEndMin = proposedStartMin + dur * 60
+
+  console.info({ proposedStartMin, proposedEndMin })
+
+  return !court.bookings.some((b) => {
+    const bookingStart = formatDateTime(b.startTime)
+    const bookingEnd = formatDateTime(b.endTime)
+
+    // Compare only if same day
+    const sameDay = bookingStart.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH")
+    console.info({ bookingStart, bookingEnd, sameDay })
+    if (!sameDay) return false
+
+    const bookStartMin = bookingStart.getHours() * 60 + bookingStart.getMinutes()
+    const bookEndMin = bookingEnd.getHours() * 60 + bookingEnd.getMinutes()
+
+    return proposedStartMin < bookEndMin && proposedEndMin > bookStartMin
+  })
+}
+
 export function AvailabilityCourt({
   date,
   startTime,
@@ -23,31 +50,6 @@ export function AvailabilityCourt({
   courtWithBookings,
   isLoading,
 }: AvailabilityCourtProps & { isLoading?: boolean }) {
-  const isBlockAvailableForCourt = (
-    court: TCourtWithBooking,
-    proposedStart: string,
-    dur: number,
-    date: Date,
-  ) => {
-    const proposedStartMin = toMinutes(proposedStart)
-    const proposedEndMin = proposedStartMin + dur * 60
-
-    return !court.bookings.some((b) => {
-      const bookingStart = formatDateTime(b.startTime)
-      const bookingEnd = formatDateTime(b.endTime)
-
-      // Compare only if same day
-      const sameDay = bookingStart.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH")
-      console.info({ bookingStart, bookingEnd, sameDay })
-      if (!sameDay) return false
-
-      const bookStartMin = bookingStart.getHours() * 60 + bookingStart.getMinutes()
-      const bookEndMin = bookingEnd.getHours() * 60 + bookingEnd.getMinutes()
-
-      return proposedStartMin < bookEndMin && proposedEndMin > bookStartMin
-    })
-  }
-
   const endTimeDisplay = (() => {
     const [h, m] = startTime.split(":").map(Number)
     const total = h * 60 + m + duration * 60
@@ -66,7 +68,6 @@ export function AvailabilityCourt({
         {/* Show table on lg+, cards on md and below */}
         <div className="hidden lg:block">
           <CourtAvailabilityTable
-            isBlockAvailableForCourt={isBlockAvailableForCourt}
             courtWithBookings={courtWithBookings}
             timeSlots={timeSlots}
             isLoading={isLoading}
@@ -78,7 +79,6 @@ export function AvailabilityCourt({
 
         <div className="block lg:hidden">
           <CourtAvailabilityCards
-            isBlockAvailableForCourt={isBlockAvailableForCourt}
             courtWithBookings={courtWithBookings}
             timeSlots={timeSlots}
             isLoading={isLoading}
@@ -100,12 +100,6 @@ export function AvailabilityCourt({
 }
 
 interface CourtAvailabilityProps {
-  isBlockAvailableForCourt: (
-    court: TCourtWithBooking,
-    proposedStart: string,
-    dur: number,
-    date: Date,
-  ) => boolean
   courtWithBookings: TCourtWithBooking[]
   timeSlots: { value: string; label: string }[]
   isLoading: boolean
@@ -120,7 +114,6 @@ interface CourtAvailabilitySkeletonProps {
 }
 
 function CourtAvailabilityTable({
-  isBlockAvailableForCourt,
   courtWithBookings,
   timeSlots,
   isLoading,
@@ -235,7 +228,6 @@ export function CourtAvailabilityTableSkeleton({
 }
 
 function CourtAvailabilityCards({
-  isBlockAvailableForCourt,
   courtWithBookings,
   timeSlots,
   isLoading,
