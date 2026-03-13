@@ -9,7 +9,11 @@ export const bookingSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
   contactNumber: z.string().optional(),
   emailAddress: z.email().optional(),
-  proofOfPayment: z.instanceof(File, { message: "Proof of payment file is required" }),
+  proofOfPayment: z
+    .instanceof(File, { message: "Proof of payment file is required" })
+    .refine((file) => file.size <= 5 * 1024 * 1024, {
+      message: "File size must be less than or equal to 5MB",
+    }),
 })
 
 export type BookingPayload = z.infer<typeof bookingSchema>

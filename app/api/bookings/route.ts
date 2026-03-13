@@ -67,9 +67,12 @@ export async function POST(req: Request) {
   const { start, end } = makeBookingDate(date, startTime, duration)
 
   try {
-    if (!proofOfPayment) return NextResponse.json({ error: "No file uploaded" }, { status: 400 })
+    if (!proofOfPayment) return NextResponse.json({ error: "No file provided" }, { status: 400 })
+    if (Array.isArray(proofOfPayment)) throw new Error("Only one image is allowed")
+    if (!proofOfPayment.type.startsWith("image/")) throw new Error("File must be an image")
+
     const blob = await put(`proofs/${Date.now()}-${proofOfPayment.name}`, proofOfPayment, {
-      access: "private",
+      access: "public",
     })
 
     let code: string = ""

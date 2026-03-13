@@ -13,6 +13,9 @@ import { TBookingDetails } from "@/app/(admin)/admin/page"
 import BadgeStatus, { TStatus } from "@/components/common/badge-status"
 import { formatFloat, formatISODateString } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import { useState } from "react"
+import ConfirmationDialog from "@/components/common/confirm-dialog"
+import { CheckCircle2 } from "lucide-react"
 
 interface BookingDialogProps {
   open: boolean
@@ -21,93 +24,118 @@ interface BookingDialogProps {
 }
 
 export function BookingDialog({ open, onOpenChange, booking }: BookingDialogProps) {
-  console.info({ booking })
+  const [openConfirmDialog, setOpenConfirmDialog] = useState(false)
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Booking Details</DialogTitle>
-          <DialogDescription>Review the details of this booking.</DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Booking Details</DialogTitle>
+            <DialogDescription>Review the details of this booking.</DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-4">
-          <div>
-            <p className="text-sm font-medium">Booking Code</p>
-            <p className="text-muted-foreground font-bold">{booking.code}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium">Booked By</p>
-            <p className="text-sm text-muted-foreground">{booking.bookedBy}</p>
-          </div>
-
-          <div>
-            <p className="text-sm font-medium">Contact Details</p>
-            {(booking.contactNumber || booking.emailAddress) && (
-              <p className="text-sm text-muted-foreground">
-                {booking.contactNumber && <span>{booking.contactNumber}</span>}
-                {booking.contactNumber && booking.emailAddress && <span> | </span>}
-                {booking.emailAddress && <span>{booking.emailAddress}</span>}
-              </p>
-            )}
-          </div>
-          <div>
-            <p className="text-sm font-medium">Status</p>
-            <BadgeStatus status={booking.status as TStatus} />
-          </div>
-
-          {booking.proofOfPayment && (
+          <div className="space-y-4">
             <div>
-              <p className="text-sm font-medium">Proof of Payment</p>
-              <a
-                href={booking.proofOfPayment}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:underline"
-              >
-                View Proof
-              </a>
+              <p className="text-sm font-medium">Booking Code</p>
+              <p className="text-muted-foreground font-bold">{booking.code}</p>
             </div>
-          )}
+            <div>
+              <p className="text-sm font-medium">Booked By</p>
+              <p className="text-sm text-muted-foreground">{booking.bookedBy}</p>
+            </div>
 
-          <div>
-            <p className="text-sm font-medium">Total Price</p>
-            <p className="text-sm text-muted-foreground">{formatFloat(booking.totalPrice)}</p>
+            <div>
+              <p className="text-sm font-medium">Contact Details</p>
+              {(booking.contactNumber || booking.emailAddress) && (
+                <p className="text-sm text-muted-foreground">
+                  {booking.contactNumber && <span>{booking.contactNumber}</span>}
+                  {booking.contactNumber && booking.emailAddress && <span> | </span>}
+                  {booking.emailAddress && <span>{booking.emailAddress}</span>}
+                </p>
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-medium">Status</p>
+              <BadgeStatus status={booking.status as TStatus} />
+            </div>
+
+            {booking.proofOfPayment && (
+              <div>
+                <p className="text-sm font-medium">Proof of Payment</p>
+                <a
+                  href={booking.proofOfPayment}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  View Proof
+                </a>
+              </div>
+            )}
+
+            <div>
+              <p className="text-sm font-medium">Total Price</p>
+              <p className="text-sm text-muted-foreground">{formatFloat(booking.totalPrice)}</p>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium">Start</p>
+              <p className="text-sm text-muted-foreground">{formatISODateString(booking.start)}</p>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium">End</p>
+              <p className="text-sm text-muted-foreground">{formatISODateString(booking.end)}</p>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium">Courts</p>
+              <p className="text-sm text-muted-foreground">
+                {(booking.courts || []).map((c: any) => {
+                  console.info({ c })
+                  return (
+                    <Badge variant="outline" key={c.id}>
+                      {c.name} - {formatFloat(c.price)}
+                    </Badge>
+                  )
+                })}
+              </p>
+            </div>
           </div>
 
-          <div>
-            <p className="text-sm font-medium">Start</p>
-            <p className="text-sm text-muted-foreground">{formatISODateString(booking.start)}</p>
-          </div>
+          <DialogFooter>
+            {booking.status === "pending" && (
+              <Button variant="success" onClick={() => setOpenConfirmDialog(true)}>
+                Confirm Booking
+              </Button>
+            )}
+            <Button onClick={() => onOpenChange(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          <div>
-            <p className="text-sm font-medium">End</p>
-            <p className="text-sm text-muted-foreground">{formatISODateString(booking.end)}</p>
-          </div>
-
-          <div>
-            <p className="text-sm font-medium">Courts</p>
-            <p className="text-sm text-muted-foreground">
-              {(booking.courts || []).map((c: any) => {
-                console.info({ c })
-                return (
-                  <Badge variant="outline" key={c.id}>
-                    {c.name} - {formatFloat(c.price)}
-                  </Badge>
-                )
-              })}
-            </p>
-          </div>
-        </div>
-
-        <DialogFooter>
-          {booking.status === "pending" && (
-            <Button variant="success" onClick={() => onOpenChange(false)}>
-              Confirm Booking
-            </Button>
-          )}
-          <Button onClick={() => onOpenChange(false)}>Close</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      {booking && (
+        <ConfirmationDialog
+          title="Confirm Booking"
+          variant="default"
+          Icon={<CheckCircle2 className="text-green-500" size={20} />}
+          description={`Are you sure you want to confirm booking "${booking.code}"?`}
+          open={openConfirmDialog}
+          setOpen={setOpenConfirmDialog}
+          // isLoading={mutation.isPending}
+          onConfirm={async () => {
+            const id = booking.id
+            if (!id) return
+            // mutation.mutate(id, {
+            //   onSuccess: () => {
+            //     setDeleteOpen(false)
+            //     setSelected(null)
+            //   },
+            // })
+          }}
+        />
+      )}
+    </>
   )
 }

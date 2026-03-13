@@ -294,7 +294,7 @@ export default function BookingPage() {
             {/* emailAddress */}
             <div className="space-y-2">
               <Label htmlFor="emailAddress" className="font-semibold text-slate-700">
-                Contact Number
+                Email Address
               </Label>
               <Input
                 id="emailAddress"

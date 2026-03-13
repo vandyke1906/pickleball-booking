@@ -25,6 +25,12 @@ export function generateBookingRef(): string {
   return `BK-${nanoid()}`
 }
 
+async function clearAllRecords() {
+  console.log("=== Clearing record started ===\n")
+  await Promise.all([prisma.booking.deleteMany({}), prisma.court.deleteMany({})])
+  console.log("=== Clear Records ===\n")
+}
+
 // ──────────────────────────────────────────────────────────────
 // 1. Seed / upsert Organization
 // ──────────────────────────────────────────────────────────────
@@ -168,6 +174,7 @@ async function seedDummyBookings(
 async function seedAll() {
   try {
     console.log("=== Seeding started ===\n")
+    await clearAllRecords()
 
     const org = await seedOrganization()
     await seedAdminUser(org.id)
