@@ -135,7 +135,7 @@ export default function Page() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      <header style={{ height: "60px" }}>Header</header>
+      <header style={{ height: "60px" }}>Booking Calendar</header>
       <main style={{ flex: 1 }}>
         <BigCalendar
           className="rbc-calendar"
