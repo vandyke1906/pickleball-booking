@@ -144,7 +144,7 @@ export default function BookingList() {
         },
         enableColumnFilter: false,
         meta: {
-          label: "Courts",
+          label: "Status",
           variant: "multiSelect",
           options: [],
           exportValue: (row) => row.courts.join(", "),
@@ -164,7 +164,7 @@ export default function BookingList() {
           }),
         enableColumnFilter: false,
         meta: {
-          label: "Courts",
+          label: "Created",
           variant: "dateRange",
           options: [],
           exportValue: (row) => row.createdAt.toLocaleString(),
