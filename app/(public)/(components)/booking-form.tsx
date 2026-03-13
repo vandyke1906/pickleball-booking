@@ -132,6 +132,8 @@ export default function BookingPage() {
 
         const bookStartMin = bookingStart.getHours() * 60 + bookingStart.getMinutes()
         const bookEndMin = bookingEnd.getHours() * 60 + bookingEnd.getMinutes()
+        console.log("Proposed:", proposedStartMin, proposedEndMin)
+        console.log("Booking:", bookStartMin, bookEndMin)
 
         if (proposedStartMin < bookEndMin && proposedEndMin > bookStartMin) return true
       }

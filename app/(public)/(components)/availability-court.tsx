@@ -33,7 +33,6 @@ export function AvailabilityCourt({
     const proposedEndMin = proposedStartMin + dur * 60
 
     return !court.bookings.some((b) => {
-      // Convert to PH time for comparison
       const bookingStart = formatDateTime(b.startTime)
       const bookingEnd = formatDateTime(b.endTime)
 
