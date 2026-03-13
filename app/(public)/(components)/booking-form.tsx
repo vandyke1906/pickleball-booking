@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
-import { useCallback, useEffect, useMemo } from "react"
+import { useCallback, useMemo } from "react"
 import { AvailabilityCourt } from "@/app/(public)/(components)/availability-court"
 import { formatDateTime, getEndTime, toMinutes } from "@/lib/utils"
 import { useCourtBookings, useOrganizationCourts } from "@/lib/hooks/court/court.hook"

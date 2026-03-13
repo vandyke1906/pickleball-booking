@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { makeBookingDate } from "@/lib/utils"
 import { put } from "@vercel/blob"
 import { customAlphabet } from "nanoid"
+import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
+import { BroadcastEventTypes } from "@/lib/sse-broadcaster.type"
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const nanoid = customAlphabet(alphabet, 6)
@@ -129,6 +131,11 @@ export async function POST(req: Request) {
       })
 
       return created
+    })
+
+    EventBroadcast({
+      type: BroadcastEventTypes.BOOKING_CREATED,
+      data: result,
     })
 
     return NextResponse.json({ success: true, result })
