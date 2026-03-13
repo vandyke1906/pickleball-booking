@@ -15,9 +15,10 @@ export type TCourt = Court
 
 export default function CourtPage() {
   const { data: session } = useSession()
-  const { data, isLoading } = useCourts()
+  const { data, isLoading, isError, error } = useCourts()
 
-  console.info({ data })
+  if (isLoading) return <p>Loading courts…</p>
+  if (isError) return <p>Error: {String(error)}</p>
   const columns = useMemo<ColumnDef<TCourt>[]>(
     () => [
       {

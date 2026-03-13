@@ -3,19 +3,32 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-r
 import { Input } from "@/components/ui/input"
 
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
 interface DataTablePaginationProps<TData> extends React.ComponentProps<"div"> {
   table: Table<TData>
   pageSizeOptions?: number[]
+  totalCount?: number
 }
 
 import { useState } from "react"
 
 // ...
 
-export function DataTablePagination<TData>({ table, pageSizeOptions = [10, 20, 30, 40, 50], className, ...props }: DataTablePaginationProps<TData>) {
+export function DataTablePagination<TData>({
+  table,
+  pageSizeOptions = [10, 20, 30, 40, 50],
+  className,
+  totalCount = 0,
+  ...props
+}: DataTablePaginationProps<TData>) {
   const [pageInput, setPageInput] = useState(table.getState().pagination.pageIndex + 1)
 
   const pageIndex = table.getState().pagination.pageIndex
@@ -28,14 +41,21 @@ export function DataTablePagination<TData>({ table, pageSizeOptions = [10, 20, 3
   }
 
   const pageCount =
-    table.getPageCount() === -1 ? Math.ceil(table.getFilteredRowModel().rows.length / table.getState().pagination.pageSize) : table.getPageCount()
+    table.getPageCount() === -1
+      ? Math.ceil(table.getFilteredRowModel().rows.length / table.getState().pagination.pageSize)
+      : table.getPageCount()
 
   return (
-    <div className={cn("flex w-full flex-col-reverse items-center justify-between gap-4 overflow-auto p-1 sm:flex-row sm:gap-8", className)} {...props}>
+    <div
+      className={cn(
+        "flex w-full flex-col-reverse items-center justify-between gap-4 overflow-auto p-1 sm:flex-row sm:gap-8",
+        className,
+      )}
+      {...props}
+    >
       <div className="flex-1 whitespace-nowrap text-muted-foreground text-sm">
-        {/* {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected. */}
         <span className="whitespace-nowrap font-medium text-sm">
-          Records: <span className="font-bold">{table.getFilteredRowModel().rows.length}</span>
+          Records: <span className="font-bold">{totalCount ?? 0}</span>
         </span>
       </div>
       <div className="flex flex-col-reverse items-center gap-4 sm:flex-row sm:gap-6 lg:gap-8">
@@ -44,7 +64,7 @@ export function DataTablePagination<TData>({ table, pageSizeOptions = [10, 20, 3
           <p className="whitespace-nowrap font-medium text-sm">Rows per page</p>
           <Select
             value={`${table.getState().pagination.pageSize}`}
-            onValueChange={value => {
+            onValueChange={(value) => {
               table.setPageSize(Number(value))
             }}
           >
@@ -52,7 +72,7 @@ export function DataTablePagination<TData>({ table, pageSizeOptions = [10, 20, 3
               <SelectValue placeholder={table.getState().pagination.pageSize} />
             </SelectTrigger>
             <SelectContent side="top">
-              {pageSizeOptions.map(pageSize => (
+              {pageSizeOptions.map((pageSize) => (
                 <SelectItem key={pageSize} value={`${pageSize}`}>
                   {pageSize}
                 </SelectItem>
@@ -68,8 +88,8 @@ export function DataTablePagination<TData>({ table, pageSizeOptions = [10, 20, 3
             max={pageCount}
             type="number"
             value={pageInput}
-            onChange={e => setPageInput(Number(e.target.value))}
-            onKeyDown={e => {
+            onChange={(e) => setPageInput(Number(e.target.value))}
+            onKeyDown={(e) => {
               if (e.key === "Enter") {
                 const page = pageInput ? pageInput - 1 : 0
                 table.setPageIndex(page)

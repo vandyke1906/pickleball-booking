@@ -39,6 +39,7 @@ interface DataTableProps<TData> extends React.ComponentProps<"div"> {
   isLoading?: boolean
   skeletonRows?: number
   height?: string | number
+  totalCount?: number
   dynamicFilterOptions?: Record<
     string,
     Array<{
@@ -58,6 +59,7 @@ export function DataTable<TData>({
   isLoading,
   skeletonRows = 10,
   height = 500,
+  totalCount,
   dynamicFilterOptions,
   ...props
 }: DataTableProps<TData>) {
@@ -245,7 +247,7 @@ export function DataTable<TData>({
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
       <div className="flex flex-col gap-2.5">
-        <DataTablePagination table={table} />
+        <DataTablePagination table={table} totalCount={totalCount} />
         {actionBar && table.getFilteredSelectedRowModel().rows.length > 0 && actionBar}
       </div>
     </div>

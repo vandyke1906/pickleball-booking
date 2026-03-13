@@ -101,6 +101,7 @@ export function DataTableV3<TData>({
       height={features.height}
       actionBar={actionBar}
       dynamicFilterOptions={dynamicFilterOptions}
+      totalCount={config.totalCount ?? 0}
     >
       <div className="flex items-center justify-between gap-2.5 pb-4">
         {features.showSearch && (

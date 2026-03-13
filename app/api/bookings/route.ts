@@ -18,6 +18,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const dateStr = searchParams.get("date")
+    const page = parseInt(searchParams.get("page") || "1", 10)
+    const perPage = parseInt(searchParams.get("perPage") || "10", 10)
+    const skip = (page - 1) * perPage
 
     let whereClause: any = {}
 
@@ -26,7 +29,6 @@ export async function GET(request: NextRequest) {
       if (!isNaN(targetDate.getTime())) {
         const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0))
         const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999))
-
         whereClause = {
           startTime: { gte: startOfDay },
           endTime: { lte: endOfDay },
@@ -34,6 +36,33 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Filters
+    const filtersStr = searchParams.get("filters")
+    if (filtersStr) {
+      const filters = JSON.parse(filtersStr)
+      filters.forEach((f: any) => {
+        if (f.operator === "inArray") {
+          whereClause[f.id] = { in: f.value }
+        } else if (f.operator === "equals") {
+          whereClause[f.id] = f.value
+        }
+      })
+    }
+
+    // Sorting
+    let orderBy: any[] = [{ startTime: "asc" }]
+    const sortStr = searchParams.get("sort")
+    if (sortStr) {
+      const sort = JSON.parse(sortStr)
+      orderBy = sort.map((s: any) => ({
+        [s.id]: s.desc ? "desc" : "asc",
+      }))
+    }
+
+    // Total count for pagination
+    const totalCount = await prisma.booking.count({ where: whereClause })
+
+    // Paginated data
     const bookings = await prisma.booking.findMany({
       where: whereClause,
       select: {
@@ -49,7 +78,9 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         courts: { select: { name: true } },
       },
-      orderBy: [{ startTime: "asc" }],
+      orderBy,
+      skip,
+      take: perPage,
     })
 
     const formattedBookings = bookings.map((booking) => ({
@@ -66,7 +97,12 @@ export async function GET(request: NextRequest) {
       createdAt: formatISO(new Date(booking.createdAt)),
     }))
 
-    return NextResponse.json(formattedBookings)
+    return NextResponse.json({
+      page,
+      perPage,
+      totalCount,
+      data: formattedBookings,
+    })
   } catch (error) {
     console.error("Error fetching bookings:", error)
     return NextResponse.json({ error: "Failed to fetch bookings" }, { status: 500 })

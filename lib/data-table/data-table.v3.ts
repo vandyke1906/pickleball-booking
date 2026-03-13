@@ -2,7 +2,12 @@
 import type { ColumnSort, Row, RowData } from "@tanstack/react-table"
 import type { DataTableFilterV3Config } from "@/lib/config/data-table.v3"
 import type { FilterItemSchema } from "@/lib/parsers"
-import type { ColumnDef, SortingState, VisibilityState, ColumnPinningState } from "@tanstack/react-table"
+import type {
+  ColumnDef,
+  SortingState,
+  VisibilityState,
+  ColumnPinningState,
+} from "@tanstack/react-table"
 
 declare module "@tanstack/react-table" {
   interface TableMeta<TData extends RowData> {
@@ -109,6 +114,7 @@ export interface ExtendedColumnSort<TData> {
 export interface DataTableV3Config<TData> {
   columns: ColumnDef<TData>[]
   data: TData[]
+  totalCount?: number
   pageCount?: number
   enableRowSelection?: boolean
   enableColumnPinning?: boolean

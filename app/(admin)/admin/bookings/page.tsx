@@ -12,37 +12,30 @@ import { formatDate, formatFloat } from "@/lib/utils"
 import { TBookedData, useBookings } from "@/lib/hooks/booking/booking.hook"
 import { Badge } from "@/components/ui/badge"
 import BadgeStatus, { ReadableStatus, TStatus } from "@/components/common/badge-status"
+import { useSearchParams } from "next/navigation"
 
 export default function BookingsPage() {
   const { data: session } = useSession()
-  const { data, isLoading } = useBookings({})
 
-  const { courtOptions, statusOptions } = useMemo(() => {
-    if (!data?.length) return { courtOptions: [], statusOptions: [] }
-    const courtMap = new Map()
-    const statusMap = new Map()
+  const searchParams = useSearchParams()
+  const params = new URLSearchParams(searchParams.toString())
 
-    for (const item of data) {
-      if (!statusMap.has(item.status))
-        statusMap.set(item.status, {
-          value: item.status,
-          label: ReadableStatus(item.status as TStatus),
-        })
+  // Ensure defaults
+  params.set("page", searchParams.get("page") ?? "1")
+  params.set("perPage", searchParams.get("perPage") ?? "10")
 
-      for (const court of item.courts) {
-        if (!courtMap.has(court))
-          courtMap.set(court, {
-            value: court,
-            label: court,
-          })
-      }
-    }
+  const filters = searchParams.get("filters") ? JSON.parse(searchParams.get("filters")!) : undefined
+  const sort = searchParams.get("sort") ? JSON.parse(searchParams.get("sort")!) : undefined
 
-    return {
-      courtOptions: Array.from(courtMap.values()),
-      statusOptions: Array.from(statusMap.values()),
-    }
-  }, [data])
+  // Build final URL
+  if (filters) params.set("filters", JSON.stringify(filters))
+  else params.delete("filters")
+
+  if (sort) params.set("sort", JSON.stringify(sort))
+  else params.delete("sort")
+
+  const url = `/api/bookings?${params.toString()}`
+  const { data, totalCount, perPage, isLoading, isError, error } = useBookings(url)
 
   const columns = useMemo<ColumnDef<TBookedData>[]>(
     () => [
@@ -54,6 +47,7 @@ export default function BookingsPage() {
             <h1 className="font-extrabold text-xl">{row.original.code}</h1>
           </div>
         ),
+        enableColumnFilter: false,
         meta: {
           label: "Booking Code",
           variant: "text",
@@ -90,6 +84,7 @@ export default function BookingsPage() {
             </div>
           )
         },
+        enableColumnFilter: false,
         meta: {
           label: "Details",
           variant: "text",
@@ -113,6 +108,7 @@ export default function BookingsPage() {
             </div>
           )
         },
+        enableColumnFilter: false,
         meta: {
           label: "Courts",
           variant: "multiSelect",
@@ -128,6 +124,7 @@ export default function BookingsPage() {
         cell: ({ row }) => (
           <div className="w-full text-right">{formatFloat(row.original?.totalPrice ?? 0)}</div>
         ),
+        enableColumnFilter: false,
         meta: {
           label: "Total",
           variant: "text",
@@ -148,6 +145,7 @@ export default function BookingsPage() {
             </div>
           )
         },
+        enableColumnFilter: false,
         meta: {
           label: "Courts",
           variant: "multiSelect",
@@ -167,6 +165,7 @@ export default function BookingsPage() {
             minute: "2-digit",
             hour12: true,
           }),
+        enableColumnFilter: false,
         meta: {
           label: "Courts",
           variant: "dateRange",
@@ -179,6 +178,35 @@ export default function BookingsPage() {
     ],
     [],
   )
+
+  const { courtOptions, statusOptions } = useMemo(() => {
+    if (!data?.length) return { courtOptions: [], statusOptions: [] }
+    const courtMap = new Map()
+    const statusMap = new Map()
+
+    for (const item of data) {
+      if (!statusMap.has(item.status))
+        statusMap.set(item.status, {
+          value: item.status,
+          label: ReadableStatus(item.status as TStatus),
+        })
+
+      for (const court of item.courts) {
+        if (!courtMap.has(court))
+          courtMap.set(court, {
+            value: court,
+            label: court,
+          })
+      }
+    }
+
+    return {
+      courtOptions: Array.from(courtMap.values()),
+      statusOptions: Array.from(statusMap.values()),
+    }
+  }, [data])
+
+  if (isError) return <p>Error: {String(error)}</p>
 
   return (
     <div className="space-y-6">
@@ -204,13 +232,16 @@ export default function BookingsPage() {
               searchPlaceholder: "Search Court",
               showSearch: true,
               showExport: true,
-              showSort: true,
-              showFilter: true,
+              // showSort: true,
+              // showFilter: true,
               showViewOptions: true,
               height: "auto",
             }}
             config={{
-              enableAdvancedFilter: true,
+              // enableAdvancedFilter: true,
+              manualPagination: true,
+              totalCount: totalCount,
+              pageCount: Math.ceil(totalCount / perPage),
             }}
           />
         </CardContent>

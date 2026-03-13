@@ -14,45 +14,53 @@ export async function GET(request: NextRequest) {
 
   const stream = new ReadableStream({
     start(controller) {
-      const keepAlive = setInterval(() => {
-        controller.enqueue(encoder.encode(": ping\n\n"))
-      }, 15000)
+      let closed = false
+      let unsubscribe: (() => void) | null = null
 
-      const send = (event: TBroadcastEvent) => {
-        console.info("Event received in send:", event)
+      const safeEnqueue = (data: string) => {
+        if (closed) return
         try {
-          const payload = JSON.stringify(event)
-          const message = `data: ${payload}\n\n`
-          controller.enqueue(encoder.encode(message))
-          console.info(`[SSE SERVER → CLIENT] sent: ${event.type}`)
-        } catch (err) {
-          console.error("[SSE] failed to send event", err)
+          controller.enqueue(encoder.encode(data))
+        } catch {
+          cleanup()
         }
       }
 
-      // Run async subscription inside a promise
+      const keepAlive = setInterval(() => {
+        safeEnqueue(": ping\n\n")
+      }, 15000)
+
+      const send = (event: TBroadcastEvent) => {
+        const payload = JSON.stringify(event)
+        safeEnqueue(`data: ${payload}\n\n`)
+      }
+
+      const cleanup = () => {
+        if (closed) return
+        closed = true
+
+        clearInterval(keepAlive)
+        unsubscribe?.()
+
+        try {
+          controller.close()
+        } catch {}
+      }
+
       ;(async () => {
-        const unsubscribe = await EventSubscribe(browserId, send)
+        unsubscribe = await EventSubscribe(browserId, send)
 
         send({
           type: "connection",
-          data: { status: "connected", time: new Date().toISOString() },
+          data: {
+            status: "connected",
+            time: new Date().toISOString(),
+          },
         })
-
-        const cleanup = () => {
-          unsubscribe()
-          clearInterval(keepAlive)
-          controller.close()
-        }
-
-        request.signal.addEventListener("abort", cleanup)
-
-        // Handle controller errors
-        controller.error = (err: any) => {
-          console.error("[SSE] controller.error triggered", err)
-          cleanup()
-        }
       })()
+
+      // 🔴 Handle client disconnect
+      request.signal.addEventListener("abort", cleanup)
     },
   })
 
@@ -62,7 +70,7 @@ export async function GET(request: NextRequest) {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
-      "X-Accel-Buffering": "no", // Helps nginx / some proxies
+      "X-Accel-Buffering": "no",
     },
   })
 }
