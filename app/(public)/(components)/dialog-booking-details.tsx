@@ -11,12 +11,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { TBookingDetails } from "@/app/(admin)/admin/page"
 import BadgeStatus, { TStatus } from "@/components/common/badge-status"
-import { formatFloat, formatISODateString } from "@/lib/utils"
+import { formatDateTime, formatFloat, formatISODateString } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
-import { useState } from "react"
-import ConfirmationDialog from "@/components/common/confirm-dialog"
-import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react"
-import { useConfirmBooking } from "@/lib/mutations/booking/booking.mutation"
 
 interface BookingDialogProps {
   open: boolean
@@ -24,10 +20,7 @@ interface BookingDialogProps {
   booking: TBookingDetails
 }
 
-export function BookingDialog({ open, onOpenChange, booking }: BookingDialogProps) {
-  const [openConfirmDialog, setOpenConfirmDialog] = useState(false)
-
-  const mutation = useConfirmBooking()
+export function BookingDetailsDialog({ open, onOpenChange, booking }: BookingDialogProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -47,16 +40,16 @@ export function BookingDialog({ open, onOpenChange, booking }: BookingDialogProp
               <p className="text-sm text-muted-foreground">{booking.bookedBy}</p>
             </div>
 
-            <div>
-              <p className="text-sm font-medium">Contact Details</p>
-              {(booking.contactNumber || booking.emailAddress) && (
+            {(booking.contactNumber || booking.emailAddress) && (
+              <div>
+                <p className="text-sm font-medium">Contact Details</p>
                 <p className="text-sm text-muted-foreground">
                   {booking.contactNumber && <span>{booking.contactNumber}</span>}
                   {booking.contactNumber && booking.emailAddress && <span> | </span>}
                   {booking.emailAddress && <span>{booking.emailAddress}</span>}
                 </p>
-              )}
-            </div>
+              </div>
+            )}
             <div>
               <p className="text-sm font-medium">Status</p>
               <BadgeStatus status={booking.status as TStatus} />
@@ -83,21 +76,21 @@ export function BookingDialog({ open, onOpenChange, booking }: BookingDialogProp
 
             <div>
               <p className="text-sm font-medium">Start</p>
-              <p className="text-sm text-muted-foreground">{formatISODateString(booking.start)}</p>
+              {/* <p className="text-sm text-muted-foreground">{formatISODateString(booking.start)}</p> */}
             </div>
 
             <div>
               <p className="text-sm font-medium">End</p>
-              <p className="text-sm text-muted-foreground">{formatISODateString(booking.end)}</p>
+              {/* <p className="text-sm text-muted-foreground">{formatISODateString(booking.end)}</p> */}
             </div>
 
             <div>
               <p className="text-sm font-medium">Courts</p>
               <p className="text-sm text-muted-foreground">
-                {(booking.courts || []).map((c: any) => {
+                {(booking.courts || []).map((c: any, index: number) => {
                   return (
-                    <Badge variant="outline" key={c.id}>
-                      {c.name} - {formatFloat(c.price)}
+                    <Badge variant="outline" key={index}>
+                      {c.name} - {formatFloat(c.pricePerHour)}
                     </Badge>
                   )
                 })}
@@ -106,47 +99,10 @@ export function BookingDialog({ open, onOpenChange, booking }: BookingDialogProp
           </div>
 
           <DialogFooter>
-            {booking.status === "pending" && (
-              <Button
-                variant="success"
-                disabled={mutation.isPending}
-                onClick={() => setOpenConfirmDialog(true)}
-              >
-                {mutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Please wait...
-                  </>
-                ) : (
-                  "Confirm Booking"
-                )}
-              </Button>
-            )}
             <Button onClick={() => onOpenChange(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {booking && (
-        <ConfirmationDialog
-          title="Confirm Booking"
-          variant="confirm"
-          Icon={<CheckCircle2 className="text-green-500" size={20} />}
-          description={`Are you sure you want to confirm booking "${booking.code}"?`}
-          open={openConfirmDialog}
-          setOpen={setOpenConfirmDialog}
-          isLoading={mutation.isPending}
-          onConfirm={async () => {
-            const id: string = booking.id
-            if (!id) return
-            mutation.mutate(id, {
-              onSuccess: () => {
-                onOpenChange(false)
-              },
-            })
-          }}
-        />
-      )}
     </>
   )
 }

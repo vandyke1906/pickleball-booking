@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { CalendarDays, Clock, AlertCircle, Loader2 } from "lucide-react"
+import { CalendarDays, Clock, AlertCircle, Loader2, Search, AlertTriangle } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
@@ -15,17 +15,29 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
-import { useCallback, useMemo } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { AvailabilityCourt } from "@/app/(public)/(components)/availability-court"
 import { formatDateTime, getEndTime, toMinutes } from "@/lib/utils"
 import { useCourtBookings, useOrganizationCourts } from "@/lib/hooks/court/court.hook"
-import { useCreateBooking } from "@/lib/mutations/booking/booking.mutation"
+import { useCreateBooking, useGetBookingByCode } from "@/lib/mutations/booking/booking.mutation"
 import { useForm } from "react-hook-form"
 import { BookingPayload, bookingSchema } from "@/lib/validation/booking/booking.validation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Input } from "@/components/ui/input"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { BookingDetailsDialog } from "@/app/(public)/(components)/dialog-booking-details"
 
 export default function BookingPage() {
+  const refCode = useRef<HTMLInputElement>(null)
+  const [bookingDetails, setBookingDetails] = useState(null)
+  const [openNotFoundDialog, setOpenNotFoundDialog] = useState(false)
+
   const form = useForm<BookingPayload>({
     resolver: zodResolver(bookingSchema),
     defaultValues: {
@@ -52,6 +64,7 @@ export default function BookingPage() {
   const { data: courtBookings, isLoading: isLoadingCourtBookings } = useCourtBookings({
     date: dateString,
   })
+  const mutationGetBooking = useGetBookingByCode()
 
   const selectedOrganization = useMemo(() => {
     if (!orgWithCourts || !orgWithCourts.length) {
@@ -127,6 +140,25 @@ export default function BookingPage() {
           !isBlockOverlappingWithBookings(courtId, form.watch("startTime"), form.watch("duration")),
       )
 
+  const handleFindBooking = () => {
+    const code: string = refCode?.current?.value || ""
+    if (!code) return
+    mutationGetBooking.mutate(code, {
+      onSuccess: (result: any) => {
+        const { success, data } = result
+        if (success) {
+          setBookingDetails(data)
+          setOpenNotFoundDialog(false)
+        } else {
+          setOpenNotFoundDialog(true)
+        }
+      },
+      onError: () => {
+        setOpenNotFoundDialog(true)
+      },
+    })
+  }
+
   const onSubmit = (values: BookingPayload) => {
     if (!canBook) return
     mutation.mutate(values, {
@@ -137,252 +169,306 @@ export default function BookingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-20">
-      {/* Form */}
-      <motion.section
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="py-10 px-5 sm:px-8"
-      >
-        <div className="max-w-5xl mx-auto">
-          <h1 className="text-3xl sm:text-4xl font-bold text-center mb-10">
-            Book Pickleball Court
-          </h1>
-          {/* form booking */}
+    <>
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-20">
+        {/* Form */}
+        <motion.section
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="py-10 px-5 sm:px-8"
+        >
+          <div className="max-w-5xl mx-auto">
+            <h1 className="text-3xl sm:text-4xl font-bold text-center mb-10">
+              Book Pickleball Court
+            </h1>
 
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="bg-white border border-slate-200 rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10 space-y-8"
-          >
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              {/* Date */}
-              <div className="rounded w-full space-y-2">
-                <Label className="font-semibold text-slate-700">Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left">
-                      <CalendarDays className="mr-3 h-5 w-5 text-primary" />
-                      {date ? format(date, "MMMM dd, yyyy") : "Select date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={dateString ? date : undefined}
-                      onSelect={(d) => form.setValue("date", format(d!, "yyyy-MM-dd"))}
-                      disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
-                    />
-                  </PopoverContent>
-                </Popover>
-                {form.formState.errors.date && (
-                  <p className="text-sm text-red-600">{form.formState.errors.date.message}</p>
-                )}
-              </div>
-
-              {/* Start Time */}
-              <div className="rounded w-full space-y-2">
-                <Label className="font-semibold text-slate-700">Start Time</Label>
-                <Select
-                  value={form.watch("startTime")}
-                  onValueChange={(v) => form.setValue("startTime", v)}
-                >
-                  <SelectTrigger className="h-12 w-full">
-                    <Clock className="mr-3 h-5 w-5 text-primary" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeSlots.map((t) => (
-                      <SelectItem key={t.value} value={t.value}>
-                        {t.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {form.formState.errors.startTime && (
-                  <p className="text-sm text-red-600">{form.formState.errors.startTime.message}</p>
-                )}
-              </div>
-
-              {/* Duration */}
-              <div className="rounded w-full space-y-2">
-                <Label className="font-semibold text-slate-700">Duration</Label>
-                <Select
-                  value={form.watch("duration").toString()}
-                  onValueChange={(v) => form.setValue("duration", Number(v))}
-                >
-                  <SelectTrigger className="h-12 w-full">
-                    <Clock className="mr-3 h-5 w-5 text-primary" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4].map((h) => (
-                      <SelectItem key={h} value={h.toString()}>
-                        {h} hour{h > 1 ? "s" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Courts */}
-              <div className="lg:col-span-3 space-y-2">
-                <Label className="font-semibold text-slate-700">Courts</Label>
-                <div className="border rounded-md p-4 bg-slate-50/60 max-h-48 overflow-y-auto space-y-3">
-                  {(selectedOrganization?.courts || []).map((court) => (
-                    <div key={court.id} className="flex items-center space-x-3">
-                      <Checkbox
-                        id={court.id}
-                        checked={form.watch("courtIds").includes(court.id)}
-                        onCheckedChange={() => {
-                          const current = form.getValues("courtIds")
-                          if (current.includes(court.id)) {
-                            form.setValue(
-                              "courtIds",
-                              current.filter((id) => id !== court.id),
-                            )
-                          } else {
-                            form.setValue("courtIds", [...current, court.id])
-                          }
-                        }}
-                      />
-                      <label htmlFor={court.id} className="text-sm cursor-pointer leading-none">
-                        {court.name}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-                {form.formState.errors.courtIds && (
-                  <p className="text-sm text-red-600">{form.formState.errors.courtIds.message}</p>
-                )}
-              </div>
-            </div>
-
-            {/* fullName */}
-            <div className="space-y-2">
-              <Label htmlFor="fullName" className="font-semibold text-slate-700">
-                Full Name
+            <div className="py-4 my-4 relative flex items-center gap-2">
+              <Label htmlFor="search" className="sr-only">
+                Search
               </Label>
               <Input
-                id="fullName"
-                type="text"
-                placeholder="Enter Name"
-                {...form.register("fullName")}
+                ref={refCode}
+                id="search"
+                placeholder="Enter booking number..."
+                className="pl-8 flex-1 uppercase"
               />
-              {form.formState.errors.fullName && (
-                <p className="text-sm text-red-600">{form.formState.errors.fullName.message}</p>
-              )}
-            </div>
-
-            {/* contactNumber */}
-            <div className="space-y-2">
-              <Label htmlFor="contactNumber" className="font-semibold text-slate-700">
-                Contact Number
-              </Label>
-              <Input
-                id="contactNumber"
-                type="text"
-                placeholder="Enter Contact Number"
-                {...form.register("contactNumber")}
-              />
-              {form.formState.errors.contactNumber && (
-                <p className="text-sm text-red-600">
-                  {form.formState.errors.contactNumber.message}
-                </p>
-              )}
-            </div>
-
-            {/* emailAddress */}
-            <div className="space-y-2">
-              <Label htmlFor="emailAddress" className="font-semibold text-slate-700">
-                Email Address
-              </Label>
-              <Input
-                id="emailAddress"
-                type="email"
-                placeholder="Enter Email"
-                {...form.register("emailAddress")}
-              />
-              {form.formState.errors.emailAddress && (
-                <p className="text-sm text-red-600">{form.formState.errors.emailAddress.message}</p>
-              )}
-            </div>
-
-            {/* Proof of Payment */}
-            <div className="space-y-2">
-              <Label className="font-semibold text-slate-700">Proof of Payment</Label>
-              <input
-                type="file"
-                accept="image/*,.pdf"
-                onChange={(e) => form.setValue("proofOfPayment", e.target.files?.[0] as File)}
-                className="block w-full text-sm text-slate-600"
-              />
-              {form.formState.errors.proofOfPayment && (
-                <p className="text-sm text-red-600">
-                  {form.formState.errors.proofOfPayment.message}
-                </p>
-              )}
-            </div>
-
-            {/* Book Now button */}
-            <div className="mt-8 flex flex-col items-center gap-3">
-              <Button
-                type="submit"
-                size="lg"
-                className="w-full max-w-md h-14 text-lg font-semibold"
-                disabled={mutation.isPending || !canBook}
-              >
-                {mutation.isPending ? (
+              <Search className="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 opacity-50 select-none" />
+              <Button type="button" onClick={handleFindBooking}>
+                {mutationGetBooking.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Please wait...
                   </>
                 ) : (
-                  `Book Now – ${form.watch("courtIds").length} court${form.watch("courtIds").length !== 1 ? "s" : ""}`
+                  " Search Booking"
                 )}
               </Button>
+            </div>
 
-              {form.watch("courtIds").length === 0 && (
-                <p className="text-sm text-slate-500">Select at least one court to continue</p>
-              )}
-
-              {!canBook && form.watch("courtIds").length > 0 && (
-                <div className="flex items-center gap-2 text-sm text-amber-700">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>Some selected courts are not available at this time</span>
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="bg-white border border-slate-200 rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10 space-y-8"
+            >
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                {/* Date */}
+                <div className="rounded w-full space-y-2">
+                  <Label className="font-semibold text-slate-700">Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start text-left">
+                        <CalendarDays className="mr-3 h-5 w-5 text-primary" />
+                        {date ? format(date, "MMMM dd, yyyy") : "Select date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={dateString ? date : undefined}
+                        onSelect={(d) => form.setValue("date", format(d!, "yyyy-MM-dd"))}
+                        disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {form.formState.errors.date && (
+                    <p className="text-sm text-red-600">{form.formState.errors.date.message}</p>
+                  )}
                 </div>
+
+                {/* Start Time */}
+                <div className="rounded w-full space-y-2">
+                  <Label className="font-semibold text-slate-700">Start Time</Label>
+                  <Select
+                    value={form.watch("startTime")}
+                    onValueChange={(v) => form.setValue("startTime", v)}
+                  >
+                    <SelectTrigger className="h-12 w-full">
+                      <Clock className="mr-3 h-5 w-5 text-primary" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {timeSlots.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>
+                          {t.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.formState.errors.startTime && (
+                    <p className="text-sm text-red-600">
+                      {form.formState.errors.startTime.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* Duration */}
+                <div className="rounded w-full space-y-2">
+                  <Label className="font-semibold text-slate-700">Duration</Label>
+                  <Select
+                    value={form.watch("duration").toString()}
+                    onValueChange={(v) => form.setValue("duration", Number(v))}
+                  >
+                    <SelectTrigger className="h-12 w-full">
+                      <Clock className="mr-3 h-5 w-5 text-primary" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4].map((h) => (
+                        <SelectItem key={h} value={h.toString()}>
+                          {h} hour{h > 1 ? "s" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Courts */}
+                <div className="lg:col-span-3 space-y-2">
+                  <Label className="font-semibold text-slate-700">Courts</Label>
+                  <div className="border rounded-md p-4 bg-slate-50/60 max-h-48 overflow-y-auto space-y-3">
+                    {(selectedOrganization?.courts || []).map((court) => (
+                      <div key={court.id} className="flex items-center space-x-3">
+                        <Checkbox
+                          id={court.id}
+                          checked={form.watch("courtIds").includes(court.id)}
+                          onCheckedChange={() => {
+                            const current = form.getValues("courtIds")
+                            if (current.includes(court.id)) {
+                              form.setValue(
+                                "courtIds",
+                                current.filter((id) => id !== court.id),
+                              )
+                            } else {
+                              form.setValue("courtIds", [...current, court.id])
+                            }
+                          }}
+                        />
+                        <label htmlFor={court.id} className="text-sm cursor-pointer leading-none">
+                          {court.name}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  {form.formState.errors.courtIds && (
+                    <p className="text-sm text-red-600">{form.formState.errors.courtIds.message}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* fullName */}
+              <div className="space-y-2">
+                <Label htmlFor="fullName" className="font-semibold text-slate-700">
+                  Full Name
+                </Label>
+                <Input
+                  id="fullName"
+                  type="text"
+                  placeholder="Enter Name"
+                  {...form.register("fullName")}
+                />
+                {form.formState.errors.fullName && (
+                  <p className="text-sm text-red-600">{form.formState.errors.fullName.message}</p>
+                )}
+              </div>
+
+              {/* contactNumber */}
+              <div className="space-y-2">
+                <Label htmlFor="contactNumber" className="font-semibold text-slate-700">
+                  Contact Number
+                </Label>
+                <Input
+                  id="contactNumber"
+                  type="text"
+                  placeholder="Enter Contact Number"
+                  {...form.register("contactNumber")}
+                />
+                {form.formState.errors.contactNumber && (
+                  <p className="text-sm text-red-600">
+                    {form.formState.errors.contactNumber.message}
+                  </p>
+                )}
+              </div>
+
+              {/* emailAddress */}
+              <div className="space-y-2">
+                <Label htmlFor="emailAddress" className="font-semibold text-slate-700">
+                  Email Address
+                </Label>
+                <Input
+                  id="emailAddress"
+                  type="email"
+                  placeholder="Enter Email"
+                  {...form.register("emailAddress")}
+                />
+                {form.formState.errors.emailAddress && (
+                  <p className="text-sm text-red-600">
+                    {form.formState.errors.emailAddress.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Proof of Payment */}
+              <div className="space-y-2">
+                <Label className="font-semibold text-slate-700">Proof of Payment</Label>
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => form.setValue("proofOfPayment", e.target.files?.[0] as File)}
+                  className="block w-full text-sm text-slate-600"
+                />
+                {form.formState.errors.proofOfPayment && (
+                  <p className="text-sm text-red-600">
+                    {form.formState.errors.proofOfPayment.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Book Now button */}
+              <div className="mt-8 flex flex-col items-center gap-3">
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full max-w-md h-14 text-lg font-semibold"
+                  disabled={mutation.isPending || !canBook}
+                >
+                  {mutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Please wait...
+                    </>
+                  ) : (
+                    `Book Now – ${form.watch("courtIds").length} court${form.watch("courtIds").length !== 1 ? "s" : ""}`
+                  )}
+                </Button>
+
+                {form.watch("courtIds").length === 0 && (
+                  <p className="text-sm text-slate-500">Select at least one court to continue</p>
+                )}
+
+                {!canBook && form.watch("courtIds").length > 0 && (
+                  <div className="flex items-center gap-2 text-sm text-amber-700">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>Some selected courts are not available at this time</span>
+                  </div>
+                )}
+              </div>
+            </form>
+            {/* form booking */}
+            <div className="mt-4 text-center text-sm text-slate-500">
+              {selectedCourtIds.length > 0 && canBook && (
+                <>
+                  One transaction for all selected courts at {startTime} –{" "}
+                  {getEndTime(startTime, duration)}
+                </>
               )}
             </div>
-          </form>
-          {/* form booking */}
-          <div className="mt-4 text-center text-sm text-slate-500">
-            {selectedCourtIds.length > 0 && canBook && (
-              <>
-                One transaction for all selected courts at {startTime} –{" "}
-                {getEndTime(startTime, duration)}
-              </>
-            )}
           </div>
-        </div>
-      </motion.section>
+        </motion.section>
 
-      {/* Availability Table */}
-      {dateString && (
-        <AvailabilityCourt
-          date={date as Date}
-          startTime={startTime}
-          duration={duration}
-          selectedCourtIds={selectedCourtIds}
-          timeSlots={timeSlots}
-          courtWithBookings={courtBookings}
-          isLoading={isLoadingCourtBookings || isLoadingOrgWithCourts}
+        {/* Availability Table */}
+        {dateString && (
+          <AvailabilityCourt
+            date={date as Date}
+            startTime={startTime}
+            duration={duration}
+            selectedCourtIds={selectedCourtIds}
+            timeSlots={timeSlots}
+            courtWithBookings={courtBookings}
+            isLoading={isLoadingCourtBookings || isLoadingOrgWithCourts}
+          />
+        )}
+
+        {!date && (
+          <div className="text-center py-16 text-slate-600 text-lg">
+            Select a date to see court availability
+          </div>
+        )}
+      </div>
+      {bookingDetails && (
+        <BookingDetailsDialog
+          booking={bookingDetails}
+          open={true}
+          onOpenChange={() => setBookingDetails(null)}
         />
       )}
+      <DialogNotFound open={openNotFoundDialog} onOpen={setOpenNotFoundDialog} />
+    </>
+  )
+}
 
-      {!date && (
-        <div className="text-center py-16 text-slate-600 text-lg">
-          Select a date to see court availability
-        </div>
-      )}
-    </div>
+function DialogNotFound({ open, onOpen }: { open: boolean; onOpen: any }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader className="flex flex-col items-center text-center space-y-3">
+          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100">
+            <AlertTriangle className="w-6 h-6 text-red-600" />
+          </div>
+          <DialogTitle className="text-lg font-semibold">Booking Not Found</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
+            We couldn’t find a booking with that number. Please double-check and try again.
+          </DialogDescription>
+        </DialogHeader>
+      </DialogContent>
+    </Dialog>
   )
 }

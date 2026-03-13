@@ -121,3 +121,55 @@ export function useConfirmBooking() {
     retry: 1,
   })
 }
+export function useGetBookingByCode() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationKey: ["get-booking-code"],
+    mutationFn: (code: string) => fetcher(`/api/bookings/${code}`),
+
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["bookings"] })
+      const previousBookings = queryClient.getQueryData(["bookings"])
+      return { previousBookings }
+    },
+
+    onError: (error, _values, context) => {
+      if (context?.previousBookings) {
+        queryClient.setQueryData(["bookings"], context.previousBookings)
+      }
+      if (error instanceof Error && "issues" in error) {
+        const zodErr = error as any
+        toast.error("Validation failed", {
+          description: zodErr.issues.map((e: any) => e.message).join(", "),
+        })
+        return
+      }
+    },
+
+    onSuccess: () => {},
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: qKeyCourts.all, exact: false })
+      queryClient.invalidateQueries({ queryKey: qKeyBookings.all, exact: false })
+    },
+
+    retry: 1,
+  })
+}
+/* export function useBooking({ code }: { code?: string }) {
+  const url = 
+
+  const query = useQuery<Array<Booking>>({
+    queryKey: qKeyBookings.details(code),
+    queryFn: () => fetcher(url),
+  })
+
+  return {
+    data: query.data ?? null,
+    isLoading: query.isPending,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
+  }
+} */
