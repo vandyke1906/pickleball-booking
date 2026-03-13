@@ -159,6 +159,8 @@ export default function BookingPage() {
           !isBlockOverlappingWithBookings(courtId, form.watch("startTime"), form.watch("duration")),
       )
 
+  console.info({ canBook })
+
   const handleFindBooking = () => {
     const code: string = refCode?.current?.value || ""
     if (!code) return
