@@ -128,14 +128,12 @@ export default function BookingPage() {
 
         const sameDay =
           bookingStart.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH")
-        if (!sameDay) return false
+        if (!sameDay) continue
 
         const bookStartMin = bookingStart.getHours() * 60 + bookingStart.getMinutes()
         const bookEndMin = bookingEnd.getHours() * 60 + bookingEnd.getMinutes()
 
-        if (proposedStartMin < bookEndMin && proposedEndMin > bookStartMin) {
-          return true
-        }
+        if (proposedStartMin < bookEndMin && proposedEndMin > bookStartMin) return true
       }
 
       return false

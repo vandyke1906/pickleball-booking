@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { formatISO } from "date-fns"
-import { isServerAuthenticated } from "@/lib/auth/auth.server"
 
 export async function GET(request: Request) {
   try {
@@ -79,8 +77,8 @@ export async function GET(request: Request) {
         code: b.code,
         fullName: b.fullName,
         status: b.status,
-        startTime: formatISO(new Date(b.startTime)),
-        endTime: formatISO(new Date(b.endTime)),
+        startTime: b.startTime,
+        endTime: b.endTime,
         ...(all && {
           totalPrice: b.totalPrice ?? 0,
           proofOfPaymentLink: b.proofOfPaymentLink,

@@ -41,7 +41,7 @@ export function makeBookingDate(dateString: string, timeString: string, duration
   const end = addMinutes(start, durationHours * 60)
 
   return { start, end }
-
+}
 
 /**
  * Converts a UTC ISO string to PH time and formats it.
@@ -217,4 +217,13 @@ export const getDurationString = (startDateStr: string, endDateStr?: string) => 
   if (days > 0) parts.push(`${days} day${days > 1 ? "s" : ""}`)
   if (parts.length === 0) parts.push("0 days")
   return parts.join(", ")
+}
+
+export function formatToPHTime(isoString: string) {
+  const formatter = new Intl.DateTimeFormat("en-PH", {
+    timeZone: "Asia/Manila",
+    dateStyle: "medium",
+    timeStyle: "short",
+  })
+  return formatter.format(new Date(isoString))
 }
