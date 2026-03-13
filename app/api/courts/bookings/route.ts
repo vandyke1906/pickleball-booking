@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { formatDateTime } from "@/lib/utils"
 
 export async function GET(request: Request) {
   try {
@@ -15,15 +16,12 @@ export async function GET(request: Request) {
 
     let whereDate = {}
     if (dateParam) {
-      const startOfDay = new Date(dateParam)
-      startOfDay.setHours(0, 0, 0, 0)
-
-      const endOfDay = new Date(dateParam)
-      endOfDay.setHours(23, 59, 59, 999)
+      const startOfDayPH = formatDateTime(`${dateParam}T00:00:00`)
+      const endOfDayPH = formatDateTime(`${dateParam}T23:59:59.999`)
 
       whereDate = {
-        startTime: { gte: startOfDay },
-        endTime: { lt: endOfDay },
+        startTime: { gte: startOfDayPH },
+        endTime: { lt: endOfDayPH },
         ...(all ? {} : { status: { in: ["pending", "confirmed"] } }),
       }
     }
