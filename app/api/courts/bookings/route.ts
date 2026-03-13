@@ -8,8 +8,24 @@ export async function GET(request: Request) {
     const allParam = searchParams.get("all")
     const dateParam = searchParams.get("date")
     const all = allParam === "true"
+    console.info({ dateParam })
     if (all) {
       // const session = await isServerAuthenticated()
+    }
+
+    let whereDate = {}
+    if (dateParam) {
+      const startOfDay = new Date(dateParam)
+      startOfDay.setHours(0, 0, 0, 0)
+
+      const endOfDay = new Date(dateParam)
+      endOfDay.setHours(23, 59, 59, 999)
+
+      whereDate = {
+        startTime: { gte: startOfDay },
+        endTime: { lt: endOfDay },
+        ...(all ? {} : { status: { in: ["pending", "confirmed"] } }),
+      }
     }
 
     const where = organizationId ? { organizationId } : {}
@@ -30,15 +46,7 @@ export async function GET(request: Request) {
           },
         },
         bookings: {
-          where: dateParam
-            ? {
-                startTime: { gte: new Date(`${dateParam}T00:00:00`) },
-                endTime: { lt: new Date(`${dateParam}T23:59:59`) },
-                ...(all ? {} : { status: { in: ["pending", "confirmed"] } }),
-              }
-            : all
-              ? {}
-              : { status: { in: ["pending", "confirmed"] } },
+          where: dateParam ? whereDate : all ? {} : { status: { in: ["pending", "confirmed"] } },
           select: {
             id: true,
             code: true,

@@ -64,6 +64,8 @@ export default function BookingPage() {
   const { data: courtBookings, isLoading: isLoadingCourtBookings } = useCourtBookings({
     date: dateString,
   })
+
+  console.info({ dateString })
   const mutationGetBooking = useGetBookingByCode()
 
   const selectedOrganization = useMemo(() => {
