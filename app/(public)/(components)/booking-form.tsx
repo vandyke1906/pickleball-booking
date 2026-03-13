@@ -187,6 +187,7 @@ export default function BookingPage() {
                 Search
               </Label>
               <Input
+                type="search"
                 ref={refCode}
                 id="search"
                 placeholder="Enter booking number..."
