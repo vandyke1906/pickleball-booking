@@ -1,6 +1,6 @@
 import { fetcher } from "@/lib/hooks/common.hook"
 import { Booking } from "@prisma/client"
-import { useQuery } from "@tanstack/react-query"
+import { keepPreviousData, useQuery } from "@tanstack/react-query"
 
 type Filter = {
   id: string
@@ -39,7 +39,9 @@ export function useBookings(url: string) {
   }>({
     queryKey: qKeyBookings.list(url),
     queryFn: () => fetcher(url),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
+    staleTime: 1000 * 60 * 10,
+    gcTime: 1000 * 60 * 30,
   })
 
   return {
