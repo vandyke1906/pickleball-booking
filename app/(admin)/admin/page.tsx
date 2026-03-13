@@ -1,12 +1,32 @@
 "use client"
 
+import { BookingDialog } from "@/app/(admin)/admin/(component)/booking-dialog"
 import BigCalendar, { CalendarEvent } from "@/components/big-calendar/big-calendar"
+import BadgeStatus from "@/components/common/badge-status"
 import { Badge } from "@/components/ui/badge"
 import { useCourtBookings, useOrganizationCourts } from "@/lib/hooks/court/court.hook"
-import { formatDateTime } from "@/lib/utils"
-import { useMemo } from "react"
+import { formatDateTime, formatFloat } from "@/lib/utils"
+import { Court } from "@prisma/client"
+import { useMemo, useState } from "react"
+
+export type TBookingDetails = {
+  id: string
+  code: string
+  status: string
+  bookedBy: string
+  contactNumber: string
+  emailAddress: string
+  proofOfPayment?: string
+  totalPrice: string
+  start: string
+  end: string
+  resourceId: string
+  courts: Court[]
+}
 
 export default function Page() {
+  const [selectedBooking, setSelectedBooking] = useState<TBookingDetails | null>(null)
+  const [openEventDialog, setOpenEventDialog] = useState(false)
   const { data: orgWithCourts, isLoading: isLoadingOrgWithCourts } = useOrganizationCourts()
   const { data: courtBookings, isLoading: isLoadingCourtBookings } = useCourtBookings({
     isAll: true,
@@ -76,14 +96,27 @@ export default function Page() {
     if (!courtBookings || !Array.isArray(courtBookings)) return []
 
     return courtBookings.flatMap((court) =>
-      (court.bookings ?? []).map((booking) => ({
-        id: booking.id,
-        status: booking.status,
-        title: `${booking.fullName ?? ""}`,
-        start: formatDateTime(booking.startTime),
-        end: formatDateTime(booking.endTime),
-        resourceId: court.id,
-      })),
+      (court.bookings ?? []).map((booking: any) => {
+        return {
+          id: booking.id,
+          code: booking.code,
+          status: booking.status,
+          title: `${booking.fullName ?? ""}`,
+          bookedBy: `${booking.fullName ?? ""}`,
+          contactNumber: `${booking.contactNumber ?? ""}`,
+          emailAddress: `${booking.emailAddress ?? ""}`,
+          proofOfPayment: booking.proofOfPaymentLink,
+          totalPrice: booking.totalPrice,
+          start: formatDateTime(booking.startTime),
+          end: formatDateTime(booking.endTime),
+          courts: (booking.courts || []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            price: c.pricePerHour,
+          })),
+          resourceId: court.id,
+        }
+      }),
     )
   }, [selectedOrganization, courtBookings])
 
@@ -122,42 +155,36 @@ export default function Page() {
           timeslots={1}
           events={events}
           resources={courtResources}
-          // onSelectSlot={handleSelectSlot}
-          // onEventDrop={handleEventDrop}
-          // onEventResize={handleEventResize}
           startAccessor="start"
           endAccessor="end"
           defaultView="day"
           views={["month", "day", "week"]}
           style={{ height: "100%", width: "100%" }}
           onSelectEvent={(event) => {
-            console.log("Selected event:", event)
+            const selected = event as any
+            setSelectedBooking(selected)
+            setOpenEventDialog(true)
           }}
         />
       </main>
+      {selectedBooking && (
+        <BookingDialog
+          booking={selectedBooking as TBookingDetails}
+          open={openEventDialog}
+          onOpenChange={setOpenEventDialog}
+        />
+      )}
     </div>
   )
 }
 
 function CustomEvent({ event }: { event: any }) {
   return (
-    <div key={event.id} className="flex items-center justify-between p-1 text-xs">
-      {/* Title on the left */}
-      <span className="font-medium truncate">{event.title}</span>
-
-      {/* Status badge on the right */}
-      <Badge
-        variant={
-          event.status === "confirmed"
-            ? "success"
-            : event.status === "pending"
-              ? "warning"
-              : "destructive"
-        }
-        className="ml-2"
-      >
-        {event.status}
-      </Badge>
+    <div key={event.id} className="flex items-center justify-between p-1 text-xs w-full h-full">
+      <span className="font-medium truncate leading-none flex items-center">{event.title}</span>
+      <div className="flex items-center">
+        <BadgeStatus status={event.status} />
+      </div>
     </div>
   )
 }

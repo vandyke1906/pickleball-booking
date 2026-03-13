@@ -2,7 +2,7 @@ import { clsx, type ClassValue } from "clsx"
 import { toZonedTime } from "date-fns-tz"
 import { twMerge } from "tailwind-merge"
 import { enUS } from "date-fns/locale"
-import { addMinutes } from "date-fns"
+import { addMinutes, format } from "date-fns"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -54,4 +54,17 @@ export function formatDateTime(utcString: string, timeZone: string = DEFAULT_TIM
   return zoned
   // const formatted = format(zoned, "MMM dd, yyyy · hh:mm a", { timeZone })
   // return `${formatted} PHT`
+}
+
+export function formatISODateString(isoString: string) {
+  const formatted = format(new Date(isoString), "MMMM dd, yyyy · hh:mm a")
+  return formatted
+}
+
+export function formatFloat(amount: number | string) {
+  if (isNaN(Number(amount))) return amount
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+  }).format((amount as number) || 0)
 }

@@ -43,10 +43,19 @@ export async function GET(request: Request) {
               : { status: { in: ["pending", "confirmed"] } },
           select: {
             id: true,
+            code: true,
             fullName: true,
             startTime: true,
             endTime: true,
             status: true,
+            ...(all && {
+              contactNumber: true,
+              emailAddress: true,
+              totalPrice: true,
+              proofOfPaymentLink: true,
+              notes: true,
+              courts: { select: { id: true, name: true, pricePerHour: true } },
+            }),
           },
           orderBy: { startTime: "asc" },
         },
@@ -67,10 +76,17 @@ export async function GET(request: Request) {
       },
       bookings: court.bookings.map((b) => ({
         id: b.id,
+        code: b.code,
         fullName: b.fullName,
         status: b.status,
         startTime: formatISO(new Date(b.startTime)),
         endTime: formatISO(new Date(b.endTime)),
+        ...(all && {
+          totalPrice: b.totalPrice ?? 0,
+          proofOfPaymentLink: b.proofOfPaymentLink,
+          notes: b.notes ?? "",
+          courts: b.courts.map((c) => ({ id: c.id, name: c.name, pricePerHour: c.pricePerHour })),
+        }),
       })),
     }))
 
