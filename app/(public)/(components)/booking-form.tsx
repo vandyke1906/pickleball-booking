@@ -175,7 +175,6 @@ export default function BookingPage() {
     if (!canBook) return
     mutation.mutate(values, {
       onSuccess: (data) => {
-        console.info({ data })
         form.reset()
         setBookingDetails(data?.result)
       },
