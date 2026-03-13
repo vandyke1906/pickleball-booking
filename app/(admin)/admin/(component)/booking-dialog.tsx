@@ -95,7 +95,6 @@ export function BookingDialog({ open, onOpenChange, booking }: BookingDialogProp
               <p className="text-sm font-medium">Courts</p>
               <p className="text-sm text-muted-foreground">
                 {(booking.courts || []).map((c: any) => {
-                  console.info({ c })
                   return (
                     <Badge variant="outline" key={c.id}>
                       {c.name} - {formatFloat(c.price)}
@@ -142,7 +141,7 @@ export function BookingDialog({ open, onOpenChange, booking }: BookingDialogProp
             if (!id) return
             mutation.mutate(id, {
               onSuccess: () => {
-                setOpenConfirmDialog(false)
+                onOpenChange(false)
               },
             })
           }}
