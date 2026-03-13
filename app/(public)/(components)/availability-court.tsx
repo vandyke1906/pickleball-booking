@@ -23,7 +23,7 @@ const isBlockAvailableForCourt = (
   const proposedStartMin = toMinutes(proposedStart)
   const proposedEndMin = proposedStartMin + dur * 60
 
-  console.info({ proposedStartMin, proposedEndMin })
+  console.info({ proposedStartMin, proposedEndMin, court })
 
   return !court.bookings.some((b) => {
     const bookingStart = formatDateTime(b.startTime)
