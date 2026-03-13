@@ -62,10 +62,10 @@ export default function ConfirmationDialog({
           </AlertDialogCancel>
           <AlertDialogAction
             disabled={isLoading}
-            className={cn(
-              variant === "delete" && "bg-red-600 text-white hover:bg-red-700",
-              variant === "confirm" && "bg-green-600 text-white hover:bg-green-700",
-            )}
+            className={cn({
+              "bg-red-600 text-white hover:bg-red-700": variant === "delete",
+              "bg-green-600 text-white hover:bg-green-700": variant === "confirm",
+            })}
             onClick={() => {
               if (isLoading) return
               onConfirm?.()

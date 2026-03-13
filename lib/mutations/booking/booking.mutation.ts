@@ -81,9 +81,11 @@ export function useConfirmBooking() {
 
   return useMutation({
     mutationKey: ["confirm-booking"],
-    mutationFn: (bookingId: string) =>
-      fetcher(`/api/bookings/confirm/${bookingId}`, {
+    mutationFn: ({ id, accept }: { id: string; accept: boolean }) =>
+      fetcher(`/api/bookings/confirm/${id}`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accept }),
       }),
 
     onMutate: async () => {

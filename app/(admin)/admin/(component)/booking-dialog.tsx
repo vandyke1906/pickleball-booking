@@ -15,8 +15,9 @@ import { formatFloat, formatISODateString } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { useState } from "react"
 import ConfirmationDialog from "@/components/common/confirm-dialog"
-import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Loader2, X } from "lucide-react"
 import { useConfirmBooking } from "@/lib/mutations/booking/booking.mutation"
+import { preventDialogCloseProps } from "@/components/dialog/dialog-helper"
 
 interface BookingDialogProps {
   open: boolean
@@ -26,12 +27,13 @@ interface BookingDialogProps {
 
 export function BookingDialog({ open, onOpenChange, booking }: BookingDialogProps) {
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false)
+  const [acceptBooking, setAcceptBooking] = useState(false)
 
   const mutation = useConfirmBooking()
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent>
+        <DialogContent {...preventDialogCloseProps}>
           <DialogHeader>
             <DialogTitle>Booking Details</DialogTitle>
             <DialogDescription>Review the details of this booking.</DialogDescription>
@@ -107,22 +109,44 @@ export function BookingDialog({ open, onOpenChange, booking }: BookingDialogProp
 
           <DialogFooter>
             {booking.status === "pending" && (
-              <Button
-                variant="success"
-                disabled={mutation.isPending}
-                onClick={() => setOpenConfirmDialog(true)}
-              >
-                {mutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Please wait...
-                  </>
-                ) : (
-                  "Confirm Booking"
-                )}
-              </Button>
+              <>
+                <Button
+                  variant="success"
+                  disabled={mutation.isPending}
+                  onClick={() => {
+                    setAcceptBooking(true)
+                    setOpenConfirmDialog(true)
+                  }}
+                >
+                  {mutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Please wait...
+                    </>
+                  ) : (
+                    "Accept"
+                  )}
+                </Button>
+                <Button
+                  variant="destructive"
+                  disabled={mutation.isPending}
+                  onClick={() => {
+                    setAcceptBooking(false)
+                    setOpenConfirmDialog(true)
+                  }}
+                >
+                  {mutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Please wait...
+                    </>
+                  ) : (
+                    "Reject"
+                  )}
+                </Button>
+              </>
             )}
-            <Button onClick={() => onOpenChange(false)}>Close</Button>
+            {/* <Button onClick={() => onOpenChange(false)}>Close</Button> */}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -130,20 +154,29 @@ export function BookingDialog({ open, onOpenChange, booking }: BookingDialogProp
       {booking && (
         <ConfirmationDialog
           title="Confirm Booking"
-          variant="confirm"
-          Icon={<CheckCircle2 className="text-green-500" size={20} />}
-          description={`Are you sure you want to confirm booking "${booking.code}"?`}
+          variant={acceptBooking ? "confirm" : "delete"}
+          Icon={
+            acceptBooking ? (
+              <CheckCircle2 className="text-green-500" size={20} />
+            ) : (
+              <X className="text-red-500" size={20} />
+            )
+          }
+          description={`Are you sure you want to ${acceptBooking ? "accept" : "reject"} booking "${booking.code}"?`}
           open={openConfirmDialog}
           setOpen={setOpenConfirmDialog}
           isLoading={mutation.isPending}
           onConfirm={async () => {
             const id: string = booking.id
             if (!id) return
-            mutation.mutate(id, {
-              onSuccess: () => {
-                onOpenChange(false)
+            mutation.mutate(
+              { id, accept: acceptBooking },
+              {
+                onSuccess: () => {
+                  onOpenChange(false)
+                },
               },
-            })
+            )
           }}
         />
       )}

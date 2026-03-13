@@ -7,10 +7,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const [session, { id }] = await Promise.all([isServerAuthenticated(), params])
     if (!session?.user) return NextResponse.json({ error: "Unauthorized access" }, { status: 401 })
 
+    // Parse JSON body from client
+    const body = await request.json()
+    const { accept } = body
+
     await prisma.booking.update({
       where: { id, status: "pending" },
       data: {
-        status: "confirmed",
+        status: accept ? "confirmed" : "cancelled",
       },
     })
 
