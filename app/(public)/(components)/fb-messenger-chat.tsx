@@ -26,7 +26,7 @@ export default function MessengerChat() {
       <div
         className="fb-customerchat"
         attribution="setup_tool"
-        page_id="61554303354722" // your Page ID
+        page_id={process.env.NEXT_PUBLIC_FB_PAGE_ID} // your Page ID
         theme_color="#13310b"
         logged_in_greeting="Hi! How can we help you?"
         logged_out_greeting="Hi! Please log in to chat with us."
