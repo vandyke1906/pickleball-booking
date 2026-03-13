@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { DEFAULT_TIMEZONE } from "@/lib/utils"
-import { toZonedTime } from "date-fns-tz"
 
 export async function GET(request: Request) {
   try {
@@ -16,14 +14,14 @@ export async function GET(request: Request) {
 
     let whereDate = {}
     if (dateParam) {
-      const startOfDayUTC = toZonedTime(`${dateParam}T00:00:00`, DEFAULT_TIMEZONE)
-      const endOfDayUTC = toZonedTime(`${dateParam}T23:59:59.999`, DEFAULT_TIMEZONE)
+      const startOfDayPH = new Date(`${dateParam}T00:00:00+08:00`)
+      const endOfDayPH = new Date(`${dateParam}T23:59:59.999+08:00`)
 
-      console.info({ dateParam, startOfDayUTC, endOfDayUTC })
+      console.info({ dateParam, startOfDayPH, endOfDayPH })
 
       whereDate = {
-        startTime: { gte: startOfDayUTC },
-        endTime: { lt: endOfDayUTC },
+        startTime: { gte: startOfDayPH },
+        endTime: { lt: endOfDayPH },
         ...(all ? {} : { status: { in: ["pending", "confirmed"] } }),
       }
     }
