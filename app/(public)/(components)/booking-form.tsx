@@ -65,7 +65,6 @@ export default function BookingPage() {
     date: dateString,
   })
 
-  console.info({ dateString })
   const mutationGetBooking = useGetBookingByCode()
 
   const selectedOrganization = useMemo(() => {

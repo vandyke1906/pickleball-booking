@@ -23,15 +23,12 @@ const isBlockAvailableForCourt = (
   const proposedStartMin = toMinutes(proposedStart)
   const proposedEndMin = proposedStartMin + dur * 60
 
-  if (court.bookings.length) console.info({ proposedStartMin, proposedEndMin })
-
   return !court.bookings.some((b) => {
     const bookingStart = formatDateTime(b.startTime)
     const bookingEnd = formatDateTime(b.endTime)
 
     // Compare only if same day
     const sameDay = bookingStart.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH")
-    console.info({ bookingStart, bookingEnd, sameDay })
     if (!sameDay) return false
 
     const bookStartMin = bookingStart.getHours() * 60 + bookingStart.getMinutes()

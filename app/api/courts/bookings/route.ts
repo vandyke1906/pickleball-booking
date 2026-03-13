@@ -17,8 +17,6 @@ export async function GET(request: Request) {
       const startOfDayPH = new Date(`${dateParam}T00:00:00+08:00`)
       const endOfDayPH = new Date(`${dateParam}T23:59:59.999+08:00`)
 
-      console.info({ dateParam, startOfDayPH, endOfDayPH })
-
       whereDate = {
         startTime: { gte: startOfDayPH },
         endTime: { lt: endOfDayPH },
