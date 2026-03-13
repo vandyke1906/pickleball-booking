@@ -219,7 +219,8 @@ export const getDurationString = (startDateStr: string, endDateStr?: string) => 
   return parts.join(", ")
 }
 
-export function formatToPHTime(isoString: string) {
+export function formatToPHTime(isoString?: string) {
+  if (!isoString) return "—"
   const formatter = new Intl.DateTimeFormat("en-PH", {
     timeZone: "Asia/Manila",
     dateStyle: "medium",
