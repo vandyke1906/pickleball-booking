@@ -4,6 +4,7 @@ import { BookingPayload, bookingSchema } from "@/lib/validation/booking/booking.
 import { qKeyBookings } from "@/lib/hooks/booking/booking.hook"
 import { qKeyCourts } from "@/lib/hooks/court/court.hook"
 import { fetcher } from "@/lib/hooks/common.hook"
+import { ReadableStatus, TStatus } from "@/components/common/badge-status"
 
 async function createBooking(payload: BookingPayload) {
   const parsed = bookingSchema.parse(payload)
@@ -108,10 +109,25 @@ export function useConfirmBooking() {
       toast.error("Confirm Booking failed", { description: (error as Error).message })
     },
 
-    onSuccess: () => {
-      toast.success("Confirm Booking", {
-        description: "Booking has been confirmed.",
-      })
+    onSuccess: (data) => {
+      const status: TStatus | null = data?.status
+      if (status) {
+        switch (status) {
+          case "confirmed":
+            toast.success("Confirm Booking", {
+              description: `Booking has been confirmed!`,
+            })
+            break
+          case "cancelled":
+            toast.warning("Confirm Booking", {
+              description: `Booking has been cancelled!`,
+            })
+            break
+        }
+      } else
+        toast.success("Confirm Booking", {
+          description: `Booking has been saved!`,
+        })
     },
 
     onSettled: () => {

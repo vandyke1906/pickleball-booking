@@ -20,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     //TODO trigger Send Email to client
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, status: accept ? "confirmed" : "cancelled" })
   } catch (error) {
     console.error("Error confirming booking:", error)
     return NextResponse.json({ error: "Failed confirming booking" }, { status: 500 })

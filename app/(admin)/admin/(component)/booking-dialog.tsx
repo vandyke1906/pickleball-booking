@@ -146,7 +146,6 @@ export function BookingDialog({ open, onOpenChange, booking }: BookingDialogProp
                 </Button>
               </>
             )}
-            {/* <Button onClick={() => onOpenChange(false)}>Close</Button> */}
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -297,9 +297,7 @@ export default function BookingPage() {
 
                 {/* Courts */}
                 <div className="lg:col-span-3 space-y-2">
-                  <Label className="font-semibold text-slate-700">
-                    Courts (select multiple to book in one transaction)
-                  </Label>
+                  <Label className="font-semibold text-slate-700">Select Courts</Label>
                   <p className="text-sm text-muted-foreground">
                     You can book multiple courts at once by checking more than one option.
                   </p>
