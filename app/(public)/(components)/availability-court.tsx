@@ -38,6 +38,7 @@ export function AvailabilityCourt({
 
       // Compare only if same day
       const sameDay = bookingStart.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH")
+      console.info({ bookingStart, bookingEnd, sameDay })
       if (!sameDay) return false
 
       const bookStartMin = bookingStart.getHours() * 60 + bookingStart.getMinutes()
