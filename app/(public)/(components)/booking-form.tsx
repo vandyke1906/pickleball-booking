@@ -126,6 +126,11 @@ export default function BookingPage() {
 
         // Compare only if same day
 
+        console.info({
+          bookingStart: bookingStart.toLocaleDateString("en-PH"),
+          date: date.toLocaleDateString("en-PH"),
+        })
+
         const sameDay =
           bookingStart.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH")
         if (!sameDay) continue
