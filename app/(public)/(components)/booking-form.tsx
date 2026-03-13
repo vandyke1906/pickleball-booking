@@ -129,7 +129,7 @@ export default function BookingPage() {
         console.info({
           bookingStart,
           bookingEnd,
-          bookingStart: bookingStart.toLocaleDateString("en-PH"),
+          bookingStartLocal: bookingStart.toLocaleDateString("en-PH"),
           date: date.toLocaleDateString("en-PH"),
         })
 
