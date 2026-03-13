@@ -17,8 +17,8 @@ export default function CourtPage() {
   const { data: session } = useSession()
   const { data, isLoading, isError, error } = useCourts()
 
-  if (isLoading) return <p>Loading courts…</p>
   if (isError) return <p>Error: {String(error)}</p>
+
   const columns = useMemo<ColumnDef<TCourt>[]>(
     () => [
       {
