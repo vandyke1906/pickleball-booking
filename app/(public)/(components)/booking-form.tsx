@@ -174,8 +174,10 @@ export default function BookingPage() {
   const onSubmit = (values: BookingPayload) => {
     if (!canBook) return
     mutation.mutate(values, {
-      onSuccess: () => {
+      onSuccess: (data) => {
+        console.info({ data })
         form.reset()
+        setBookingDetails(data?.result)
       },
     })
   }

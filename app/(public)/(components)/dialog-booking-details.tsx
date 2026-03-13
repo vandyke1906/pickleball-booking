@@ -87,13 +87,15 @@ export function BookingDetailsDialog({ open, onOpenChange, booking }: BookingDia
             <div>
               <p className="text-sm font-medium">Courts</p>
               <p className="text-sm text-muted-foreground">
-                {(booking.courts || []).map((c: any, index: number) => {
-                  return (
-                    <Badge variant="outline" key={index}>
-                      {c.name} - {formatFloat(c.pricePerHour)}
-                    </Badge>
-                  )
-                })}
+                <div className="flex flex-wrap gap-2">
+                  {(booking.courts || []).map((c: any, index: number) => {
+                    return (
+                      <Badge variant="outline" key={index}>
+                        {c.name} - {formatFloat(c.pricePerHour)}
+                      </Badge>
+                    )
+                  })}
+                </div>
               </p>
             </div>
           </div>
