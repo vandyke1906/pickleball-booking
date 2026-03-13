@@ -31,7 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { BookingDetailsDialog } from "@/app/(public)/(components)/dialog-booking-details"
+import { BookingDetailsDialog } from "@/app/(public)/(components)/booking-dialog-details"
 
 export default function BookingPage() {
   const refCode = useRef<HTMLInputElement>(null)

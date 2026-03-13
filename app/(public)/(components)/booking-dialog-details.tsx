@@ -86,7 +86,7 @@ export function BookingDetailsDialog({ open, onOpenChange, booking }: BookingDia
 
             <div>
               <p className="text-sm font-medium">Courts</p>
-              <p className="text-sm text-muted-foreground">
+              <div className="text-sm text-muted-foreground">
                 <div className="flex flex-wrap gap-2">
                   {(booking.courts || []).map((c: any, index: number) => {
                     return (
@@ -96,7 +96,7 @@ export function BookingDetailsDialog({ open, onOpenChange, booking }: BookingDia
                     )
                   })}
                 </div>
-              </p>
+              </div>
             </div>
           </div>
 

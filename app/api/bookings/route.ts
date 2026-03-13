@@ -6,6 +6,12 @@ import { customAlphabet } from "nanoid"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { BroadcastEventTypes } from "@/lib/sse-broadcaster.type"
 import { formatISO } from "date-fns"
+import {
+  BookingConfirmationEmailProps,
+  BookingConfirmationEmail,
+} from "@/lib/nodemailer/email/booking-confirmation.email"
+import { render } from "@react-email/render"
+import { sendBookingConfirmationEmail } from "@/lib/nodemailer/sender/sender.email"
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const nanoid = customAlphabet(alphabet, 6)
@@ -191,6 +197,24 @@ export async function POST(req: Request) {
 
       return created
     })
+
+    sendBookingConfirmationEmail({
+      booking: {
+        code: result.code,
+        bookedBy: result.fullName,
+        contactNumber: result.contactNumber ?? "",
+        emailAddress: result.emailAddress ?? "",
+        status: result.status,
+        proofOfPayment: result.proofOfPaymentLink,
+        totalPrice: (result.totalPrice ?? 0).toString(),
+        start: result.startTime.toString(),
+        end: result.endTime.toString(),
+        courts: result.courts.map((c) => ({
+          name: c.name,
+          pricePerHour: c.pricePerHour,
+        })),
+      },
+    }).catch((err) => console.error("Email send failed:", err))
 
     EventBroadcast({
       type: BroadcastEventTypes.BOOKING_CREATED,
