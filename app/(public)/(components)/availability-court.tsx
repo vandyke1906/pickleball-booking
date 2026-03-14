@@ -89,8 +89,7 @@ export function AvailabilityCourt({
 
         {!isLoading && (
           <div className="mt-4 text-xs sm:text-sm text-slate-600 text-center">
-            Showing {duration}h blocks • {startTime}–{endTimeDisplay} • Selected courts are{" "}
-            <strong>highlighted</strong>
+            Showing {duration}h blocks • Selected courts are <strong>highlighted</strong>
           </div>
         )}
       </div>
@@ -143,7 +142,6 @@ function CourtAvailabilityTable({
                 className="p-4 font-semibold border-b border-slate-200 min-w-[180px] text-center"
               >
                 {court.name}
-                <div className="text-xs text-slate-500 mt-1">₱{court.pricePerHour}/hr</div>
               </th>
             ))}
           </tr>
