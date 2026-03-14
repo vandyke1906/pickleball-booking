@@ -15,7 +15,7 @@ import { formatFloat, formatISODateString } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { useState } from "react"
 import ConfirmationDialog from "@/components/common/confirm-dialog"
-import { AlertTriangle, CheckCircle2, Loader2, X } from "lucide-react"
+import { CheckCircle2, Loader2, X } from "lucide-react"
 import { useConfirmBooking } from "@/lib/mutations/booking/booking.mutation"
 import { preventDialogCloseProps } from "@/components/dialog/dialog-helper"
 
@@ -23,16 +23,25 @@ interface BookingDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   booking: TBookingDetails
+  onClose?: () => void
 }
 
-export function BookingDialog({ open, onOpenChange, booking }: BookingDialogProps) {
+export function BookingDialog({ open, onOpenChange, booking, onClose }: BookingDialogProps) {
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false)
   const [acceptBooking, setAcceptBooking] = useState(false)
 
   const mutation = useConfirmBooking()
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog
+        open={open}
+        onOpenChange={(isOpen) => {
+          onOpenChange(isOpen)
+          if (!isOpen && onClose) {
+            onClose()
+          }
+        }}
+      >
         <DialogContent {...preventDialogCloseProps}>
           <DialogHeader>
             <DialogTitle>Booking Details</DialogTitle>
@@ -96,9 +105,9 @@ export function BookingDialog({ open, onOpenChange, booking }: BookingDialogProp
             <div>
               <p className="text-sm font-medium">Courts</p>
               <p className="text-sm text-muted-foreground">
-                {(booking.courts || []).map((c: any) => {
+                {(booking.courts || []).map((c: any, index) => {
                   return (
-                    <Badge variant="outline" key={c.id}>
+                    <Badge variant="outline" key={index}>
                       {c.name} - {formatFloat(c.price)}
                     </Badge>
                   )
@@ -173,6 +182,7 @@ export function BookingDialog({ open, onOpenChange, booking }: BookingDialogProp
               {
                 onSuccess: () => {
                   onOpenChange(false)
+                  if (onClose) onClose()
                 },
               },
             )

@@ -6,9 +6,11 @@ import BadgeStatus from "@/components/common/badge-status"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCourtBookings, useOrganizationCourts } from "@/lib/hooks/court/court.hook"
+import { useGetBookingByCode } from "@/lib/mutations/booking/booking.mutation"
 import { formatDateTime, formatFloat } from "@/lib/utils"
 import { Court } from "@prisma/client"
-import { useMemo, useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 export type TBookingDetails = {
   id: string
@@ -26,12 +28,27 @@ export type TBookingDetails = {
 }
 
 export default function Page() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+
   const [selectedBooking, setSelectedBooking] = useState<TBookingDetails | null>(null)
   const [openEventDialog, setOpenEventDialog] = useState(false)
+
+  const mutationGetBooking = useGetBookingByCode()
   const { data: orgWithCourts, isLoading: isLoadingOrgWithCourts } = useOrganizationCourts()
   const { data: courtBookings, isLoading: isLoadingCourtBookings } = useCourtBookings({
     isAll: true,
   })
+
+  const removeConfirmationBookingParamCallback = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete("confirmation-booking")
+
+    const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname
+
+    router.replace(newUrl)
+  }, [router, pathname, searchParams])
 
   const selectedOrganization = useMemo(() => {
     if (!orgWithCourts || !orgWithCourts.length) {
@@ -134,11 +151,32 @@ export default function Page() {
     }
   }
 
+  useEffect(() => {
+    const confirmationCode = searchParams.get("confirmation-booking")
+    if (!confirmationCode) return
+    setSelectedBooking(null)
+    mutationGetBooking.mutate(confirmationCode, {
+      onSuccess: (result: any) => {
+        const { success, data } = result
+        if (success) {
+          setSelectedBooking(data)
+          setOpenEventDialog(true)
+        } else {
+          setOpenEventDialog(false)
+          setSelectedBooking(null)
+        }
+      },
+      onError: () => {
+        setSelectedBooking(null)
+        setOpenEventDialog(true)
+      },
+    })
+  }, [searchParams, courtBookings])
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <header style={{ height: "60px" }}>Booking Calendar</header>
       <main style={{ flex: 1 }} className="relative">
-        {/* Calendar always mounted */}
         <BigCalendar
           className="rbc-calendar"
           eventPropGetter={getEventClassNames}
@@ -183,6 +221,10 @@ export default function Page() {
           booking={selectedBooking as TBookingDetails}
           open={openEventDialog}
           onOpenChange={setOpenEventDialog}
+          onClose={() => {
+            removeConfirmationBookingParamCallback()
+            setSelectedBooking(null)
+          }}
         />
       )}
     </div>

@@ -7,6 +7,7 @@ import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { BroadcastEventTypes } from "@/lib/sse-broadcaster.type"
 import { formatISO } from "date-fns"
 import { sendBookingConfirmationEmail } from "@/lib/nodemailer/sender/sender.email"
+import { createNotificationForOrg } from "@/lib/server/action/notification.action"
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const nanoid = customAlphabet(alphabet, 6)
@@ -212,9 +213,18 @@ export async function POST(req: Request) {
       },
     }).catch((err) => console.error("Email send failed:", err))
 
+    //update ui of all clients
     EventBroadcast({
       type: BroadcastEventTypes.BOOKING_CREATED,
       data: result,
+    })
+
+    //create notification
+    createNotificationForOrg(result?.courts?.[0].organizationId, {
+      title: "Booking Created",
+      message: `Booking ${result.code} was created by ${result.fullName}`,
+      type: "info",
+      link: `/admin?confirmation-booking=${result.code}`,
     })
 
     return NextResponse.json({ success: true, result })
