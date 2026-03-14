@@ -6,8 +6,8 @@ const redisClient = new Redis(redisUrl)
 
 const rateLimiter = new RateLimiterRedis({
   storeClient: redisClient,
-  points: 100, // 100 requests
-  duration: 60, // per 60 seconds
+  points: parseInt(process.env.RATE_LIMIT_POINTS ?? "100", 10), // 100 requests
+  duration: parseInt(process.env.RATE_LIMIT_DURATION ?? "60", 10), // per 60 seconds
 })
 
 export async function applyRateLimit(ip: string) {
