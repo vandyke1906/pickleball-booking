@@ -201,12 +201,34 @@ export default function BookingPage({ slug }: { slug: string }) {
     const startHour = parseInt(startTimeStr.split(":")[0], 10) // Parse "HH:mm" into an integer hour
     const endHour = startHour + duration
 
-    const basePrice = priceRules.reduce((sum, rule) => {
-      const overlapStart = Math.max(startHour, rule.startHour)
-      const overlapEnd = Math.min(endHour, rule.endHour)
-      const hours = Math.max(0, overlapEnd - overlapStart)
-      return sum + hours * rule.price
+    const normalizeRanges = (start: number, end: number) => {
+      const ranges: { startHour: number; endHour: number }[] = []
+      let currentStart = start
+      let currentEnd = end
+
+      while (currentEnd > 24) {
+        ranges.push({ startHour: currentStart, endHour: 24 })
+        currentStart = 0
+        currentEnd -= 24
+      }
+      ranges.push({ startHour: currentStart, endHour: currentEnd })
+      return ranges
+    }
+
+    const ranges = normalizeRanges(startHour, endHour)
+
+    const basePrice = ranges.reduce((sum, range) => {
+      return (
+        sum +
+        priceRules.reduce((innerSum, rule) => {
+          const overlapStart = Math.max(range.startHour, rule.startHour)
+          const overlapEnd = Math.min(range.endHour, rule.endHour)
+          const hours = Math.max(0, overlapEnd - overlapStart)
+          return innerSum + hours * rule.price
+        }, 0)
+      )
     }, 0)
+
     return basePrice * selectedCourtIds.length
   }, [form.watch("courtIds"), form.watch("duration"), form.watch("startTime"), orgWithCourts])
 
