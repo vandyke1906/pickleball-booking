@@ -52,7 +52,6 @@ export function useCourts({ organizationId }: { organizationId?: string } = {}) 
 }
 
 export function useOrganizationCourts({ slug }: { slug: string }) {
-  // const url = slug ? `/api/organization/courts?slug=${slug}` : "/api/organization/courts"
   const url = `/api/organization/courts?slug=${slug}`
 
   const query = useQuery<
@@ -64,6 +63,8 @@ export function useOrganizationCourts({ slug }: { slug: string }) {
   >({
     queryKey: qKeyCourts.organizationCourts(slug),
     queryFn: () => fetcher(url),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 30, // still 30 minutes is fine
   })
 
   return {
