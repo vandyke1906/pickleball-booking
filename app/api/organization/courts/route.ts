@@ -4,46 +4,62 @@ import { prisma } from "@/lib/prisma"
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
-    const organizationId = searchParams.get("organizationId")
-
-    const where = organizationId ? { id: organizationId } : {}
-
-    const organizations = await prisma.organization.findMany({
+    const slug = searchParams.get("slug")
+    if (!slug) throw new Error("Organization required")
+    const where = { slug }
+    const organization = await prisma.organization.findUnique({
       where,
       select: {
         id: true,
         name: true,
-        openTime: true,
-        closeTime: true,
+        openingHours: {
+          select: {
+            startHour: true,
+            endHour: true,
+          },
+          orderBy: { startHour: "asc" },
+        },
+        pricingRules: {
+          select: {
+            startHour: true,
+            endHour: true,
+            price: true,
+          },
+          orderBy: { startHour: "asc" },
+        },
         courts: {
           select: {
             id: true,
             name: true,
             location: true,
-            pricePerHour: true,
           },
-          orderBy: {
-            name: "asc",
-          },
+          orderBy: { name: "asc" },
         },
-      },
-      orderBy: {
-        name: "asc",
       },
     })
 
-    const formatted = organizations.map((org) => ({
-      id: org.id,
-      name: org.name,
-      openTime: org.openTime,
-      closeTime: org.closeTime,
-      courts: org.courts.map((court) => ({
+    if (!organization) {
+      return NextResponse.json([])
+    }
+
+    const formatted = {
+      id: organization.id,
+      name: organization.name,
+      openingHours: organization.openingHours.map((h) => ({
+        startHour: h.startHour,
+        endHour: h.endHour,
+      })),
+      pricingRules: organization.pricingRules.map((r) => ({
+        startHour: r.startHour,
+        endHour: r.endHour,
+        price: r.price,
+      })),
+      courts: organization.courts.map((court) => ({
         id: court.id,
         name: court.name,
         location: court.location,
-        pricePerHour: court.pricePerHour,
       })),
-    }))
+    }
 
     return NextResponse.json(formatted)
   } catch (error) {

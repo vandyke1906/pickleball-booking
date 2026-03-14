@@ -11,6 +11,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useSignin } from "@/lib/mutations/auth/auth.mutation"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
+import { getSession } from "next-auth/react"
 
 export function LoginForm({ className, ...props }: React.ComponentProps<"div">) {
   const router = useRouter()
@@ -26,8 +27,16 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
 
   const onSubmit = (values: SignInPayload) => {
     mutation.mutate(values, {
-      onSuccess: () => {
-        router.push("/admin")
+      onSuccess: async () => {
+        const session = await getSession()
+        const slug = session?.user.organization.slug
+
+        if (!slug) {
+          router.push("/admin")
+          return
+        }
+
+        router.push(`/admin/${slug}`)
       },
     })
   }

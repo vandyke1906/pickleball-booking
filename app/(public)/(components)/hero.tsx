@@ -7,7 +7,6 @@ import Image from "next/image"
 import BlurInText from "@/components/animated/blur-in-text"
 import ShinyText from "@/components/animated/shiny-text"
 import GradientFlowText from "@/components/animated/gradient-flow-text"
-import LightStrokeWrapper from "@/components/animated/light-stroke-wrapper"
 import AnimatedSVG from "@/components/animated/animated-svg"
 import { logoPaths } from "@/lib/svg/logo"
 
@@ -24,7 +23,7 @@ const item = {
   show: { y: 0, opacity: 1 },
 }
 
-export function Hero() {
+export function Hero({ slug }: { slug: string }) {
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center px-5 sm:px-8 pt-10 pb-10 sm:pb-4">
       {/* <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:28px_28px] opacity-50 pointer-events-none" /> */}
@@ -108,7 +107,7 @@ export function Hero() {
         </motion.p>
 
         {/* ─── Booking Form ──────────────────────────────────────── */}
-        <BookingForm />
+        <BookingForm slug={slug} />
 
         {/* Social proof */}
         {/* <motion.div

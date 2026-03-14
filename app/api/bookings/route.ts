@@ -156,11 +156,29 @@ export async function POST(req: Request) {
 
     const courts = await prisma.court.findMany({
       where: { id: { in: courtIds } },
-      select: { id: true, pricePerHour: true },
+      select: {
+        id: true,
+        organization: {
+          select: { pricingRules: true },
+        },
+      },
     })
 
-    // 4. Calculate total price
-    const totalPrice = courts.reduce((sum, court) => sum + court.pricePerHour * duration, 0)
+    const startHour = parseInt(startTime.split(":")[0], 10) //Parse booking start time string "HH:mm" → integer hour
+    const endHour = startHour + duration
+
+    const pricingRules = courts[0]?.organization?.pricingRules || [] //Get pricing rules from the first court’s organization (all share the same org rules)
+
+    // Calculate base price for one court
+    const basePrice = pricingRules.reduce((sum, rule) => {
+      const overlapStart = Math.max(startHour, rule.startHour)
+      const overlapEnd = Math.min(endHour, rule.endHour)
+      const hours = Math.max(0, overlapEnd - overlapStart)
+      return sum + hours * rule.price
+    }, 0)
+
+    // Multiply by number of courts selected
+    const totalPrice = basePrice * courts.length
 
     const result = await prisma.$transaction(async (tx) => {
       const conflicts = await tx.booking.findMany({
@@ -195,23 +213,24 @@ export async function POST(req: Request) {
       return created
     })
 
-    sendBookingConfirmationEmail({
-      booking: {
-        code: result.code,
-        bookedBy: result.fullName,
-        contactNumber: result.contactNumber ?? "",
-        emailAddress: result.emailAddress ?? "",
-        status: result.status,
-        proofOfPayment: result.proofOfPaymentLink,
-        totalPrice: (result.totalPrice ?? 0).toString(),
-        start: result.startTime.toString(),
-        end: result.endTime.toString(),
-        courts: result.courts.map((c) => ({
-          name: c.name,
-          pricePerHour: c.pricePerHour,
-        })),
-      },
-    }).catch((err) => console.error("Email send failed:", err))
+    const booking = {
+      code: result.code,
+      bookedBy: result.fullName,
+      contactNumber: result.contactNumber ?? "",
+      emailAddress: result.emailAddress ?? "",
+      status: result.status,
+      proofOfPayment: result.proofOfPaymentLink,
+      totalPrice: (result.totalPrice ?? 0).toString(),
+      start: result.startTime.toString(),
+      end: result.endTime.toString(),
+      courts: result.courts.map((c) => ({
+        name: c.name,
+      })),
+    }
+
+    sendBookingConfirmationEmail({ booking }).catch((err) =>
+      console.error("Email send failed:", err),
+    )
 
     //update ui of all clients
     EventBroadcast({
@@ -227,7 +246,7 @@ export async function POST(req: Request) {
       link: `/admin?confirmation-booking=${result.code}`,
     })
 
-    return NextResponse.json({ success: true, result })
+    return NextResponse.json({ success: true, result: booking })
   } catch (err: any) {
     console.error("Booking error:", err)
     return NextResponse.json(

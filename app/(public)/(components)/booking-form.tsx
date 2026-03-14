@@ -2,7 +2,16 @@
 
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { CalendarDays, Clock, AlertCircle, Loader2, Search, AlertTriangle } from "lucide-react"
+import {
+  CalendarDays,
+  Clock,
+  AlertCircle,
+  Loader2,
+  Search,
+  AlertTriangle,
+  X,
+  Ban,
+} from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
@@ -17,7 +26,14 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
 import { useMemo, useRef, useState } from "react"
 import { AvailabilityCourt } from "@/app/(public)/(components)/availability-court"
-import { formatDateTime, formatFloat, getEndTime, toMinutes } from "@/lib/utils"
+import {
+  calculateDuration,
+  formatDateTime,
+  formatFloat,
+  getEndTime,
+  normalizeOpeningHoursClient,
+  toMinutes,
+} from "@/lib/utils"
 import { useCourtBookings, useOrganizationCourts } from "@/lib/hooks/court/court.hook"
 import { useCreateBooking, useGetBookingByCode } from "@/lib/mutations/booking/booking.mutation"
 import { useForm } from "react-hook-form"
@@ -33,9 +49,11 @@ import {
 } from "@/components/ui/dialog"
 import { BookingDetailsDialog } from "@/app/(public)/(components)/booking-dialog-details"
 import ShinyText from "@/components/animated/shiny-text"
-import GlowingWrapper from "@/components/animated/glowing-wrapper"
 
-export default function BookingPage() {
+const envTotalHours = Number(process.env.NEXT_PUBLIC_TOTAL_HOURS_DURATION)
+const totalHoursDuration = !isNaN(envTotalHours) && envTotalHours > 0 ? envTotalHours : 18
+
+export default function BookingPage({ slug }: { slug: string }) {
   const refCode = useRef<HTMLInputElement>(null)
   const [bookingDetails, setBookingDetails] = useState(null)
   const [openNotFoundDialog, setOpenNotFoundDialog] = useState(false)
@@ -44,7 +62,7 @@ export default function BookingPage() {
     resolver: zodResolver(bookingSchema),
     defaultValues: {
       date: "",
-      startTime: "06:00",
+      startTime: "",
       duration: 1,
       courtIds: [],
       fullName: "",
@@ -62,55 +80,54 @@ export default function BookingPage() {
 
   const mutation = useCreateBooking()
 
-  const { data: orgWithCourts, isLoading: isLoadingOrgWithCourts } = useOrganizationCourts()
+  const { data: orgWithCourts, isLoading: isLoadingOrgWithCourts } = useOrganizationCourts({ slug })
   const { data: courtBookings, isLoading: isLoadingCourtBookings } = useCourtBookings({
+    enabled: Boolean(dateString),
+    organizationId: orgWithCourts?.id || "",
     date: dateString,
   })
 
   const mutationGetBooking = useGetBookingByCode()
 
-  const selectedOrganization = useMemo(() => {
-    if (!orgWithCourts || !orgWithCourts.length) {
-      const defaultObj = { openTime: "08:00", closeTime: "20:00", courts: [] }
-      return defaultObj
-    }
-    return orgWithCourts[0]
-  }, [orgWithCourts])
-
   const timeSlots = useMemo(() => {
-    if (!selectedOrganization) return []
+    if (!orgWithCourts) return []
 
     const slots: { value: string; label: string }[] = []
-    const [openHour] = selectedOrganization.openTime.split(":").map(Number)
-    const [closeHour] = selectedOrganization.closeTime.split(":").map(Number)
 
-    for (let hour = openHour; hour <= closeHour; hour++) {
-      const value = hour.toString().padStart(2, "0") + ":00"
-      const hour12 = hour % 12 === 0 ? 12 : hour % 12
-      const suffix = hour < 12 ? "AM" : "PM"
-      const label = `${hour12.toString().padStart(2, "0")}:00 ${suffix}`
+    const normalized = normalizeOpeningHoursClient(orgWithCourts.openingHours)
 
-      slots.push({ value, label })
-    }
+    normalized.forEach(({ startHour, endHour }) => {
+      for (let hour = startHour; hour < endHour; hour++) {
+        const value = hour.toString().padStart(2, "0") + ":00"
 
-    if (!form.getValues("startTime")) {
-      form.setValue("startTime", selectedOrganization.openTime, { shouldDirty: false })
+        // Convert to 12‑hour format
+        const hour12 = hour % 12 === 0 ? 12 : hour % 12
+        const suffix = hour < 12 || hour === 24 ? "AM" : "PM"
+
+        // Add "(next day)" marker if beyond 24
+        const label =
+          `${hour12.toString().padStart(2, "0")}:00 ${suffix}` + (hour >= 24 ? " (next day)" : "")
+
+        slots.push({ value, label })
+      }
+    })
+
+    // Default startTime
+    if (!form.getValues("startTime") && normalized.length > 0) {
+      const firstHour = normalized[0].startHour
+      const defaultValue = firstHour.toString().padStart(2, "0") + ":00"
+      form.setValue("startTime", defaultValue, { shouldDirty: false })
     }
 
     return slots
-  }, [selectedOrganization, form])
+  }, [orgWithCourts, form])
 
-  const totalPayment = useMemo(() => {
-    const courtIds = form.watch("courtIds") || []
-    const duration = form.watch("duration") || 0
-    const courts = selectedOrganization?.courts || []
+  const allowedDuration = useMemo(() => {
+    const selected = form.getValues("startTime")
+    if (!selected || !orgWithCourts) return 0
 
-    // Filter courts that match the selected IDs
-    const selectedCourts = courts.filter((court) => courtIds.includes(court.id))
-
-    // Sum up their pricePerHour multiplied by duration
-    return selectedCourts.reduce((sum, court) => sum + court.pricePerHour * duration, 0)
-  }, [form.watch("courtIds"), form.watch("duration"), selectedOrganization?.courts])
+    return calculateDuration(selected, orgWithCourts.openingHours)
+  }, [form, orgWithCourts, form.getValues("startTime")])
 
   const canBook = useMemo(() => {
     if (!courtBookings || !date) return false
@@ -176,6 +193,23 @@ export default function BookingPage() {
       },
     })
   }
+
+  const totalPayment = useMemo(() => {
+    const startTimeStr = form.watch("startTime") || "00:00"
+    const duration = form.watch("duration") || 0
+    const priceRules = orgWithCourts?.pricingRules || []
+    if (!duration) return 0
+
+    const startHour = parseInt(startTimeStr.split(":")[0], 10) // Parse "HH:mm" into an integer hour
+    const endHour = startHour + duration
+
+    return priceRules.reduce((sum, rule) => {
+      const overlapStart = Math.max(startHour, rule.startHour)
+      const overlapEnd = Math.min(endHour, rule.endHour)
+      const hours = Math.max(0, overlapEnd - overlapStart)
+      return sum + hours * rule.price
+    }, 0)
+  }, [form.watch("courtIds"), form.watch("duration"), form.watch("startTime"), orgWithCourts])
 
   return (
     <>
@@ -287,31 +321,38 @@ export default function BookingPage() {
                     value={form.watch("duration").toString()}
                     onValueChange={(v) => form.setValue("duration", Number(v))}
                   >
-                    <SelectTrigger className="h-12 w-full">
+                    <SelectTrigger className="h-12 w-full" disabled={!startTime}>
                       <Clock className="mr-3 h-5 w-5 text-primary" />
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {[1, 2, 3, 4].map((h) => (
+                      {Array.from({ length: allowedDuration }, (_, i) => i + 1).map((h) => (
                         <SelectItem key={h} value={h.toString()}>
                           {h} hour{h > 1 ? "s" : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+
+                  {!startTime && (
+                    <p className="text-xs text-slate-500 mt-2">
+                      Please select a start time to enable duration selection.
+                    </p>
+                  )}
                 </div>
 
                 {/* Courts */}
                 <div className="lg:col-span-3 space-y-2">
                   <Label className="font-semibold text-slate-700">Select Courts</Label>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     You can book multiple courts at once by checking more than one option.
                   </p>
 
                   <div className="border rounded-md p-4 bg-slate-50/60 max-h-48 overflow-y-auto space-y-3">
-                    {(selectedOrganization?.courts || []).map((court) => (
+                    {(orgWithCourts?.courts || []).map((court) => (
                       <div key={court.id} className="flex items-center space-x-3">
                         <Checkbox
+                          disabled={!dateString}
                           id={court.id}
                           checked={form.watch("courtIds").includes(court.id)}
                           onCheckedChange={() => {
@@ -332,6 +373,11 @@ export default function BookingPage() {
                       </div>
                     ))}
                   </div>
+                  {!dateString && (
+                    <p className="text-xs text-slate-500 mt-2">
+                      Please select a date to enable court selection.
+                    </p>
+                  )}
                   {form.formState.errors.courtIds && (
                     <p className="text-sm text-red-600">{form.formState.errors.courtIds.message}</p>
                   )}
@@ -419,7 +465,7 @@ export default function BookingPage() {
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       Please wait...
                     </>
-                  ) : (
+                  ) : canBook ? (
                     <span className="flex flex-col sm:flex-row items-center sm:justify-center gap-2 sm:gap-1 sm:py-4 text-center">
                       <span className="text-base sm:text-lg font-medium">
                         {`Book Now – ${form.watch("courtIds").length} court${
@@ -430,6 +476,11 @@ export default function BookingPage() {
                         {formatFloat(totalPayment)}
                       </span>
                     </span>
+                  ) : (
+                    <>
+                      <Ban className="mr-2 h-5 w-5 animate-pulse" />
+                      Not Allowed to Book
+                    </>
                   )}
                 </Button>
 

@@ -1,4 +1,4 @@
-import { signIn } from "next-auth/react"
+import { signIn, useSession } from "next-auth/react"
 import { SignInPayload, signInSchema } from "@/lib/validation/auth/auth.validation"
 import { toast } from "sonner"
 import { useMutation } from "@tanstack/react-query"
@@ -30,6 +30,7 @@ async function signInAccount(payload: SignInPayload) {
 }
 
 export function useSignin() {
+  const { update } = useSession()
   return useMutation({
     mutationKey: ["signin"],
     mutationFn: signInAccount,
@@ -48,7 +49,8 @@ export function useSignin() {
       toast.error("Sign in Failed", { description: (error as Error).message })
     },
 
-    onSuccess: () => {
+    onSuccess: async () => {
+      await update()
       toast.success("Sign In", {
         description: "Signed in successfully!",
       })

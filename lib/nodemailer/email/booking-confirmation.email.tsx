@@ -11,7 +11,7 @@ export type BookingConfirmationEmailProps = {
     totalPrice: string
     start: string
     end: string
-    courts: { name: string; pricePerHour: number }[]
+    courts: { name: string }[]
   }
 }
 
@@ -104,13 +104,6 @@ export const BookingConfirmationEmail = ({ booking }: BookingConfirmationEmailPr
         {/* Courts */}
         <Section style={{ marginBottom: "12px" }}>
           <Text style={{ fontSize: "14px", fontWeight: "600" }}>Courts</Text>
-          <Text style={{ fontSize: "14px", color: "#555" }}>
-            {booking.courts.map((c, i) => (
-              <span key={i} style={{ display: "block", marginBottom: "4px" }}>
-                {c.name} - {c.pricePerHour}
-              </span>
-            ))}
-          </Text>
         </Section>
 
         {/* Footer */}

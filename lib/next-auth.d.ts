@@ -9,24 +9,37 @@ declare module "next-auth" {
       email: string
       name: string
       role: string
-     } & DefaultSession["user"]
+      organizationId: string
+      organization: {
+        slug: string
+        name: string
+      }
+    } & DefaultSession["user"]
   }
 
   interface User extends DefaultUser {
-    
-      id: string
-      email: string
+    id: string
+    email: string
+    name: string
+    role: string
+    organizationId: string
+    organization: {
+      slug: string
       name: string
-      role: string
+    }
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT extends DefaultJWT {
-    
-      id: string
-      email: string
+    id: string
+    email: string
+    name: string
+    role: string
+    organizationId: string
+    organization: {
+      slug: string
       name: string
-      role: string
+    }
   }
 }

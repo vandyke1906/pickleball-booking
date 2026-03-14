@@ -4,7 +4,7 @@ import { BookingPayload, bookingSchema } from "@/lib/validation/booking/booking.
 import { qKeyBookings } from "@/lib/hooks/booking/booking.hook"
 import { qKeyCourts } from "@/lib/hooks/court/court.hook"
 import { fetcher } from "@/lib/hooks/common.hook"
-import { ReadableStatus, TStatus } from "@/components/common/badge-status"
+import { TStatus } from "@/components/common/badge-status"
 
 async function createBooking(payload: BookingPayload) {
   const parsed = bookingSchema.parse(payload)

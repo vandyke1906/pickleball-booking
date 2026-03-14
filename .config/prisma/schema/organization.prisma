@@ -10,8 +10,8 @@ model Organization {
   tiktokPage    String?
   instagramPage String?
   youtubePage   String?
-  openTime      String
-  closeTime     String
+  openingHours OrganizationOpeningHour[]   
+  pricingRules OrganizationPricingRule[] 
 
   courtLimit Int
   courts     Court[]
@@ -20,3 +20,30 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+
+model OrganizationOpeningHour {
+  id             String       @id @default(cuid())
+  organizationId String 
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  startHour      Int          // 0–23 (e.g., 0 = 12 AM, 8 = 8 AM)
+  endHour        Int          // 0–24 (exclusive upper bound, e.g., 24 = midnight)
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model OrganizationPricingRule {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  startHour      Int          // 0–23
+  endHour        Int          // 1–24
+  price          Float
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+

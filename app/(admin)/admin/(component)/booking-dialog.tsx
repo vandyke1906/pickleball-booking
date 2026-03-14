@@ -9,7 +9,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { TBookingDetails } from "@/app/(admin)/admin/page"
+import { TBookingDetails } from "@/app/(admin)/admin/xxx/page"
 import BadgeStatus, { TStatus } from "@/components/common/badge-status"
 import { formatFloat, formatISODateString } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -105,10 +105,10 @@ export function BookingDialog({ open, onOpenChange, booking, onClose }: BookingD
             <div>
               <p className="text-sm font-medium">Courts</p>
               <p className="text-sm text-muted-foreground">
-                {(booking.courts || []).map((c: any, index) => {
+                {(booking.courts || []).map((c: any, index: number) => {
                   return (
                     <Badge variant="outline" key={index}>
-                      {c.name} - {formatFloat(c.price)}
+                      {c.name}
                     </Badge>
                   )
                 })}

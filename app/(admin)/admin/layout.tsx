@@ -9,9 +9,8 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-import { SessionProvider } from "next-auth/react"
+import { SessionProvider, useSession } from "next-auth/react"
 import { SSEProvider } from "@/lib/providers/server-event-provider"
-import { Button } from "@/components/ui/button"
 import { NotificationsProvider } from "@/lib/providers/notification-provider"
 import { Notifications } from "@/app/(admin)/admin/(component)/notifications"
 

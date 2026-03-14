@@ -12,8 +12,8 @@ import { formatFloat } from "@/lib/utils"
 
 export type TCourt = Court
 
-export default function CourtList() {
-  const { data, isLoading, isError, error } = useCourts()
+export default function CourtList({ organizationId }: { organizationId?: string }) {
+  const { data, isLoading, isError, error } = useCourts({ organizationId })
 
   if (isError) return <p>Error: {String(error)}</p>
 
@@ -29,21 +29,6 @@ export default function CourtList() {
           options: [],
           exportValue: (row) => row.name ?? "",
           widthMode: "autofit",
-        },
-      },
-      {
-        accessorKey: "pricePerHour",
-        header: (props) => <DataTableColumnHeader {...props} />,
-        cell: ({ row }) => (
-          <div className="w-full text-right">{formatFloat(row.original?.pricePerHour ?? 0)}</div>
-        ),
-        meta: {
-          label: "Price/Hour",
-          variant: "text",
-          options: [],
-          exportValue: (row) => formatFloat(row.pricePerHour ?? 0),
-          widthMode: "percent",
-          widthValue: 5,
         },
       },
     ],

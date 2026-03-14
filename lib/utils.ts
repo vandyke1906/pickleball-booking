@@ -226,3 +226,103 @@ export function formatToPHTime(isoString?: string) {
   })
   return formatter.format(new Date(isoString))
 }
+
+export function formatHour(hour: number): string {
+  if (hour === 24) return "00:00" // midnight next day
+  return `${hour.toString().padStart(2, "0")}:00`
+}
+
+export function formatLabel(hour: number): string {
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12
+  const suffix = hour < 12 || hour === 24 ? "AM" : "PM"
+  return `${hour12.toString().padStart(2, "0")}:00 ${suffix}`
+}
+
+//for building queries server
+export function normalizeOpeningHours(hours: { startHour: number; endHour: number }[]) {
+  // Sort ascending for consistency
+  const sorted = [...hours].sort((a, b) => a.startHour - b.startHour)
+
+  const normalized: { startHour: number; endHour: number }[] = []
+
+  for (const current of sorted) {
+    const prev = normalized[normalized.length - 1]
+
+    // Merge continuation: prev ends at midnight (24) and current starts at 0
+    if (prev && prev.endHour === 24 && current.startHour === 0) {
+      prev.endHour = 24 + current.endHour // extend into next day
+    } else {
+      normalized.push({ ...current })
+    }
+  }
+
+  // Extra check: if we have [0–X] and [Y–24], merge them into [Y–24+X]
+  if (normalized.length === 2 && normalized[0].startHour === 0 && normalized[1].endHour === 24) {
+    normalized[1].endHour = 24 + normalized[0].endHour
+    return [normalized[1]]
+  }
+
+  return normalized
+}
+//building queries on server
+export function buildDateRanges(
+  dateParam: string,
+  hours: { startHour: number; endHour: number }[],
+) {
+  return hours.map((h) => {
+    const start = new Date(`${dateParam}T00:00:00+08:00`)
+    start.setHours(h.startHour, 0, 0, 0)
+
+    const end = new Date(`${dateParam}T00:00:00+08:00`)
+    end.setHours(h.endHour % 24, 0, 0, 0)
+
+    if (h.endHour > 24) {
+      end.setDate(end.getDate() + 1) // push to next day
+    }
+
+    return { start, end }
+  })
+}
+
+//for building timing on client
+export function normalizeOpeningHoursClient(hours: { startHour: number; endHour: number }[]) {
+  const sorted = [...hours].sort((a, b) => a.startHour - b.startHour)
+  const normalized: { startHour: number; endHour: number }[] = []
+
+  for (const current of sorted) {
+    const prev = normalized[normalized.length - 1]
+    if (prev && prev.endHour === 24 && current.startHour === 0) {
+      prev.endHour = 24 + current.endHour // extend into next day
+    } else {
+      normalized.push({ ...current })
+    }
+  }
+
+  // Special case: [0–X] and [Y–24] → merge into [Y–24+X]
+  if (normalized.length === 2 && normalized[0].startHour === 0 && normalized[1].endHour === 24) {
+    normalized[1].endHour = 24 + normalized[0].endHour
+    return [normalized[1]]
+  }
+
+  return normalized
+}
+
+export function calculateDuration(
+  selected: string, // e.g. "09:00"
+  hours: { startHour: number; endHour: number }[],
+) {
+  // Normalize first
+  const normalized = normalizeOpeningHoursClient(hours)
+
+  // Parse selected hour
+  const [hStr] = selected.split(":")
+  const selectedHour = parseInt(hStr, 10)
+
+  // Find the block containing the selected hour
+  const block = normalized.find((h) => selectedHour >= h.startHour && selectedHour < h.endHour)
+
+  if (!block) return 0
+
+  // Duration in hours
+  return block.endHour - selectedHour
+}

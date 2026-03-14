@@ -23,33 +23,6 @@ import { NavUser } from "./nav-user"
 import { useSession } from "next-auth/react"
 import Image from "next/image"
 
-const navMain = [
-  {
-    title: "Dashboard",
-    url: "/admin",
-    icon: LayoutDashboard,
-    isActive: true,
-  },
-  {
-    title: "Management",
-    url: "/admin",
-    icon: SquareTerminal,
-    isActive: true,
-    items: [
-      {
-        icon: CalendarDays,
-        title: "Bookings",
-        url: "/admin/bookings",
-      },
-      {
-        icon: LandPlot,
-        title: "Courts",
-        url: "/admin/courts",
-      },
-    ],
-  },
-]
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession()
   const user = {
@@ -57,6 +30,34 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     email: session?.user?.email || "",
     avatar: "/avatars/avatar.jpg",
   }
+  const navMain = React.useMemo(() => {
+    return [
+      {
+        title: "Dashboard",
+        url: `/admin/dashboard`,
+        icon: LayoutDashboard,
+        isActive: true,
+      },
+      {
+        title: "Management",
+        url: "/admin",
+        icon: SquareTerminal,
+        isActive: true,
+        items: [
+          {
+            icon: CalendarDays,
+            title: "Bookings",
+            url: "/admin/bookings",
+          },
+          {
+            icon: LandPlot,
+            title: "Courts",
+            url: "/admin/courts",
+          },
+        ],
+      },
+    ]
+  }, [session])
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>

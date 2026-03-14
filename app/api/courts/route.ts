@@ -14,13 +14,10 @@ export async function GET(request: Request) {
         id: true,
         name: true,
         location: true,
-        pricePerHour: true,
         organization: {
           select: {
             id: true,
             name: true,
-            openTime: true,
-            closeTime: true,
           },
         },
       },
@@ -33,12 +30,9 @@ export async function GET(request: Request) {
       id: court.id,
       name: court.name,
       location: court.location,
-      pricePerHour: court.pricePerHour,
       organization: {
         id: court.organization.id,
         name: court.organization.name,
-        openTime: court.organization.openTime,
-        closeTime: court.organization.closeTime,
       },
     }))
 

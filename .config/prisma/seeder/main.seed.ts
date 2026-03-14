@@ -33,11 +33,11 @@ async function clearAllRecords() {
 }
 
 // ──────────────────────────────────────────────────────────────
-// 1. Seed / upsert Organization
+// 1. Seed / upsert Organization with Opening Hours + Pricing Rules
 // ──────────────────────────────────────────────────────────────
 async function seedOrganization() {
   const orgData = {
-    slug: "",
+    slug: "pickl.digos",
     name: "PICKL. Digos",
     address:
       "Sta Ana Road , Beside Citta de Oro Subdivision (Inside Calibjo Rice Milling), Brgy Tres de Mayo , Digos City , Davao del sur , 8002 Philippines",
@@ -45,12 +45,10 @@ async function seedOrganization() {
     facebookPage: "https://www.facebook.com/profile.php?id=61554303354722",
     tiktokPage: "https://www.tiktok.com/@pickl.digos",
     email: "pickl.digos@gmail.com",
-    openTime: "06:00",
-    closeTime: "23:00",
     courtLimit: 5,
   }
 
-  const slug = slugify(orgData.name)
+  const slug = orgData.slug ?? slugify(orgData.name)
   orgData.slug = slug
 
   const organization = await prisma.organization.upsert({
@@ -60,6 +58,54 @@ async function seedOrganization() {
   })
 
   console.log(`Organization ready: ${organization.name} (ID: ${organization.id})`)
+
+  // ──────────────────────────────────────────────────────────────
+  // Seed Opening Hours
+  // ──────────────────────────────────────────────────────────────
+  await prisma.organizationOpeningHour.deleteMany({
+    where: { organizationId: organization.id },
+  })
+
+  const openingHours = [
+    { startHour: 0, endHour: 1 }, // 12 AM – 1 AM
+    { startHour: 8, endHour: 24 }, // 8 AM – 12 AM
+  ]
+
+  for (const interval of openingHours) {
+    await prisma.organizationOpeningHour.create({
+      data: {
+        organizationId: organization.id,
+        ...interval,
+      },
+    })
+  }
+
+  console.log(`Opening hours seeded for ${organization.name}`)
+
+  // ──────────────────────────────────────────────────────────────
+  // Seed Pricing Rules
+  // ──────────────────────────────────────────────────────────────
+  await prisma.organizationPricingRule.deleteMany({
+    where: { organizationId: organization.id },
+  })
+
+  const pricingRules = [
+    { startHour: 0, endHour: 1, price: 350 }, // 12 AM – 1 AM
+    { startHour: 9, endHour: 13, price: 300 }, // 9 AM – 1 PM
+    { startHour: 13, endHour: 24, price: 350 }, // 1 PM – 12 AM
+  ]
+
+  for (const rule of pricingRules) {
+    await prisma.organizationPricingRule.create({
+      data: {
+        organizationId: organization.id,
+        ...rule,
+      },
+    })
+  }
+
+  console.log(`Pricing rules seeded for ${organization.name}`)
+
   return organization
 }
 
@@ -97,11 +143,11 @@ async function seedAdminUser(organizationId: string) {
 // ──────────────────────────────────────────────────────────────
 async function seedCourts(organizationId: string) {
   const courtData = [
-    { name: "Court 1 (Indoor)", location: "Main Arena", pricePerHour: 500 },
-    { name: "Court 2 (Indoor)", location: "Main Arena", pricePerHour: 500 },
-    { name: "Court 3 (Indoor)", location: "Left Area", pricePerHour: 500 },
-    { name: "Court 4 (Left)", location: "Right Area", pricePerHour: 450 },
-    { name: "Court 5 (Right)", location: "Right Area", pricePerHour: 450 },
+    { name: "Court 1", location: "Main Arena" },
+    { name: "Court 2", location: "Main Arena" },
+    { name: "Court 3", location: "Left Area" },
+    { name: "Court 4", location: "Right Area" },
+    { name: "Court 5", location: "Right Area" },
   ]
 
   const courts = []
@@ -116,12 +162,10 @@ async function seedCourts(organizationId: string) {
       },
       update: {
         location: data.location,
-        pricePerHour: data.pricePerHour,
       },
       create: {
         name: data.name,
         location: data.location,
-        pricePerHour: data.pricePerHour,
         organizationId,
       },
     })
@@ -132,20 +176,25 @@ async function seedCourts(organizationId: string) {
 
   return courts
 }
-
 // ──────────────────────────────────────────────────────────────
-// 4. Seed Dummy Bookings
+// 4. Seed Dummy Bookings (3 per court)
 // ──────────────────────────────────────────────────────────────
 async function seedDummyBookings(
-  courts: Array<{ id: string; name: string; pricePerHour: number }>,
+  courts: Array<{ id: string; name: string }>,
+  organizationId: string,
 ) {
   const today = new Date()
-  const bookingsPerCourt = 5 // how many bookings per court
+  const bookingsPerCourt = 3 // only 3 bookings per court
+
+  // fetch org pricing rules once
+  const pricingRules = await prisma.organizationPricingRule.findMany({
+    where: { organizationId },
+  })
 
   for (const court of courts) {
     for (let i = 0; i < bookingsPerCourt; i++) {
       // Random start hour between 6 AM and 21 PM
-      const startHour = faker.number.int({ min: 6, max: 21 })
+      const startHour = faker.number.int({ min: 9, max: 21 })
       const durationHours = faker.number.int({ min: 1, max: 2 })
 
       const start = new Date(
@@ -159,6 +208,11 @@ async function seedDummyBookings(
       )
       const end = new Date(start.getTime() + durationHours * 60 * 60 * 1000)
 
+      // resolve price based on org pricing rules
+      const rule = pricingRules.find((r) => startHour >= r.startHour && startHour < r.endHour)
+      const hourlyRate = rule ? rule.price : 0
+      const totalPrice = hourlyRate * durationHours
+
       await prisma.booking.create({
         data: {
           code: generateBookingRef(),
@@ -169,17 +223,18 @@ async function seedDummyBookings(
           startTime: start,
           endTime: end,
           status: faker.helpers.arrayElement(["pending", "confirmed", "cancelled"]),
-          totalPrice: court.pricePerHour * durationHours,
+          totalPrice,
           proofOfPaymentLink: "",
           notes: faker.lorem.sentence(),
         },
       })
 
-      console.log(`Booking created → ${court.name} @ ${start.toISOString().slice(0, 16)}`)
+      console.log(
+        `Booking created → ${court.name} @ ${start.toISOString().slice(0, 16)} (₱${totalPrice})`,
+      )
     }
   }
 }
-
 // ──────────────────────────────────────────────────────────────
 // Main execution flow
 // ──────────────────────────────────────────────────────────────
@@ -191,7 +246,7 @@ async function seedAll() {
     const org = await seedOrganization()
     await seedAdminUser(org.id)
     const courts = await seedCourts(org.id)
-    await seedDummyBookings(courts)
+    await seedDummyBookings(courts, org.id)
 
     console.log("\n=== Seeding completed successfully! ===")
   } catch (err) {

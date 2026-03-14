@@ -29,7 +29,8 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts",
-    ".config/prisma.config.ts"
+    ".config/prisma.config.ts",
+    "app/(admin)/admin/xxx/page..baktsx"
   ],
   "exclude": ["node_modules"]
 }

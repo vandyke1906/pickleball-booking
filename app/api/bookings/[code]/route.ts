@@ -21,7 +21,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
         courts: {
           select: {
             name: true,
-            pricePerHour: true,
           },
         },
       },
@@ -39,7 +38,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
       end: booking.endTime,
       totalPrice: booking.totalPrice ?? 0,
       notes: booking.notes ?? "",
-      courts: booking.courts.map((c) => ({ name: c.name, pricePerHour: c.pricePerHour })),
+      courts: booking.courts.map((c) => ({ name: c.name })),
     }
 
     return NextResponse.json({ success: true, data })

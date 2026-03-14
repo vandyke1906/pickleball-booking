@@ -1,4 +1,8 @@
-import { Organization } from "@/.config/prisma/generated/prisma"
+import {
+  Organization,
+  OrganizationOpeningHour,
+  OrganizationPricingRule,
+} from "@/.config/prisma/generated/prisma"
 import { fetcher } from "@/lib/hooks/common.hook"
 import { Booking, Court } from "@prisma/client"
 import { useQuery } from "@tanstack/react-query"
@@ -16,8 +20,8 @@ export type TCourtWithBooking = Court & {
 export const qKeyCourts = {
   all: ["courts"] as const,
   list: (organizationId?: string) => [...qKeyCourts.all, "list", organizationId ?? "all"] as const,
-  organizationCourts: (organizationId?: string) =>
-    [...qKeyCourts.all, "organization", "list", organizationId ?? "all"] as const,
+  organizationCourts: (slug?: string) =>
+    [...qKeyCourts.all, "organization", "list", slug ?? "all"] as const,
   bookings: ({
     organizationId = "all",
     date = "all",
@@ -47,18 +51,23 @@ export function useCourts({ organizationId }: { organizationId?: string } = {}) 
   }
 }
 
-export function useOrganizationCourts({ organizationId }: { organizationId?: string } = {}) {
-  const url = organizationId
-    ? `/api/organization/courts?organizationId=${organizationId}`
-    : "/api/organization/courts"
+export function useOrganizationCourts({ slug }: { slug: string }) {
+  // const url = slug ? `/api/organization/courts?slug=${slug}` : "/api/organization/courts"
+  const url = `/api/organization/courts?slug=${slug}`
 
-  const query = useQuery<Array<Organization & { courts: Array<Court> }>>({
-    queryKey: qKeyCourts.organizationCourts(organizationId),
+  const query = useQuery<
+    Organization & {
+      courts: Array<Court>
+      openingHours: OrganizationOpeningHour[]
+      pricingRules: OrganizationPricingRule[]
+    }
+  >({
+    queryKey: qKeyCourts.organizationCourts(slug),
     queryFn: () => fetcher(url),
   })
 
   return {
-    data: query.data ?? [],
+    data: query.data ?? null,
     isLoading: query.isPending,
     isError: query.isError,
     error: query.error,
@@ -67,12 +76,18 @@ export function useOrganizationCourts({ organizationId }: { organizationId?: str
 }
 
 export function useCourtBookings({
-  date,
   organizationId,
+  date,
   isAll,
-}: { date?: string; organizationId?: string; isAll?: boolean } = {}) {
+  enabled = false,
+}: {
+  organizationId: string
+  date?: string
+  isAll?: boolean
+  enabled?: boolean
+}) {
   const params = new URLSearchParams()
-  if (organizationId) params.set("organizationId", organizationId)
+  params.set("organizationId", organizationId)
   if (date) params.set("date", date)
   if (isAll) params.set("all", "true")
 
@@ -81,6 +96,7 @@ export function useCourtBookings({
   const query = useQuery<Array<TCourtWithBooking>>({
     queryKey: qKeyCourts.bookings({ organizationId, date, isAll }),
     queryFn: () => fetcher(url),
+    enabled: Boolean(organizationId) && enabled,
   })
 
   return {

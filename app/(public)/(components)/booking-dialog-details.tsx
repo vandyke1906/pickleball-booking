@@ -9,10 +9,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { TBookingDetails } from "@/app/(admin)/admin/page"
 import BadgeStatus, { TStatus } from "@/components/common/badge-status"
 import { formatDateTime, formatFloat, formatISODateString, formatToPHTime } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import { TBookingDetails } from "@/app/(admin)/admin/dashboard/page"
 
 interface BookingDialogProps {
   open: boolean
@@ -91,7 +91,7 @@ export function BookingDetailsDialog({ open, onOpenChange, booking }: BookingDia
                   {(booking.courts || []).map((c: any, index: number) => {
                     return (
                       <Badge variant="outline" key={index}>
-                        {c.name} - {formatFloat(c.pricePerHour)}
+                        {c.name}
                       </Badge>
                     )
                   })}

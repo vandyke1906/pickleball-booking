@@ -1,0 +1,234 @@
+"use client"
+
+import { BookingDialog } from "@/app/(admin)/admin/(component)/booking-dialog"
+import BigCalendar from "@/components/big-calendar/big-calendar"
+import BadgeStatus from "@/components/common/badge-status"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useCourtBookings, useOrganizationCourts } from "@/lib/hooks/court/court.hook"
+import { useGetBookingByCode } from "@/lib/mutations/booking/booking.mutation"
+import { formatDateTime } from "@/lib/utils"
+import { Court } from "@prisma/client"
+import { useSession } from "next-auth/react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useCallback, useEffect, useMemo, useState } from "react"
+
+export type TBookingDetails = {
+  id: string
+  code: string
+  status: string
+  bookedBy: string
+  contactNumber: string
+  emailAddress: string
+  proofOfPayment?: string
+  totalPrice: string
+  start: string
+  end: string
+  resourceId: string
+  courts: Court[]
+}
+
+export default function DashboardPage() {
+  const { data: session } = useSession()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+
+  const [selectedBooking, setSelectedBooking] = useState<TBookingDetails | null>(null)
+  const [openEventDialog, setOpenEventDialog] = useState(false)
+
+  const mutationGetBooking = useGetBookingByCode()
+  const { data: orgWithCourts, isLoading: isLoadingOrgWithCourts } = useOrganizationCourts({
+    slug: session?.user?.organization?.slug || "no_org",
+  })
+  const { data: courtBookings, isLoading: isLoadingCourtBookings } = useCourtBookings({
+    enabled: true,
+    organizationId: orgWithCourts?.id || "",
+    isAll: true,
+  })
+
+  const isHourAllowed = useCallback(
+    (hour: number) => {
+      const openingHours = orgWithCourts?.openingHours || []
+      return openingHours.some((h) => hour >= h.startHour && hour < h.endHour)
+    },
+    [orgWithCourts],
+  )
+
+  const removeConfirmationBookingParamCallback = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete("confirmation-booking")
+
+    const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname
+
+    router.replace(newUrl)
+  }, [router, pathname, searchParams])
+
+  //min max of calendar
+  const { min, max } = useMemo(() => {
+    const today = new Date()
+
+    const min = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0)
+    const max = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59)
+
+    return { min, max }
+  }, [courtBookings])
+
+  const courtResources = useMemo(() => {
+    if (!orgWithCourts) return []
+    return (orgWithCourts.courts || []).map((court) => ({
+      id: court.id,
+      title: court.name,
+    }))
+  }, [orgWithCourts, courtBookings])
+
+  const events = useMemo(() => {
+    if (!courtBookings || !Array.isArray(courtBookings)) return []
+
+    return courtBookings.flatMap((court) =>
+      (court.bookings ?? []).map((booking: any) => {
+        return {
+          id: booking.id,
+          code: booking.code,
+          status: booking.status,
+          title: `${booking.fullName ?? ""}`,
+          bookedBy: `${booking.fullName ?? ""}`,
+          contactNumber: `${booking.contactNumber ?? ""}`,
+          emailAddress: `${booking.emailAddress ?? ""}`,
+          proofOfPayment: booking.proofOfPaymentLink,
+          totalPrice: booking.totalPrice,
+          start: formatDateTime(booking.startTime),
+          end: formatDateTime(booking.endTime),
+          courts: (booking.courts || []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+          })),
+          resourceId: court.id,
+        }
+      }),
+    )
+  }, [courtBookings, orgWithCourts])
+
+  const getEventClassNames = (event: any) => {
+    switch (event.status) {
+      case "confirmed":
+        return { className: "confirmed" }
+      case "pending":
+        return { className: "pending" }
+      case "cancelled":
+        return { className: "cancelled" }
+      default:
+        return { className: "default" }
+    }
+  }
+
+  useEffect(() => {
+    const confirmationCode = searchParams.get("confirmation-booking")
+    if (!confirmationCode) return
+    setSelectedBooking(null)
+    mutationGetBooking.mutate(confirmationCode, {
+      onSuccess: (result: any) => {
+        const { success, data } = result
+        if (success) {
+          setSelectedBooking(data)
+          setOpenEventDialog(true)
+        } else {
+          setOpenEventDialog(false)
+          setSelectedBooking(null)
+        }
+      },
+      onError: () => {
+        setSelectedBooking(null)
+        setOpenEventDialog(true)
+      },
+    })
+  }, [searchParams, courtBookings])
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      <header style={{ height: "60px" }}>Booking Calendar</header>
+      <main style={{ flex: 1 }} className="relative">
+        <BigCalendar
+          className="rbc-calendar"
+          eventPropGetter={getEventClassNames}
+          components={{ event: CustomEvent }}
+          selectable
+          resizable={false}
+          draggableAccessor={() => true}
+          resizableAccessor={() => false}
+          step={60}
+          min={min}
+          max={max}
+          timeslots={1}
+          events={events}
+          resources={courtResources}
+          startAccessor="start"
+          endAccessor="end"
+          defaultView="day"
+          views={["month", "day", "week"]}
+          style={{ height: "100%", width: "100%" }}
+          onSelecting={(slotInfo) => {
+            const hour = slotInfo.start.getHours()
+            return isHourAllowed(hour)
+          }}
+          slotPropGetter={(date) => {
+            const hour = date.getHours()
+            if (!isHourAllowed(hour)) {
+              return {
+                style: {
+                  backgroundColor: "#0000",
+                  pointerEvents: "none",
+                  opacity: 0.2,
+                },
+                className: "rbc-disabled-slot",
+              }
+            }
+            return {}
+          }}
+          onSelectEvent={(event) => {
+            const selected = event as any
+            setSelectedBooking(selected)
+            setOpenEventDialog(true)
+          }}
+        />
+
+        {(isLoadingOrgWithCourts || isLoadingCourtBookings) && <CalendarSkeleton />}
+      </main>
+
+      {selectedBooking && (
+        <BookingDialog
+          booking={selectedBooking as TBookingDetails}
+          open={openEventDialog}
+          onOpenChange={setOpenEventDialog}
+          onClose={() => {
+            removeConfirmationBookingParamCallback()
+            setSelectedBooking(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function CustomEvent({ event }: { event: any }) {
+  return (
+    <div key={event.id} className="flex items-center justify-between p-1 text-xs w-full h-full">
+      <span className="font-medium truncate leading-none flex items-center">{event.title}</span>
+      <div className="flex items-center">
+        <BadgeStatus status={event.status} />
+      </div>
+    </div>
+  )
+}
+
+function CalendarSkeleton() {
+  return (
+    <div className="space-y-4 p-4">
+      <Skeleton className="h-6 w-48" />
+      <div className="grid grid-cols-7 gap-2">
+        {Array.from({ length: 35 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full" />
+        ))}
+      </div>
+    </div>
+  )
+}

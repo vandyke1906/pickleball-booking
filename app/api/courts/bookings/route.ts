@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { isServerAuthenticated } from "@/lib/auth/auth.server"
+import { buildDateRanges, normalizeOpeningHours } from "@/lib/utils"
 
 export async function GET(request: Request) {
   try {
@@ -7,38 +9,61 @@ export async function GET(request: Request) {
     const organizationId = searchParams.get("organizationId")
     const allParam = searchParams.get("all")
     const dateParam = searchParams.get("date")
+
     const all = allParam === "true"
+
+    if (!organizationId)
+      return NextResponse.json({ error: "Organization is required" }, { status: 401 })
+
     if (all) {
-      // const session = await isServerAuthenticated()
+      const session = await isServerAuthenticated()
+      if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    let whereDate = {}
+    let whereDate: any = {}
     if (dateParam) {
-      const startOfDayPH = new Date(`${dateParam}T00:00:00+08:00`)
-      const endOfDayPH = new Date(`${dateParam}T23:59:59.999+08:00`)
+      const openingHours = await prisma.organizationOpeningHour.findMany({
+        where: { organizationId },
+        orderBy: { startHour: "asc" },
+      })
+      const normalized = normalizeOpeningHours(openingHours)
+      const ranges = buildDateRanges(dateParam, normalized)
 
       whereDate = {
-        startTime: { gte: startOfDayPH },
-        endTime: { lt: endOfDayPH },
-        ...(all ? {} : { status: { in: ["pending", "confirmed"] } }),
+        OR: ranges.map((r) => ({
+          startTime: { gte: r.start },
+          endTime: { lte: r.end },
+        })),
       }
     }
 
-    const where = organizationId ? { organizationId } : {}
-
     const courts = await prisma.court.findMany({
-      where,
+      where: { organizationId },
       select: {
         id: true,
         name: true,
         location: true,
-        pricePerHour: true,
         organization: {
           select: {
             id: true,
+            slug: true,
             name: true,
-            openTime: true,
-            closeTime: true,
+            description: true,
+            address: true,
+            contactNumber: true,
+            email: true,
+            facebookPage: true,
+            tiktokPage: true,
+            instagramPage: true,
+            youtubePage: true,
+            openingHours: {
+              select: { startHour: true, endHour: true },
+              orderBy: { startHour: "asc" },
+            },
+            pricingRules: {
+              select: { startHour: true, endHour: true, price: true },
+              orderBy: { startHour: "asc" },
+            },
           },
         },
         bookings: {
@@ -56,12 +81,8 @@ export async function GET(request: Request) {
             endTime: true,
             status: true,
             ...(all && {
-              contactNumber: true,
-              emailAddress: true,
-              totalPrice: true,
-              proofOfPaymentLink: true,
               notes: true,
-              courts: { select: { id: true, name: true, pricePerHour: true } },
+              courts: { select: { id: true, name: true, location: true } },
             }),
           },
           orderBy: { startTime: "asc" },
@@ -74,12 +95,27 @@ export async function GET(request: Request) {
       id: court.id,
       name: court.name,
       location: court.location,
-      pricePerHour: court.pricePerHour,
       organization: {
         id: court.organization.id,
+        slug: court.organization.slug,
         name: court.organization.name,
-        openTime: court.organization.openTime,
-        closeTime: court.organization.closeTime,
+        description: court.organization.description,
+        address: court.organization.address,
+        contactNumber: court.organization.contactNumber,
+        email: court.organization.email,
+        facebookPage: court.organization.facebookPage,
+        tiktokPage: court.organization.tiktokPage,
+        instagramPage: court.organization.instagramPage,
+        youtubePage: court.organization.youtubePage,
+        openingHours: court.organization.openingHours.map((h) => ({
+          startHour: h.startHour,
+          endHour: h.endHour,
+        })),
+        pricingRules: court.organization.pricingRules.map((r) => ({
+          startHour: r.startHour,
+          endHour: r.endHour,
+          price: r.price,
+        })),
       },
       bookings: court.bookings.map((b) => ({
         id: b.id,
@@ -93,10 +129,12 @@ export async function GET(request: Request) {
         startTime: b.startTime,
         endTime: b.endTime,
         ...(all && {
-          totalPrice: b.totalPrice ?? 0,
-          proofOfPaymentLink: b.proofOfPaymentLink,
           notes: b.notes ?? "",
-          courts: b.courts.map((c) => ({ id: c.id, name: c.name, pricePerHour: c.pricePerHour })),
+          courts: b.courts.map((c) => ({
+            id: c.id,
+            name: c.name,
+            location: c.location,
+          })),
         }),
       })),
     }))

@@ -4,6 +4,7 @@ import { format } from "date-fns"
 import { cn, formatDateTime, toMinutes } from "@/lib/utils"
 import { TCourtWithBooking } from "@/lib/hooks/court/court.hook"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useMemo } from "react"
 interface AvailabilityCourtProps {
   date: Date
   startTime: string
@@ -47,13 +48,14 @@ export function AvailabilityCourt({
   courtWithBookings,
   isLoading,
 }: AvailabilityCourtProps & { isLoading?: boolean }) {
-  const endTimeDisplay = (() => {
+  const endTimeDisplay = useMemo(() => {
     const [h, m] = startTime.split(":").map(Number)
     const total = h * 60 + m + duration * 60
     const eh = Math.floor(total / 60)
     const em = total % 60
+
     return `${eh.toString().padStart(2, "0")}:${em.toString().padStart(2, "0")}`
-  })()
+  }, [startTime, duration])
 
   return (
     <section className="py-6 px-3 sm:px-6 bg-white rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10 space-y-8">

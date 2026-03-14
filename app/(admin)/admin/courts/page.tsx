@@ -24,7 +24,7 @@ export default function BookingsPage() {
         </div>
       }
     >
-      <CourtList />
+      <CourtList organizationId={session?.user?.organizationId} />
     </Suspense>
   )
 }
