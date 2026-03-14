@@ -64,8 +64,7 @@ export default function BookingList() {
                 <span>{row.original.fullName ?? ""}</span>
               </div>
               <div className="text-primary font-medium">
-                <span>{row.original.contactNumber}</span>
-                <span>{row.original.emailAddress}</span>
+                <span>{row.original.contactNumber}</span> | <span>{row.original.emailAddress}</span>
               </div>
               <div className="flex gap-2 text-primary font-medium">
                 <span>{row.original.bookedDate}</span>

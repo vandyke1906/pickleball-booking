@@ -6,11 +6,6 @@ import { customAlphabet } from "nanoid"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { BroadcastEventTypes } from "@/lib/sse-broadcaster.type"
 import { formatISO } from "date-fns"
-import {
-  BookingConfirmationEmailProps,
-  BookingConfirmationEmail,
-} from "@/lib/nodemailer/email/booking-confirmation.email"
-import { render } from "@react-email/render"
 import { sendBookingConfirmationEmail } from "@/lib/nodemailer/sender/sender.email"
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -93,6 +88,7 @@ export async function GET(request: NextRequest) {
       bookingId: booking.id,
       code: booking.code,
       fullName: booking.fullName,
+      contactNumber: booking.contactNumber,
       emailAddress: booking.emailAddress,
       totalPrice: booking.totalPrice,
       courts: booking.courts.map((c) => c.name),
