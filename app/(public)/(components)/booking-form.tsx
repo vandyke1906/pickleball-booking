@@ -76,7 +76,7 @@ export default function BookingPage({ slug }: { slug: string }) {
   })
 
   const dateString = form.watch("date")
-  const date = dateString ? new Date(dateString) : undefined
+  const date = dateString ? parseLocalDate(dateString) : undefined
   const startTime = form.watch("startTime")
   const duration = form.watch("duration")
   const selectedCourtIds = form.watch("courtIds")
