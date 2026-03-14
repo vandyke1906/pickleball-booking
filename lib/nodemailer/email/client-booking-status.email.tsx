@@ -1,3 +1,4 @@
+import { formatFloat, formatToPHTime } from "@/lib/utils"
 import { Html, Head, Body, Container, Section, Text, Link, Img } from "@react-email/components"
 
 export type ClientBookingStatusEmailProps = {
@@ -83,18 +84,18 @@ export const ClientBookingStatusEmail = ({ booking }: ClientBookingStatusEmailPr
         {/* Price */}
         <Section style={{ marginBottom: "12px" }}>
           <Text style={{ fontSize: "14px", fontWeight: "600" }}>Total Price</Text>
-          <Text style={{ fontSize: "14px", color: "#555" }}>{booking.totalPrice}</Text>
+          <Text style={{ fontSize: "14px", color: "#555" }}>{formatFloat(booking.totalPrice)}</Text>
         </Section>
 
         {/* Start & End */}
         <Section style={{ marginBottom: "12px" }}>
           <Text style={{ fontSize: "14px", fontWeight: "600" }}>Start</Text>
-          <Text style={{ fontSize: "14px", color: "#555" }}>{booking.start}</Text>
+          <Text style={{ fontSize: "14px", color: "#555" }}>{formatToPHTime(booking.start)}</Text>
         </Section>
 
         <Section style={{ marginBottom: "12px" }}>
           <Text style={{ fontSize: "14px", fontWeight: "600" }}>End</Text>
-          <Text style={{ fontSize: "14px", color: "#555" }}>{booking.end}</Text>
+          <Text style={{ fontSize: "14px", color: "#555" }}>{formatToPHTime(booking.end)}</Text>
         </Section>
 
         {/* Courts */}
