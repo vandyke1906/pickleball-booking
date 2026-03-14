@@ -12,6 +12,7 @@ import {
 } from "@/lib/nodemailer/sender/sender.email"
 import { createNotificationForOrg } from "@/lib/server/action/notification.action"
 import sharp from "sharp"
+import { withRateLimit } from "@/lib/server/rate-limiter"
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const nanoid = customAlphabet(alphabet, 6)
@@ -20,7 +21,7 @@ export function generateBookingRef(): string {
   return `BK-${nanoid()}`
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withRateLimit(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url)
     const dateStr = searchParams.get("date")
@@ -114,9 +115,9 @@ export async function GET(request: NextRequest) {
     console.error("Error fetching bookings:", error)
     return NextResponse.json({ error: "Failed to fetch bookings" }, { status: 500 })
   }
-}
+})
 
-export async function POST(req: Request) {
+export const POST = withRateLimit(async (req: Request) => {
   const formData = await req.formData()
   const date = formData.get("date") as string
   const startTime = formData.get("startTime") as string
@@ -269,13 +270,13 @@ export async function POST(req: Request) {
       { status: 400 },
     )
   }
-}
+})
 
 /**
  * Optimize an image using Sharp.
  * Accepts either a browser File or a Node Buffer.
  */
-export async function optimizeImage(
+async function optimizeImage(
   file: File | Buffer,
   options?: {
     maxWidth?: number

@@ -11,7 +11,7 @@ export type ClientBookingStatusEmailProps = {
     totalPrice: string
     start: string
     end: string
-    courts: { name: string; pricePerHour: number }[]
+    courts: { name: string }[]
   }
 }
 

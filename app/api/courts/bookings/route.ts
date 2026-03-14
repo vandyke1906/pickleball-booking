@@ -2,8 +2,9 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { isServerAuthenticated } from "@/lib/auth/auth.server"
 import { buildDateRanges, normalizeOpeningHours } from "@/lib/utils"
+import { withRateLimit } from "@/lib/server/rate-limiter"
 
-export async function GET(request: Request) {
+export const GET = withRateLimit(async (request: Request) => {
   try {
     const { searchParams } = new URL(request.url)
     const organizationId = searchParams.get("organizationId")
@@ -144,4 +145,4 @@ export async function GET(request: Request) {
     console.error("Error fetching courts with bookings:", error)
     return NextResponse.json({ error: "Failed to fetch courts with bookings" }, { status: 500 })
   }
-}
+})

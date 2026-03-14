@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { withRateLimit } from "@/lib/server/rate-limiter"
 
-export async function GET(request: Request) {
+export const GET = withRateLimit(async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url)
     const slug = searchParams.get("slug")
@@ -66,4 +67,4 @@ export async function GET(request: Request) {
     console.error("Error fetching organizations:", error)
     return NextResponse.json({ error: "Failed to fetch organizations" }, { status: 500 })
   }
-}
+})
