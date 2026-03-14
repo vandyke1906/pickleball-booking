@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { format } from "date-fns"
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { AvailabilityCourt } from "@/app/(public)/(components)/availability-court"
 import { formatDateTime, formatFloat, getEndTime, toMinutes } from "@/lib/utils"
 import { useCourtBookings, useOrganizationCourts } from "@/lib/hooks/court/court.hook"
@@ -32,6 +32,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { BookingDetailsDialog } from "@/app/(public)/(components)/booking-dialog-details"
+import ShinyText from "@/components/animated/shiny-text"
+import GlowingWrapper from "@/components/animated/glowing-wrapper"
 
 export default function BookingPage() {
   const refCode = useRef<HTMLInputElement>(null)
@@ -182,11 +184,11 @@ export default function BookingPage() {
         <motion.section
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="py-10 px-5 sm:px-8"
+          className="py-10 sm:py-1"
         >
-          <div className="max-w-5xl mx-auto">
+          <div className="max-w-7xl mx-auto">
             {/* Search Bookings */}
-            <div className="py-4 my-4 relative flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="py-4 my-4 relative flex flex-col sm:flex-row items-stretch sm:items-center gap-2  border rounded-2xl p-8 hover:shadow-xl hover:shadow-gray-100/80 transition-all group overflow-hidden bg-slate-100/80">
               <div className="w-full relative">
                 <Label htmlFor="search" className="sr-only">
                   Search
@@ -195,8 +197,8 @@ export default function BookingPage() {
                   type="search"
                   ref={refCode}
                   id="search"
-                  placeholder="Enter booking number..."
-                  className="pl-8 flex-1 uppercase"
+                  placeholder="Enter Booking Code..."
+                  className="pl-8 flex-1"
                 />
                 <Search className="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 opacity-50 select-none" />
               </div>
@@ -211,9 +213,18 @@ export default function BookingPage() {
                 )}
               </Button>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-center mb-10">
-              Book Pickleball Court
-            </h1>
+
+            <ShinyText
+              duration={3}
+              shimmerWidth={200}
+              trigger="loop"
+              shineColor="rgba(255, 255, 255, 1)"
+            >
+              <h1 className="text-3xl sm:text-4xl font-bold text-center mb-10">
+                Book Pickl. Digos Court
+              </h1>
+            </ShinyText>
+
             <form
               onSubmit={form.handleSubmit(onSubmit)}
               className="bg-white border border-slate-200 rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10 space-y-8"
@@ -409,13 +420,13 @@ export default function BookingPage() {
                       Please wait...
                     </>
                   ) : (
-                    <span className="flex flex-col sm:flex-row items-center sm:justify-center gap-2 sm:gap-4 text-center">
+                    <span className="flex flex-col sm:flex-row items-center sm:justify-center gap-2 sm:gap-1 sm:py-4 text-center">
                       <span className="text-base sm:text-lg font-medium">
                         {`Book Now – ${form.watch("courtIds").length} court${
                           form.watch("courtIds").length !== 1 ? "s" : ""
                         }`}
                       </span>
-                      <span className="font-extrabold text-green-700 text-xl sm:text-2xl">
+                      <span className="font-extrabold text-emerald-300 text-xl sm:text-2xl">
                         {formatFloat(totalPayment)}
                       </span>
                     </span>
@@ -457,12 +468,6 @@ export default function BookingPage() {
             courtWithBookings={courtBookings}
             isLoading={isLoadingCourtBookings || isLoadingOrgWithCourts}
           />
-        )}
-
-        {!date && (
-          <div className="text-center py-16 text-slate-600 text-lg">
-            Select a date to see court availability
-          </div>
         )}
       </div>
       {bookingDetails && (

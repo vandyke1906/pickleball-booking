@@ -4,6 +4,12 @@ import { motion } from "framer-motion"
 import { CalendarDays, MapPin, Users } from "lucide-react"
 import BookingForm from "@/app/(public)/(components)/booking-form"
 import Image from "next/image"
+import BlurInText from "@/components/animated/blur-in-text"
+import ShinyText from "@/components/animated/shiny-text"
+import GradientFlowText from "@/components/animated/gradient-flow-text"
+import LightStrokeWrapper from "@/components/animated/light-stroke-wrapper"
+import AnimatedSVG from "@/components/animated/animated-svg"
+import { logoPaths } from "@/lib/svg/logo"
 
 const container = {
   hidden: { opacity: 0 },
@@ -20,8 +26,8 @@ const item = {
 
 export function Hero() {
   return (
-    <section className="relative min-h-[90vh] flex items-center justify-center px-5 sm:px-8 pt-20 pb-24 md:pb-32 bg-gradient-to-br from-slate-50 via-white to-primary/5">
-      <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:28px_28px] opacity-50 pointer-events-none" />
+    <section className="relative min-h-[90vh] flex items-center justify-center px-5 sm:px-8 pt-10 pb-10 sm:pb-4">
+      {/* <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:28px_28px] opacity-50 pointer-events-none" /> */}
 
       <motion.div
         variants={container}
@@ -30,31 +36,36 @@ export function Hero() {
         className="relative z-10 w-full max-w-6xl mx-auto text-center"
       >
         <motion.div variants={item} className="flex flex-col items-center mb-6">
-          <div className="w-48 h-48 mb-2 rounded-full overflow-hidden bg-white flex items-center justify-center">
+          {/* <div className="my-4">
             <Image
-              src="/images/logo.jpg"
-              width={300}
-              height={300}
+              src="/images/logo.svg"
+              width={400}
+              height={400}
               alt="PICKL. Digos Logo"
-              className="w-32 h-32 mb-2 rounded-full object-cover"
+              className="object-contain"
             />
-          </div>
-          <p className="text-slate-600 text-sm sm:text-base">
-            At <span className="font-semibold">PICKL. Digos</span>, we bring together sport,
-            wellness, and social life in one vibrant destination.
-          </p>
-          <p className="text-slate-600 text-sm sm:text-base">
-            Step onto our courts and feel the excitement of pickleball, then cool down with our
-            freshly made smoothies, juices, and healthy meals. Our relaxing tambayan area is the
-            perfect spot to laugh, bond, and create memories after every game.
-          </p>
-          <p className="text-slate-600 text-sm sm:text-base">
-            This is not just a place to play — it’s a place to belong.
-          </p>
+          </div> */}
+          <AnimatedSVG paths={logoPaths} viewBox="0 0 1440 514" />
+
+          {/* </div> */}
+          <BlurInText split="word" trigger="inView">
+            <p className="text-slate-100 text-sm sm:text-base">
+              At <span className="font-semibold">PICKL. Digos</span>, we bring together sport,
+              wellness, and social life in one vibrant destination.
+            </p>
+            <p className="text-slate-100 text-sm sm:text-base">
+              Step onto our courts and feel the excitement of pickleball, then cool down with our
+              freshly made smoothies, juices, and healthy meals. Our relaxing tambayan area is the
+              perfect spot to laugh, bond, and create memories after every game.
+            </p>
+            <p className="text-slate-100 text-sm sm:text-base">
+              This is not just a place to play — it’s a place to belong.
+            </p>
+          </BlurInText>
         </motion.div>
 
         <motion.div variants={item}>
-          <span className="inline-flex items-center gap-2 px-5 py-2 mb-6 text-sm font-semibold tracking-wide text-primary bg-primary/10 border border-primary/20 rounded-full shadow-sm">
+          <span className="text-slate-100 inline-flex items-center gap-2 px-5 py-2 mb-6 text-sm font-semibold tracking-wide bg-primary/10 border border-primary/20 rounded-full shadow-sm">
             <MapPin className="h-4 w-4" />
             NOW BOOKING @ PICKL. Digos
           </span>
@@ -64,14 +75,34 @@ export function Hero() {
           variants={item}
           className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight mb-7 leading-tight bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 bg-clip-text text-transparent"
         >
-          Book Pickleball Online
+          <ShinyText
+            duration={3}
+            shimmerWidth={200}
+            trigger="loop"
+            shineColor="rgba(255, 255, 255, 1)"
+          >
+            <span className="font-bold">Book at Pickl. Digos Online</span>
+          </ShinyText>
           <br />
-          <span className="text-primary">In Just 30 Seconds</span>
+          <GradientFlowText
+            colors={[
+              "#a7f3d0", // pastel emerald
+              "#bbf7d0", // light mint green
+              "#d1fae5", // soft aquamarine
+              "#ecfdf5", // very pale green
+            ]}
+            speed={4}
+            angle={90}
+            trigger="continuous"
+            className="text-4xl font-bold"
+          >
+            <span>In Just 30 Seconds</span>
+          </GradientFlowText>
         </motion.h1>
 
         <motion.p
           variants={item}
-          className="text-xl sm:text-2xl text-slate-600 mb-10 max-w-3xl mx-auto leading-relaxed"
+          className="text-xl sm:text-2xl text-slate-100 mb-10 max-w-3xl mx-auto leading-relaxed"
         >
           Real-time court availability
         </motion.p>
@@ -80,9 +111,9 @@ export function Hero() {
         <BookingForm />
 
         {/* Social proof */}
-        <motion.div
+        {/* <motion.div
           variants={item}
-          className="flex flex-wrap justify-center gap-x-10 gap-y-6 text-sm sm:text-base text-slate-600 font-medium"
+          className="mt-20 sm:mt-2 flex flex-wrap justify-center gap-x-10 gap-y-6 text-sm sm:text-base text-slate-100 font-medium"
         >
           <div className="flex items-center gap-2.5">
             <Users className="h-6 w-6 text-primary" />
@@ -96,7 +127,7 @@ export function Hero() {
             <MapPin className="h-6 w-6 text-primary" />
             <span>Accessible Venue</span>
           </div>
-        </motion.div>
+        </motion.div> */}
       </motion.div>
     </section>
   )

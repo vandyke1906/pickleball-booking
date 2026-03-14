@@ -56,13 +56,13 @@ export function AvailabilityCourt({
   })()
 
   return (
-    <section className="py-10 px-5 sm:px-8 bg-white">
+    <section className="py-6 px-3 sm:px-6 bg-white rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10 space-y-8">
       <div className="max-w-6xl mx-auto">
-        <h3 className="text-2xl font-bold mb-6 text-center sm:text-left">
+        <h3 className="text-lg sm:text-2xl font-semibold mb-4 text-center sm:text-left">
           Court Availability — {format(date, "MMMM d, yyyy")}
         </h3>
 
-        {/* Show table on lg+, cards on md and below */}
+        {/* Table for lg+, cards for md and below */}
         <div className="hidden lg:block">
           <CourtAvailabilityTable
             courtWithBookings={courtWithBookings}
@@ -74,7 +74,7 @@ export function AvailabilityCourt({
           />
         </div>
 
-        <div className="block lg:hidden">
+        <div className="block lg:hidden space-y-3">
           <CourtAvailabilityCards
             courtWithBookings={courtWithBookings}
             timeSlots={timeSlots}
@@ -86,9 +86,9 @@ export function AvailabilityCourt({
         </div>
 
         {!isLoading && (
-          <div className="mt-6 text-sm text-slate-600 text-center">
-            Showing {duration}h continuous blocks • from {startTime} to {endTimeDisplay} • Selected
-            courts are <strong>highlighted</strong>
+          <div className="mt-4 text-xs sm:text-sm text-slate-600 text-center">
+            Showing {duration}h blocks • {startTime}–{endTimeDisplay} • Selected courts are{" "}
+            <strong>highlighted</strong>
           </div>
         )}
       </div>
@@ -242,11 +242,19 @@ function CourtAvailabilityCards({
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-2">
+      {" "}
+      {/* tighter grid spacing */}
       {timeSlots.map((time) => (
-        <div key={time.value} className="rounded-lg border border-slate-200 shadow-sm p-4">
-          <h4 className="text-sm font-semibold mb-3">{time.label}</h4>
-          <div className="grid gap-3">
+        <div
+          key={time.value}
+          className="rounded-md border border-slate-200 shadow-sm p-2" // reduced padding
+        >
+          <h4 className="text-xs sm:text-sm font-semibold mb-2">{time.label}</h4>
+
+          <div className="grid gap-2">
+            {" "}
+            {/* tighter spacing between courts */}
             {courtWithBookings.map((court) => {
               const isAvailable = isBlockAvailableForCourt(court, time.value, duration, date)
               const isSelected = selectedCourtIds.includes(court.id)
@@ -255,7 +263,7 @@ function CourtAvailabilityCards({
                 <div
                   key={court.id}
                   className={cn(
-                    "flex items-center justify-between rounded-md p-3 text-xs sm:text-sm transition-colors duration-200",
+                    "flex items-center justify-between rounded-sm px-2 py-1 text-[11px] sm:text-xs transition-colors duration-200", // compact padding + smaller text
                     isSelected &&
                       isAvailable &&
                       "bg-green-100 border border-green-300 text-green-800 font-semibold",
@@ -266,7 +274,7 @@ function CourtAvailabilityCards({
                     !isSelected && !isAvailable && "bg-red-50 border border-red-300 text-red-700",
                   )}
                 >
-                  <span className="font-medium">{court.name}</span>
+                  <span className="font-medium truncate">{court.name}</span>
                   <span>{isAvailable ? "Available" : "Booked"}</span>
                 </div>
               )
@@ -277,7 +285,6 @@ function CourtAvailabilityCards({
     </div>
   )
 }
-
 export function CourtAvailabilityCardSkeleton({
   courtCount,
   timeSlotCount,
