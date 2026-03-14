@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/dialog"
 import { BookingDetailsDialog } from "@/app/(public)/(components)/booking-dialog-details"
 import ShinyText from "@/components/animated/shiny-text"
+import { OrganizationInfo } from "@/app/(public)/(components)/organization-info"
 
 const envTotalHours = Number(process.env.NEXT_PUBLIC_TOTAL_HOURS_DURATION)
 const totalHoursDuration = !isNaN(envTotalHours) && envTotalHours > 0 ? envTotalHours : 18
@@ -518,6 +519,15 @@ export default function BookingPage({ slug }: { slug: string }) {
             timeSlots={timeSlots}
             courtWithBookings={courtBookings}
             isLoading={isLoadingCourtBookings || isLoadingOrgWithCourts}
+          />
+        )}
+
+        {orgWithCourts && (
+          <OrganizationInfo
+            name={orgWithCourts.name}
+            courts={orgWithCourts.courts}
+            openingHours={orgWithCourts.openingHours}
+            pricingRules={orgWithCourts.pricingRules}
           />
         )}
       </div>

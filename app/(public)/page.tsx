@@ -4,8 +4,10 @@ import FBMessengerChat from "@/app/(public)/(components)/fb-messenger-chat"
 import { Features } from "@/app/(public)/(components)/features"
 import { Footer } from "@/app/(public)/(components)/footer"
 import { Hero } from "@/app/(public)/(components)/hero"
+import { redirect } from "next/navigation"
 
 export default function Home() {
+  redirect(`/pickl.digos`)
   return (
     // <div className="min-h-screen bg-slate-50 relative">
     //   <BokehBackground />
@@ -16,6 +18,5 @@ export default function Home() {
       <Footer />
       <FBMessengerChat /> */}
     </div>
-    //  </div>
   )
 }

@@ -68,7 +68,7 @@ async function seedOrganization() {
 
   const openingHours = [
     { startHour: 0, endHour: 1 }, // 12 AM – 1 AM
-    { startHour: 8, endHour: 24 }, // 8 AM – 12 AM
+    { startHour: 9, endHour: 24 }, // 8 AM – 12 AM
   ]
 
   for (const interval of openingHours) {
@@ -91,8 +91,8 @@ async function seedOrganization() {
 
   const pricingRules = [
     { startHour: 0, endHour: 1, price: 350 }, // 12 AM – 1 AM
-    { startHour: 9, endHour: 13, price: 300 }, // 9 AM – 1 PM
-    { startHour: 13, endHour: 24, price: 350 }, // 1 PM – 12 AM
+    { startHour: 9, endHour: 16, price: 300 }, // 9 AM – 1 PM
+    { startHour: 16, endHour: 24, price: 350 }, // 1 PM – 12 AM
   ]
 
   for (const rule of pricingRules) {
@@ -246,7 +246,7 @@ async function seedAll() {
     const org = await seedOrganization()
     await seedAdminUser(org.id)
     const courts = await seedCourts(org.id)
-    await seedDummyBookings(courts, org.id)
+    // await seedDummyBookings(courts, org.id)
 
     console.log("\n=== Seeding completed successfully! ===")
   } catch (err) {
