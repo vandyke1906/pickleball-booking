@@ -45,6 +45,7 @@ export default function DashboardAdminPage() {
     enabled: true,
     organizationId: orgWithCourts?.id || "",
     isAll: true,
+    statuses: ["pending", "confirmed"],
   })
 
   const isHourAllowed = useCallback(

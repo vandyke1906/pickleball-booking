@@ -203,6 +203,7 @@ export const POST = withRateLimit(async (req: Request) => {
           courts: { some: { id: { in: courtIds } } },
           startTime: { lt: end },
           endTime: { gt: start },
+          status: { in: ["pending", "confirmed"] },
         },
       })
       if (conflicts.length > 0) throw new Error("One or more courts already booked in this slot")

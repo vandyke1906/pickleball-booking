@@ -80,17 +80,20 @@ export function useCourtBookings({
   organizationId,
   date,
   isAll,
+  statuses = [],
   enabled = false,
 }: {
   organizationId: string
   date?: string
   isAll?: boolean
+  statuses?: string[]
   enabled?: boolean
 }) {
   const params = new URLSearchParams()
   params.set("organizationId", organizationId)
   if (date) params.set("date", date)
   if (isAll) params.set("all", "true")
+  if (statuses.length) params.set("statuses", statuses.join("&"))
 
   const url = `/api/courts/bookings${params.toString() ? `?${params.toString()}` : ""}`
 

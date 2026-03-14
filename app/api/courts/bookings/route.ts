@@ -10,6 +10,7 @@ export const GET = withRateLimit(async (request: Request) => {
     const organizationId = searchParams.get("organizationId")
     const allParam = searchParams.get("all")
     const dateParam = searchParams.get("date")
+    const statusesParam = (searchParams.get("statuses") || "").split("&").map((s) => s.trim()) ?? []
 
     const all = allParam === "true"
 
@@ -35,6 +36,7 @@ export const GET = withRateLimit(async (request: Request) => {
           startTime: { gte: r.start },
           endTime: { lte: r.end },
         })),
+        status: { in: ["pending", "confirmed"] },
       }
     }
 
@@ -68,7 +70,13 @@ export const GET = withRateLimit(async (request: Request) => {
           },
         },
         bookings: {
-          where: dateParam ? whereDate : all ? {} : { status: { in: ["pending", "confirmed"] } },
+          where: dateParam
+            ? whereDate
+            : all
+              ? {}
+              : statusesParam.length
+                ? { status: { in: statusesParam } }
+                : { status: { in: ["pending", "confirmed"] } },
           select: {
             id: true,
             code: true,
