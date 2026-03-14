@@ -29,14 +29,8 @@ export function LoginForm({ className, ...props }: React.ComponentProps<"div">) 
     mutation.mutate(values, {
       onSuccess: async () => {
         const session = await getSession()
-        const slug = session?.user.organization.slug
-
-        if (!slug) {
-          router.push("/admin")
-          return
-        }
-
-        router.push(`/admin/${slug}`)
+        // const slug = session?.user.organization.slug
+        router.push("/admin/dashboard")
       },
     })
   }
