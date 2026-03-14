@@ -124,6 +124,8 @@ export async function POST(req: Request) {
   const proofOfPayment = formData.get("proofOfPayment") as File
 
   const { start, end } = makeBookingDate(date, startTime, duration)
+  console.info("Booking Details: ", { date, startTime, duration })
+  console.info("UTC Date Equivalent: ", { start, end })
 
   try {
     if (!proofOfPayment) return NextResponse.json({ error: "No file provided" }, { status: 400 })

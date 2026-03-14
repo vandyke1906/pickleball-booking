@@ -2,7 +2,7 @@ import { clsx, type ClassValue } from "clsx"
 import { toZonedTime } from "date-fns-tz"
 import { twMerge } from "tailwind-merge"
 import { enUS } from "date-fns/locale"
-import { addMinutes, format } from "date-fns"
+import { addHours, addMinutes, format } from "date-fns"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -25,22 +25,15 @@ export const getEndTime = (start: string, durationHours: number): string => {
   return `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`
 }
 
-/**
- * Build local Date objects from date + time strings
- * @param dateString - "yyyy-MM-dd"
- * @param timeString - "HH:mm"
- * @param durationHours - duration in hours
- * @returns { start: Date, end: Date }
- */
 export function makeBookingDate(dateString: string, timeString: string, durationHours: number) {
   const [year, month, day] = dateString.split("-").map(Number)
   const [hour, minute] = timeString.split(":").map(Number)
 
-  // Construct UTC date
-  const start = new Date(Date.UTC(year, month - 1, day, hour, minute))
-  const end = addMinutes(start, durationHours * 60)
+  // Manila is UTC+8 → subtract 8 hours to get UTC
+  const startUTC = new Date(Date.UTC(year, month - 1, day, hour - 8, minute))
+  const endUTC = addHours(startUTC, durationHours)
 
-  return { start, end }
+  return { start: startUTC, end: endUTC }
 }
 
 /**
