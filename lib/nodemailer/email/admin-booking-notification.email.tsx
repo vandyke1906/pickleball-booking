@@ -11,7 +11,7 @@ export type AdminBookingNotificationEmailProps = {
     totalPrice: string
     start: string
     end: string
-    courts: { name: string; pricePerHour: number }[]
+    courts: { name: string }[]
   }
 }
 
@@ -31,7 +31,7 @@ export const AdminBookingNotificationEmail = ({ booking }: AdminBookingNotificat
         {/* Logo */}
         <Section style={{ textAlign: "center", marginBottom: "24px" }}>
           <Img
-            src={`${process.env.NEXT_PUBLIC_SITE_URL}/images/logo.jpg`}
+            src="https://ffuq0pf52dpcvo3q.public.blob.vercel-storage.com/pickleballbook-resources/pickl.digos.png"
             alt="Company Logo"
             width="120"
             height="auto"
@@ -112,7 +112,7 @@ export const AdminBookingNotificationEmail = ({ booking }: AdminBookingNotificat
           <Text style={{ fontSize: "14px", color: "#555" }}>
             {booking.courts.map((c, i) => (
               <span key={i} style={{ display: "block", marginBottom: "4px" }}>
-                {c.name} - {c.pricePerHour}
+                {c.name}
               </span>
             ))}
           </Text>
@@ -120,7 +120,14 @@ export const AdminBookingNotificationEmail = ({ booking }: AdminBookingNotificat
 
         {/* Footer */}
         <Text style={{ fontSize: "12px", color: "#999", marginTop: "24px" }}>
-          Please log in to the admin dashboard to review and approve this booking.
+          Please log in to the{" "}
+          <Link
+            href={`${process.env.BASE_URL}/admin/dashboard`}
+            style={{ fontSize: "12px", color: "#1a73e8", textDecoration: "underline" }}
+          >
+            admin dashboard
+          </Link>{" "}
+          to review and approve this booking.
         </Text>
       </Container>
     </Body>

@@ -6,8 +6,12 @@ import { customAlphabet } from "nanoid"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { BroadcastEventTypes } from "@/lib/sse-broadcaster.type"
 import { formatISO } from "date-fns"
-import { sendBookingConfirmationEmail } from "@/lib/nodemailer/sender/sender.email"
+import {
+  sendAdminBookingNotificationEmail,
+  sendBookingConfirmationEmail,
+} from "@/lib/nodemailer/sender/sender.email"
 import { createNotificationForOrg } from "@/lib/server/action/notification.action"
+import sharp from "sharp"
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 const nanoid = customAlphabet(alphabet, 6)
@@ -133,9 +137,18 @@ export async function POST(req: Request) {
     if (!proofOfPayment.type.startsWith("image/")) throw new Error("File must be an image")
     let url = ""
     try {
-      const blob = await put(`proofs/${Date.now()}-${proofOfPayment.name}`, proofOfPayment, {
-        access: "public",
+      const optimizedBuffer = await optimizeImage(proofOfPayment, {
+        maxWidth: 1200,
+        format: "jpeg",
+        quality: 80,
       })
+
+      const blob = await put(
+        `proofs/${Date.now()}-${proofOfPayment.name.replace(/\s+/g, "_")}`,
+        optimizedBuffer,
+        { access: "public" },
+      )
+
       url = blob.url
     } catch (error) {
       throw new Error("Error uploading proof of payment. Please try again later.")
@@ -230,23 +243,23 @@ export async function POST(req: Request) {
       })),
     }
 
-    sendBookingConfirmationEmail({ booking }).catch((err) =>
-      console.error("Email send failed:", err),
-    )
-
     //update ui of all clients
     EventBroadcast({
       type: BroadcastEventTypes.BOOKING_CREATED,
       data: result,
     })
 
-    //create notification
-    createNotificationForOrg(result?.courts?.[0].organizationId, {
-      title: "Booking Created",
-      message: `Booking ${result.code} was created by ${result.fullName}`,
-      type: "info",
-      link: `/admin?confirmation-booking=${result.code}`,
-    })
+    //notification related
+    Promise.allSettled([
+      sendBookingConfirmationEmail({ booking }),
+      sendAdminBookingNotificationEmail({ booking }),
+      createNotificationForOrg(result?.courts?.[0].organizationId, {
+        title: "Booking Created",
+        message: `Booking ${result.code} was created by ${result.fullName}`,
+        type: "info",
+        link: `/admin/dashboard?confirmation-booking=${result.code}`,
+      }),
+    ])
 
     return NextResponse.json({ success: true, result: booking })
   } catch (err: any) {
@@ -256,4 +269,43 @@ export async function POST(req: Request) {
       { status: 400 },
     )
   }
+}
+
+/**
+ * Optimize an image using Sharp.
+ * Accepts either a browser File or a Node Buffer.
+ */
+export async function optimizeImage(
+  file: File | Buffer,
+  options?: {
+    maxWidth?: number
+    format?: "jpeg" | "png" | "webp"
+    quality?: number
+  },
+): Promise<Buffer> {
+  const { maxWidth = 1200, format = "jpeg", quality = 80 } = options || {}
+
+  let buffer: Buffer
+
+  if (typeof (file as File).arrayBuffer === "function") {
+    buffer = Buffer.from(await (file as File).arrayBuffer()) // Browser File
+  } else {
+    buffer = file as Buffer // Node Buffer
+  }
+
+  let pipeline = sharp(buffer).resize({ width: maxWidth, withoutEnlargement: true })
+
+  switch (format) {
+    case "jpeg":
+      pipeline = pipeline.jpeg({ quality })
+      break
+    case "png":
+      pipeline = pipeline.png({ compressionLevel: 9 })
+      break
+    case "webp":
+      pipeline = pipeline.webp({ quality })
+      break
+  }
+
+  return pipeline.toBuffer()
 }

@@ -31,7 +31,7 @@ export const BookingConfirmationEmail = ({ booking }: BookingConfirmationEmailPr
         {/* Logo */}
         <Section style={{ textAlign: "center", marginBottom: "24px" }}>
           <Img
-            src={`${process.env.NEXT_PUBLIC_SITE_URL}/images/logo.jpg`}
+            src="https://ffuq0pf52dpcvo3q.public.blob.vercel-storage.com/pickleballbook-resources/pickl.digos.png"
             alt="Company Logo"
             width="120"
             height="auto"

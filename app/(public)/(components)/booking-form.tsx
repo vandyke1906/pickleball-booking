@@ -51,9 +51,6 @@ import { BookingDetailsDialog } from "@/app/(public)/(components)/booking-dialog
 import ShinyText from "@/components/animated/shiny-text"
 import { OrganizationInfo } from "@/app/(public)/(components)/organization-info"
 
-const envTotalHours = Number(process.env.NEXT_PUBLIC_TOTAL_HOURS_DURATION)
-const totalHoursDuration = !isNaN(envTotalHours) && envTotalHours > 0 ? envTotalHours : 18
-
 export default function BookingPage({ slug }: { slug: string }) {
   const refCode = useRef<HTMLInputElement>(null)
   const [bookingDetails, setBookingDetails] = useState(null)
@@ -204,12 +201,13 @@ export default function BookingPage({ slug }: { slug: string }) {
     const startHour = parseInt(startTimeStr.split(":")[0], 10) // Parse "HH:mm" into an integer hour
     const endHour = startHour + duration
 
-    return priceRules.reduce((sum, rule) => {
+    const basePrice = priceRules.reduce((sum, rule) => {
       const overlapStart = Math.max(startHour, rule.startHour)
       const overlapEnd = Math.min(endHour, rule.endHour)
       const hours = Math.max(0, overlapEnd - overlapStart)
       return sum + hours * rule.price
     }, 0)
+    return basePrice * selectedCourtIds.length
   }, [form.watch("courtIds"), form.watch("duration"), form.watch("startTime"), orgWithCourts])
 
   return (
@@ -350,10 +348,10 @@ export default function BookingPage({ slug }: { slug: string }) {
                   </p>
 
                   <div className="border rounded-md p-4 bg-slate-50/60 max-h-48 overflow-y-auto space-y-3">
-                    {(orgWithCourts?.courts || []).map((court) => (
+                    {(orgWithCourts?.courts || []).map((court: any) => (
                       <div key={court.id} className="flex items-center space-x-3">
                         <Checkbox
-                          disabled={!dateString}
+                          disabled={!dateString || !startTime}
                           id={court.id}
                           checked={form.watch("courtIds").includes(court.id)}
                           onCheckedChange={() => {
@@ -374,9 +372,9 @@ export default function BookingPage({ slug }: { slug: string }) {
                       </div>
                     ))}
                   </div>
-                  {!dateString && (
+                  {(!dateString || !startTime) && (
                     <p className="text-xs text-slate-500 mt-2">
-                      Please select a date to enable court selection.
+                      Please select a date and time to enable court selection.
                     </p>
                   )}
                   {form.formState.errors.courtIds && (
@@ -524,7 +522,6 @@ export default function BookingPage({ slug }: { slug: string }) {
 
         {orgWithCourts && (
           <OrganizationInfo
-            name={orgWithCourts.name}
             courts={orgWithCourts.courts}
             openingHours={orgWithCourts.openingHours}
             pricingRules={orgWithCourts.pricingRules}

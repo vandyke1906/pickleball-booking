@@ -2,7 +2,7 @@ import { clsx, type ClassValue } from "clsx"
 import { toZonedTime } from "date-fns-tz"
 import { twMerge } from "tailwind-merge"
 import { enUS } from "date-fns/locale"
-import { addHours, addMinutes, format } from "date-fns"
+import { addHours, format } from "date-fns"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))

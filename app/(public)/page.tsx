@@ -1,5 +1,5 @@
-import { BokehBackground } from "@/app/(public)/(components)/background/bokeh-background"
-import { BubbleBackground } from "@/app/(public)/(components)/background/bubble-background"
+import { BokehBackground } from "@/components/animated/background/bokeh-background"
+import { BubbleBackground } from "@/components/animated/background/bubble-background"
 import FBMessengerChat from "@/app/(public)/(components)/fb-messenger-chat"
 import { Features } from "@/app/(public)/(components)/features"
 import { Footer } from "@/app/(public)/(components)/footer"

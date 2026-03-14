@@ -1,5 +1,5 @@
 "use client"
-import { BokehBackground } from "@/app/(public)/(components)/background/bokeh-background"
+import { BokehBackground } from "@/components/animated/background/bokeh-background"
 import { SSEProvider } from "@/lib/providers/server-event-provider"
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {

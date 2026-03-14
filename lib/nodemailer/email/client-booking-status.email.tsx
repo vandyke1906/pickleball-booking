@@ -31,7 +31,7 @@ export const ClientBookingStatusEmail = ({ booking }: ClientBookingStatusEmailPr
         {/* Logo */}
         <Section style={{ textAlign: "center", marginBottom: "24px" }}>
           <Img
-            src={`${process.env.NEXT_PUBLIC_SITE_URL}/images/logo.jpg`}
+            src="https://ffuq0pf52dpcvo3q.public.blob.vercel-storage.com/pickleballbook-resources/pickl.digos.png"
             alt="Company Logo"
             width="120"
             height="auto"
@@ -103,7 +103,7 @@ export const ClientBookingStatusEmail = ({ booking }: ClientBookingStatusEmailPr
           <Text style={{ fontSize: "14px", color: "#555" }}>
             {booking.courts.map((c, i) => (
               <span key={i} style={{ display: "block", marginBottom: "4px" }}>
-                {c.name} - {c.pricePerHour}
+                {c.name}
               </span>
             ))}
           </Text>

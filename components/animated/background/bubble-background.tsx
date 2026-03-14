@@ -69,7 +69,7 @@ export function BubbleBackground({
     <div
       ref={containerRef}
       className={cn(
-        "fixed inset-0 overflow-hidden bg-gradient-to-br from-violet-950 to-blue-950",
+        "fixed inset-0 overflow-hidden bg-gradient-to-br from-emerald-950 to-green-950",
         className,
       )}
     >
