@@ -175,7 +175,7 @@ export const POST = withRateLimit(async (req: Request) => {
       select: {
         id: true,
         organization: {
-          select: { pricingRules: true },
+          select: { pricingRules: true, email: true },
         },
       },
     })
@@ -184,6 +184,7 @@ export const POST = withRateLimit(async (req: Request) => {
     const endHour = startHour + duration
 
     const pricingRules = courts[0]?.organization?.pricingRules || [] //Get pricing rules from the first court’s organization (all share the same org rules)
+    const organizationEmail = courts[0]?.organization?.email || ""
 
     // Calculate base price for one court
     const basePrice = pricingRules.reduce((sum, rule) => {
@@ -253,7 +254,7 @@ export const POST = withRateLimit(async (req: Request) => {
     //notification related
     Promise.allSettled([
       sendBookingConfirmationEmail({ booking }),
-      sendAdminBookingNotificationEmail({ booking }),
+      sendAdminBookingNotificationEmail({ adminEmailAddress: organizationEmail, booking }),
       createNotificationForOrg(result?.courts?.[0].organizationId, {
         title: "Booking Created",
         message: `Booking ${result.code} was created by ${result.fullName}`,

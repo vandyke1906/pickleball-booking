@@ -2,6 +2,7 @@ import { formatFloat, formatToPHTime } from "@/lib/utils"
 import { Html, Head, Body, Container, Section, Text, Link, Img } from "@react-email/components"
 
 export type AdminBookingNotificationEmailProps = {
+  adminEmailAddress: string
   booking: {
     code: string
     bookedBy: string

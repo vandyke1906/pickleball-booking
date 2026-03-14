@@ -24,12 +24,15 @@ export async function sendBookingConfirmationEmail({ booking }: BookingConfirmat
 }
 
 export async function sendAdminBookingNotificationEmail({
+  adminEmailAddress,
   booking,
 }: AdminBookingNotificationEmailProps) {
-  if (!booking.emailAddress) return null
-  const html = await render(<AdminBookingNotificationEmail booking={booking} />)
+  if (!adminEmailAddress) return null
+  const html = await render(
+    <AdminBookingNotificationEmail booking={booking} adminEmailAddress={adminEmailAddress} />,
+  )
   await sendEmail({
-    to: booking.emailAddress,
+    to: adminEmailAddress,
     subject: `New Booking [${booking.code}] Submitted`,
     html,
   })
