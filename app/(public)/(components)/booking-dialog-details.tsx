@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import BadgeStatus, { TStatus } from "@/components/common/badge-status"
 import { formatDateTime, formatFloat, formatISODateString, formatToPHTime } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
-import { TBookingDetails } from "@/app/(admin)/admin/dashboard/page"
+import { TBookingDetails } from "@/app/(admin)/admin/(component)/dashboard-admin-page"
 
 interface BookingDialogProps {
   open: boolean
