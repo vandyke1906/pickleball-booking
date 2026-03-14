@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { format } from "date-fns"
+import { format, startOfDay } from "date-fns"
 import { useMemo, useRef, useState } from "react"
 import { AvailabilityCourt } from "@/app/(public)/(components)/availability-court"
 import {
@@ -50,6 +50,11 @@ import {
 import { BookingDetailsDialog } from "@/app/(public)/(components)/booking-dialog-details"
 import ShinyText from "@/components/animated/shiny-text"
 import { OrganizationInfo } from "@/app/(public)/(components)/organization-info"
+
+const parseLocalDate = (dateString: string) => {
+  const [year, month, day] = dateString.split("-").map(Number)
+  return new Date(year, month - 1, day) // local midnight
+}
 
 export default function BookingPage({ slug }: { slug: string }) {
   const refCode = useRef<HTMLInputElement>(null)
@@ -292,15 +297,22 @@ export default function BookingPage({ slug }: { slug: string }) {
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start text-left">
                         <CalendarDays className="mr-3 h-5 w-5 text-primary" />
-                        {date ? format(date, "MMMM dd, yyyy") : "Select date"}
+                        {dateString
+                          ? format(parseLocalDate(dateString), "MMMM dd, yyyy")
+                          : "Select date"}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
                       <Calendar
                         mode="single"
-                        selected={dateString ? date : undefined}
-                        onSelect={(d) => form.setValue("date", format(d!, "yyyy-MM-dd"))}
-                        disabled={(d) => d < new Date(new Date().setHours(0, 0, 0, 0))}
+                        selected={dateString ? parseLocalDate(dateString) : undefined}
+                        onSelect={(d) => {
+                          if (d) {
+                            const localDate = startOfDay(d)
+                            form.setValue("date", format(localDate, "yyyy-MM-dd"))
+                          }
+                        }}
+                        disabled={(d) => d < startOfDay(new Date())}
                       />
                     </PopoverContent>
                   </Popover>
