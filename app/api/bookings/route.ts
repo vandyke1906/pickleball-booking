@@ -187,12 +187,13 @@ export const POST = withRateLimit(async (req: Request) => {
     const organizationEmail = courts[0]?.organization?.email || ""
 
     // Calculate base price for one court
-    const basePrice = pricingRules.reduce((sum, rule) => {
-      const overlapStart = Math.max(startHour, rule.startHour)
-      const overlapEnd = Math.min(endHour, rule.endHour)
-      const hours = Math.max(0, overlapEnd - overlapStart)
-      return sum + hours * rule.price
-    }, 0)
+    // const basePrice = pricingRules.reduce((sum, rule) => {
+    //   const overlapStart = Math.max(startHour, rule.startHour)
+    //   const overlapEnd = Math.min(endHour, rule.endHour)
+    //   const hours = Math.max(0, overlapEnd - overlapStart)
+    //   return sum + hours * rule.price
+    // }, 0)
+    const basePrice = calculateBasePrice(startHour, endHour, pricingRules)
 
     // Multiply by number of courts selected
     const totalPrice = basePrice * courts.length
@@ -311,4 +312,38 @@ async function optimizeImage(
   }
 
   return pipeline.toBuffer()
+}
+
+export function calculateBasePrice(
+  startHour: number,
+  endHour: number,
+  pricingRules: { startHour: number; endHour: number; price: number }[],
+): number {
+  const normalizeRanges = (start: number, end: number) => {
+    const ranges: { startHour: number; endHour: number }[] = []
+    let currentStart = start
+    let currentEnd = end
+
+    while (currentEnd > 24) {
+      ranges.push({ startHour: currentStart, endHour: 24 })
+      currentStart = 0
+      currentEnd -= 24
+    }
+    ranges.push({ startHour: currentStart, endHour: currentEnd })
+    return ranges
+  }
+
+  const ranges = normalizeRanges(startHour, endHour)
+
+  return ranges.reduce((total, range) => {
+    return (
+      total +
+      pricingRules.reduce((sum, rule) => {
+        const overlapStart = Math.max(range.startHour, rule.startHour)
+        const overlapEnd = Math.min(range.endHour, rule.endHour)
+        const hours = Math.max(0, overlapEnd - overlapStart)
+        return sum + hours * rule.price
+      }, 0)
+    )
+  }, 0)
 }
