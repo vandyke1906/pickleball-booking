@@ -15,35 +15,6 @@ interface AvailabilityCourtProps {
   isLoading: boolean
 }
 
-// const isBlockAvailableForCourt = (
-//   court: TCourtWithBooking,
-//   proposedStart: string,
-//   dur: number,
-//   date: Date,
-// ) => {
-//   const proposedStartDateTime = new Date(date)
-//   const [h, m] = proposedStart.split(":").map(Number)
-//   proposedStartDateTime.setHours(h, m, 0, 0)
-
-//   const proposedEndDateTime = new Date(proposedStartDateTime)
-//   proposedEndDateTime.setHours(h, m + dur * 60, 0, 0)
-
-//   return !court.bookings.some((b) => {
-//     const bookingStart = formatDateTime(b.startTime)
-//     const bookingEnd = formatDateTime(b.endTime)
-
-//     // Only consider bookings that overlap the target date or spill into next day
-//     const sameOrNextDay =
-//       bookingStart.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH") ||
-//       bookingEnd.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH")
-
-//     if (!sameOrNextDay) return false
-
-//     // Proposed block must be fully inside the booking range
-//     return proposedStartDateTime >= bookingStart && proposedEndDateTime <= bookingEnd
-//   })
-// }
-
 const isBlockAvailableForCourt = (
   court: TCourtWithBooking,
   proposedStart: string,

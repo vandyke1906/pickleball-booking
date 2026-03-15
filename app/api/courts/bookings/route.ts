@@ -39,7 +39,7 @@ export const GET = withRateLimit(async (request: Request) => {
         status: { in: ["pending", "confirmed"] },
       }
 
-      console.info({ normalized })
+      console.info({ dateParam, normalized })
       ranges.forEach((r, idx) => {
         console.info(
           `Start ${idx + 1}:`,
