@@ -2,7 +2,7 @@ import { clsx, type ClassValue } from "clsx"
 import { toDate, toZonedTime } from "date-fns-tz"
 import { twMerge } from "tailwind-merge"
 import { enUS } from "date-fns/locale"
-import { addHours, format } from "date-fns"
+import { addDays, addHours, format } from "date-fns"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -281,19 +281,20 @@ export function buildDateRanges(
   dateParam: string,
   hours: { startHour: number; endHour: number }[],
 ) {
+  const timeZone = "Asia/Manila"
+
   return hours.map((h) => {
-    // Create base date in Manila zone
-    const base = toDate(`${dateParam}T00:00:00`, { timeZone: DEFAULT_TIMEZONE })
+    // Build ISO strings with the correct hour
+    const startIso = `${dateParam}T${String(h.startHour).padStart(2, "0")}:00:00`
+    const endHour = h.endHour % 24
+    const endDate =
+      h.endHour > 24
+        ? addDays(new Date(dateParam), 1) // push to next day
+        : new Date(dateParam)
+    const endIso = `${format(endDate, "yyyy-MM-dd")}T${String(endHour).padStart(2, "0")}:00:00`
 
-    // Clone base for start and end
-    const start = new Date(base.getTime())
-    start.setHours(h.startHour, 0, 0, 0)
-
-    const end = new Date(base.getTime())
-    end.setHours(h.endHour % 24, 0, 0, 0)
-    if (h.endHour > 24) {
-      end.setDate(end.getDate() + 1)
-    }
+    const start = toDate(startIso, { timeZone })
+    const end = toDate(endIso, { timeZone })
 
     return { start, end }
   })
