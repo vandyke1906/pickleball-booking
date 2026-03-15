@@ -1,7 +1,7 @@
 "use client"
 
 import { format } from "date-fns"
-import { cn, formatDateTime, toMinutes } from "@/lib/utils"
+import { cn, formatDateTime, formatToPHDateString, formatToPHMinutes, toMinutes } from "@/lib/utils"
 import { TCourtWithBooking } from "@/lib/hooks/court/court.hook"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useMemo } from "react"
@@ -15,48 +15,83 @@ interface AvailabilityCourtProps {
   isLoading: boolean
 }
 
+// const isBlockAvailableForCourt = (
+//   court: TCourtWithBooking,
+//   proposedStart: string,
+//   dur: number,
+//   date: Date,
+// ) => {
+//   const proposedStartDateTime = new Date(date)
+//   const [h, m] = proposedStart.split(":").map(Number)
+//   proposedStartDateTime.setHours(h, m, 0, 0)
+
+//   const proposedEndDateTime = new Date(proposedStartDateTime)
+//   proposedEndDateTime.setHours(h, m + dur * 60, 0, 0)
+
+//   return !court.bookings.some((b) => {
+//     const bookingStart = formatDateTime(b.startTime)
+//     const bookingEnd = formatDateTime(b.endTime)
+
+//     // Only consider bookings that overlap the target date or spill into next day
+//     const sameOrNextDay =
+//       bookingStart.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH") ||
+//       bookingEnd.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH")
+
+//     if (!sameOrNextDay) return false
+
+//     // Proposed block must be fully inside the booking range
+//     return proposedStartDateTime >= bookingStart && proposedEndDateTime <= bookingEnd
+//   })
+// }
+
 const isBlockAvailableForCourt = (
   court: TCourtWithBooking,
   proposedStart: string,
   dur: number,
   date: Date,
 ) => {
-  const proposedStartMin = toMinutes(proposedStart)
-  const proposedEndMin = proposedStartMin + dur * 60
+  const [h, m] = proposedStart.split(":").map(Number)
+
+  // Proposed block in PH minutes
+  let propStart = h * 60 + m
+  let propEnd = propStart + dur * 60
+
+  // If it crosses midnight, extend into next day
+  if (propEnd >= 24 * 60) {
+    propEnd += 24 * 60
+  }
 
   return !court.bookings.some((b) => {
-    const bookingStart = formatDateTime(b.startTime)
-    const bookingEnd = formatDateTime(b.endTime)
+    const bookingStart = new Date(b.startTime)
+    const bookingEnd = new Date(b.endTime)
 
-    // Compare only if same day
-    const sameDay = bookingStart.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH")
-    if (!sameDay) return false
+    const sameOrNextDay =
+      formatToPHDateString(bookingStart) === formatToPHDateString(date) ||
+      formatToPHDateString(bookingEnd) === formatToPHDateString(date)
 
-    const bookStartMin = bookingStart.getHours() * 60 + bookingStart.getMinutes()
-    const bookEndMin = bookingEnd.getHours() * 60 + bookingEnd.getMinutes()
+    if (!sameOrNextDay) return false
 
-    return proposedStartMin < bookEndMin && proposedEndMin > bookStartMin
+    let bookStart = formatToPHMinutes(bookingStart)
+    let bookEnd = formatToPHMinutes(bookingEnd)
+
+    // Handle overnight booking
+    if (formatToPHDateString(bookingEnd) !== formatToPHDateString(bookingStart)) {
+      bookEnd += 24 * 60
+    }
+
+    // Overlap check
+    return propStart < bookEnd && propEnd > bookStart
   })
 }
 
 export function AvailabilityCourt({
   date,
-  startTime,
   duration,
   selectedCourtIds,
   timeSlots,
   courtWithBookings,
   isLoading,
 }: AvailabilityCourtProps & { isLoading?: boolean }) {
-  const endTimeDisplay = useMemo(() => {
-    const [h, m] = startTime.split(":").map(Number)
-    const total = h * 60 + m + duration * 60
-    const eh = Math.floor(total / 60)
-    const em = total % 60
-
-    return `${eh.toString().padStart(2, "0")}:${em.toString().padStart(2, "0")}`
-  }, [startTime, duration])
-
   return (
     <section className="py-6 px-3 sm:px-6 bg-white rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10 space-y-8">
       <div className="max-w-6xl mx-auto">

@@ -210,14 +210,33 @@ export const getDurationString = (startDateStr: string, endDateStr?: string) => 
   return parts.join(", ")
 }
 
-export function formatToPHTime(isoString?: string) {
+export function formatToPHTime(isoString?: string, isDateOnly: boolean = false) {
   if (!isoString) return "—"
   const formatter = new Intl.DateTimeFormat("en-PH", {
     timeZone: "Asia/Manila",
     dateStyle: "medium",
-    timeStyle: "short",
+    ...(isDateOnly ? {} : { timeStyle: "short" }),
   })
   return formatter.format(new Date(isoString))
+}
+export function formatToPHDateString(date: Date) {
+  return new Intl.DateTimeFormat("en-PH", {
+    timeZone: "Asia/Manila",
+    dateStyle: "short",
+  }).format(date)
+}
+
+export function formatToPHMinutes(date: Date) {
+  const formatter = new Intl.DateTimeFormat("en-PH", {
+    timeZone: "Asia/Manila",
+    hour: "numeric",
+    minute: "numeric",
+    hour12: false,
+  })
+  const parts = formatter.formatToParts(date)
+  const h = Number(parts.find((p) => p.type === "hour")?.value)
+  const m = Number(parts.find((p) => p.type === "minute")?.value)
+  return h * 60 + m
 }
 
 export function formatHour(hour: number): string {

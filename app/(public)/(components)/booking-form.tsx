@@ -30,9 +30,12 @@ import {
   calculateDuration,
   formatDateTime,
   formatFloat,
+  formatToPHDateString,
+  formatToPHMinutes,
   getEndTime,
   normalizeOpeningHoursClient,
   toMinutes,
+  toPhilippineTime,
 } from "@/lib/utils"
 import { useCourtBookings, useOrganizationCourts } from "@/lib/hooks/court/court.hook"
 import { useCreateBooking, useGetBookingByCode } from "@/lib/mutations/booking/booking.mutation"
@@ -132,6 +135,42 @@ export default function BookingPage({ slug }: { slug: string }) {
     return calculateDuration(selected, orgWithCourts.openingHours)
   }, [form, orgWithCourts, form.getValues("startTime")])
 
+  // const canBook = useMemo(() => {
+  //   if (!courtBookings || !date) return false
+
+  //   const courtIds = form.watch("courtIds")
+  //   const startTime = form.watch("startTime")
+  //   const duration = form.watch("duration")
+
+  //   if (courtIds.length === 0) return false
+
+  //   const proposedStartMin = toMinutes(startTime)
+  //   const proposedEndMin = proposedStartMin + duration * 60
+
+  //   return courtIds.every((courtId) => {
+  //     const currentCourt = courtBookings.find((c) => c.id === courtId)
+  //     const currentBookings = currentCourt?.bookings || []
+
+  //     for (const booking of currentBookings) {
+  //       const bookingStart = formatDateTime(booking.startTime)
+  //       const bookingEnd = formatDateTime(booking.endTime)
+
+  //       const sameDay =
+  //         bookingStart.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH")
+  //       if (!sameDay) continue
+
+  //       const bookStartMin = bookingStart.getHours() * 60 + bookingStart.getMinutes()
+  //       const bookEndMin = bookingEnd.getHours() * 60 + bookingEnd.getMinutes()
+
+  //       if (proposedStartMin < bookEndMin && proposedEndMin > bookStartMin) {
+  //         return false // overlap found
+  //       }
+  //     }
+
+  //     return true // no overlap for this court
+  //   })
+  // }, [courtBookings, date, form])
+
   const canBook = useMemo(() => {
     if (!courtBookings || !date) return false
 
@@ -141,24 +180,39 @@ export default function BookingPage({ slug }: { slug: string }) {
 
     if (courtIds.length === 0) return false
 
-    const proposedStartMin = toMinutes(startTime)
-    const proposedEndMin = proposedStartMin + duration * 60
+    // Proposed block in PH minutes
+    const [h, m] = startTime.split(":").map(Number)
+    let proposedStartMin = h * 60 + m
+    let proposedEndMin = proposedStartMin + duration * 60
+
+    // Handle overnight proposal
+    if (proposedEndMin >= 24 * 60) {
+      proposedEndMin += 24 * 60
+    }
 
     return courtIds.every((courtId) => {
       const currentCourt = courtBookings.find((c) => c.id === courtId)
       const currentBookings = currentCourt?.bookings || []
 
       for (const booking of currentBookings) {
-        const bookingStart = formatDateTime(booking.startTime)
-        const bookingEnd = formatDateTime(booking.endTime)
+        const bookingStart = new Date(booking.startTime)
+        const bookingEnd = new Date(booking.endTime)
 
-        const sameDay =
-          bookingStart.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH")
-        if (!sameDay) continue
+        const sameOrNextDay =
+          formatToPHDateString(bookingStart) === formatToPHDateString(date) ||
+          formatToPHDateString(bookingEnd) === formatToPHDateString(date)
 
-        const bookStartMin = bookingStart.getHours() * 60 + bookingStart.getMinutes()
-        const bookEndMin = bookingEnd.getHours() * 60 + bookingEnd.getMinutes()
+        if (!sameOrNextDay) continue
 
+        let bookStartMin = formatToPHMinutes(bookingStart)
+        let bookEndMin = formatToPHMinutes(bookingEnd)
+
+        // Handle overnight booking
+        if (formatToPHDateString(bookingEnd) !== formatToPHDateString(bookingStart)) {
+          bookEndMin += 24 * 60
+        }
+
+        // Overlap check
         if (proposedStartMin < bookEndMin && proposedEndMin > bookStartMin) {
           return false // overlap found
         }
@@ -236,6 +290,34 @@ export default function BookingPage({ slug }: { slug: string }) {
 
     return basePrice * selectedCourtIds.length
   }, [form.watch("courtIds"), form.watch("duration"), form.watch("startTime"), orgWithCourts])
+
+  const bookings = courtBookings.flatMap((court) =>
+    (court.bookings ?? []).map((booking: any) => {
+      const start = toPhilippineTime(new Date(booking.startTime))
+      const end = toPhilippineTime(new Date(booking.endTime))
+
+      return {
+        id: booking.id,
+        code: booking.code,
+        status: booking.status,
+        title: `${booking.fullName ?? ""}`,
+        bookedBy: `${booking.fullName ?? ""}`,
+        contactNumber: `${booking.contactNumber ?? ""}`,
+        emailAddress: `${booking.emailAddress ?? ""}`,
+        proofOfPayment: booking.proofOfPaymentLink,
+        totalPrice: booking.totalPrice,
+        start,
+        end: end,
+        courts: (booking.courts || []).map((c: any) => ({
+          id: c.id,
+          name: c.name,
+        })),
+        resourceId: court.id,
+      }
+    }),
+  )
+
+  // console.info({ bookings })
 
   return (
     <>
