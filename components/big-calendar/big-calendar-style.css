@@ -1,0 +1,22 @@
+@reference "tailwindcss";
+/* ───────────────────────────────────────────────
+   react-big-calendar + shadcn/ui + Tailwind style
+   2025–2026 friendly version
+─────────────────────────────────────────────── */
+
+@layer components {
+  /* Calendar Root */
+  .rbc-calendar {
+    @apply h-full w-full flex flex-col;
+    font-feature-settings: "cv03", "cv04", "ss01";
+  }
+
+  /* Hide the time gutter completely */
+  .rbc-allday-cell {
+    display: none !important;
+  }
+  .rbc-event-label {
+    display: none !important;
+    padding-bottom: 4px;
+  }
+}

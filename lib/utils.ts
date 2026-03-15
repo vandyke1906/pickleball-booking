@@ -319,3 +319,7 @@ export function calculateDuration(
   // Duration in hours
   return block.endHour - selectedHour
 }
+
+export function toPhilippineTime(date: Date) {
+  return toZonedTime(date, DEFAULT_TIMEZONE)
+}

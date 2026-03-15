@@ -7,7 +7,7 @@ import BadgeStatus from "@/components/common/badge-status"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCourtBookings, useOrganizationCourts } from "@/lib/hooks/court/court.hook"
 import { useGetBookingByCode } from "@/lib/mutations/booking/booking.mutation"
-import { formatDateTime } from "@/lib/utils"
+import { formatDateTime, toPhilippineTime } from "@/lib/utils"
 import { Court } from "@prisma/client"
 import { useSession } from "next-auth/react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
@@ -69,8 +69,8 @@ export default function DashboardAdminPage() {
   const { min, max } = useMemo(() => {
     const today = new Date()
 
-    const min = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0)
-    const max = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59)
+    const min = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0)
+    const max = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59)
 
     return { min, max }
   }, [courtBookings])
@@ -88,6 +88,9 @@ export default function DashboardAdminPage() {
 
     return courtBookings.flatMap((court) =>
       (court.bookings ?? []).map((booking: any) => {
+        const start = toPhilippineTime(new Date(booking.startTime))
+        const end = toPhilippineTime(new Date(booking.endTime))
+
         return {
           id: booking.id,
           code: booking.code,
@@ -98,8 +101,8 @@ export default function DashboardAdminPage() {
           emailAddress: `${booking.emailAddress ?? ""}`,
           proofOfPayment: booking.proofOfPaymentLink,
           totalPrice: booking.totalPrice,
-          start: formatDateTime(booking.startTime),
-          end: formatDateTime(booking.endTime),
+          start,
+          end: end,
           courts: (booking.courts || []).map((c: any) => ({
             id: c.id,
             name: c.name,
@@ -145,12 +148,15 @@ export default function DashboardAdminPage() {
     })
   }, [searchParams])
 
+  console.info({ min, max })
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <header style={{ height: "60px" }}>Booking Calendar</header>
       <main style={{ flex: 1 }} className="relative">
         <BigCalendar
           className="rbc-calendar"
+          showMultiDayTimes
           eventPropGetter={getEventClassNames}
           components={{ event: CustomEvent }}
           selectable
@@ -158,9 +164,9 @@ export default function DashboardAdminPage() {
           draggableAccessor={() => true}
           resizableAccessor={() => false}
           step={60}
+          timeslots={1}
           min={min}
           max={max}
-          timeslots={1}
           events={events}
           resources={courtResources}
           startAccessor="start"
@@ -213,10 +219,21 @@ export default function DashboardAdminPage() {
 
 function CustomEvent({ event }: { event: any }) {
   return (
-    <div key={event.id} className="flex items-center justify-between p-1 text-xs w-full h-full">
-      <span className="font-medium truncate leading-none flex items-center">{event.title}</span>
-      <div className="flex items-center">
-        <BadgeStatus status={event.status} />
+    <div className="custom-event">
+      <div className="rbc-event-label-custom">
+        {event.start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        {" - "}
+        {event.end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+      </div>
+      <div className="rbc-event-content">
+        <div key={event.id} className="flex items-center justify-between p-1 text-xs w-full h-full">
+          <span className="font-medium truncate leading-none flex items-center">
+            {event.bookedBy}
+          </span>
+          <div className="flex items-center">
+            <BadgeStatus status={event.status} />
+          </div>
+        </div>
       </div>
     </div>
   )

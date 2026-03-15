@@ -38,6 +38,16 @@ export const GET = withRateLimit(async (request: Request) => {
         })),
         status: { in: ["pending", "confirmed"] },
       }
+
+      console.info({ normalized })
+      ranges.forEach((r, idx) => {
+        console.info(
+          `Start ${idx + 1}:`,
+          r.start.toLocaleString("en-PH", { timeZone: "Asia/Manila" }),
+          "End",
+          r.end.toLocaleString("en-PH", { timeZone: "Asia/Manila" }),
+        )
+      })
     }
 
     const courts = await prisma.court.findMany({

@@ -186,13 +186,6 @@ export const POST = withRateLimit(async (req: Request) => {
     const pricingRules = courts[0]?.organization?.pricingRules || [] //Get pricing rules from the first court’s organization (all share the same org rules)
     const organizationEmail = courts[0]?.organization?.email || ""
 
-    // Calculate base price for one court
-    // const basePrice = pricingRules.reduce((sum, rule) => {
-    //   const overlapStart = Math.max(startHour, rule.startHour)
-    //   const overlapEnd = Math.min(endHour, rule.endHour)
-    //   const hours = Math.max(0, overlapEnd - overlapStart)
-    //   return sum + hours * rule.price
-    // }, 0)
     const basePrice = calculateBasePrice(startHour, endHour, pricingRules)
 
     // Multiply by number of courts selected
@@ -254,16 +247,16 @@ export const POST = withRateLimit(async (req: Request) => {
     })
 
     //notification related
-    Promise.allSettled([
-      sendBookingConfirmationEmail({ booking }),
-      sendAdminBookingNotificationEmail({ adminEmailAddress: organizationEmail, booking }),
-      createNotificationForOrg(result?.courts?.[0].organizationId, {
-        title: "Booking Created",
-        message: `Booking ${result.code} was created by ${result.fullName}`,
-        type: "info",
-        link: `/admin/dashboard?confirmation-booking=${result.code}`,
-      }),
-    ])
+    // Promise.allSettled([
+    //   sendBookingConfirmationEmail({ booking }),
+    //   sendAdminBookingNotificationEmail({ adminEmailAddress: organizationEmail, booking }),
+    //   createNotificationForOrg(result?.courts?.[0].organizationId, {
+    //     title: "Booking Created",
+    //     message: `Booking ${result.code} was created by ${result.fullName}`,
+    //     type: "info",
+    //     link: `/admin/dashboard?confirmation-booking=${result.code}`,
+    //   }),
+    // ])
 
     return NextResponse.json({ success: true, result: booking })
   } catch (err: any) {

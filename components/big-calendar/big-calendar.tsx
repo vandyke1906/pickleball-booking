@@ -2,10 +2,9 @@
 
 import { Calendar, CalendarProps, dateFnsLocalizer } from "react-big-calendar"
 import { format, parse, startOfWeek, getDay } from "date-fns"
-import { enUS } from "date-fns/locale"
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop"
-import "react-big-calendar/lib/css/react-big-calendar.css"
-import "react-big-calendar/lib/addons/dragAndDrop/styles.css"
+import { locales } from "@/lib/utils"
+import "./big-calendar-style.css"
 
 export type CalendarEvent = {
   title: string
@@ -15,7 +14,6 @@ export type CalendarEvent = {
   variant?: "primary" | "secondary" | "outline"
 }
 
-const locales = { "en-PH": enUS }
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales })
 
 const DnDCalendar = withDragAndDrop(Calendar) as React.ComponentType<
