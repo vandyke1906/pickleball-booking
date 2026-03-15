@@ -39,7 +39,10 @@ const isBlockAvailableForCourt = (
     const sameOrNextDay =
       formatToPHDateString(bookingStart) === formatToPHDateString(date) ||
       formatToPHDateString(bookingEnd) === formatToPHDateString(date)
-
+    console.info({
+      bookingStart: formatToPHDateString(bookingStart),
+      date: formatToPHDateString(date),
+    })
     if (!sameOrNextDay) return false
 
     let bookStart = formatToPHMinutes(bookingStart)
