@@ -281,18 +281,15 @@ export function buildDateRanges(
   dateParam: string,
   hours: { startHour: number; endHour: number }[],
 ) {
-  const timeZone = "Asia/Manila"
-
   return hours.map((h) => {
-    // Base date in Manila zone
-    const base = toDate(`${dateParam}T00:00:00`, { timeZone })
+    // Create base date in Manila zone
+    const base = toDate(`${dateParam}T00:00:00`, { timeZone: DEFAULT_TIMEZONE })
 
-    // Start
-    const start = toDate(base, { timeZone })
+    // Clone base for start and end
+    const start = new Date(base.getTime())
     start.setHours(h.startHour, 0, 0, 0)
 
-    // End
-    const end = toDate(base, { timeZone })
+    const end = new Date(base.getTime())
     end.setHours(h.endHour % 24, 0, 0, 0)
     if (h.endHour > 24) {
       end.setDate(end.getDate() + 1)
