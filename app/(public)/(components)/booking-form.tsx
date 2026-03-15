@@ -84,7 +84,6 @@ export default function BookingPage({ slug }: { slug: string }) {
   const startTime = form.watch("startTime")
   const duration = form.watch("duration")
   const selectedCourtIds = form.watch("courtIds")
-  const fullName = form.watch("fullName")
 
   const mutation = useCreateBooking()
 
