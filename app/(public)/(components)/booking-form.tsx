@@ -53,6 +53,7 @@ import {
 import { BookingDetailsDialog } from "@/app/(public)/(components)/booking-dialog-details"
 import ShinyText from "@/components/animated/shiny-text"
 import { OrganizationInfo } from "@/app/(public)/(components)/organization-info"
+import { PaymentQRDialog } from "@/app/(public)/(components)/payment-qr-code"
 
 const parseLocalDate = (dateString: string) => {
   const [year, month, day] = dateString.split("-").map(Number)
@@ -83,6 +84,7 @@ export default function BookingPage({ slug }: { slug: string }) {
   const startTime = form.watch("startTime")
   const duration = form.watch("duration")
   const selectedCourtIds = form.watch("courtIds")
+  const fullName = form.watch("fullName")
 
   const mutation = useCreateBooking()
 
@@ -498,6 +500,17 @@ export default function BookingPage({ slug }: { slug: string }) {
                   )}
                 </div>
               </div>
+
+              {/* payment show */}
+              {date && startTime && duration && selectedCourtIds.length ? (
+                <PaymentQRDialog
+                  qrImageSrc="/images/logo.png"
+                  amount={totalPayment}
+                  currency="PHP"
+                  paymentInstructions="Use GCash to pay for your booking. Thank you"
+                  triggerText="Pay Now"
+                />
+              ) : null}
 
               {/* fullName */}
               <div className="space-y-2">
