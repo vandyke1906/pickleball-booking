@@ -247,16 +247,16 @@ export const POST = withRateLimit(async (req: Request) => {
     })
 
     //notification related
-    // Promise.allSettled([
-    //   sendBookingConfirmationEmail({ booking }),
-    //   sendAdminBookingNotificationEmail({ adminEmailAddress: organizationEmail, booking }),
-    //   createNotificationForOrg(result?.courts?.[0].organizationId, {
-    //     title: "Booking Created",
-    //     message: `Booking ${result.code} was created by ${result.fullName}`,
-    //     type: "info",
-    //     link: `/admin/dashboard?confirmation-booking=${result.code}`,
-    //   }),
-    // ])
+    Promise.allSettled([
+      sendBookingConfirmationEmail({ booking }),
+      sendAdminBookingNotificationEmail({ adminEmailAddress: organizationEmail, booking }),
+      createNotificationForOrg(result?.courts?.[0].organizationId, {
+        title: "Booking Created",
+        message: `Booking ${result.code} was created by ${result.fullName}`,
+        type: "info",
+        link: `/admin/dashboard?confirmation-booking=${result.code}`,
+      }),
+    ])
 
     return NextResponse.json({ success: true, result: booking })
   } catch (err: any) {

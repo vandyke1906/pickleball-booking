@@ -39,10 +39,6 @@ const isBlockAvailableForCourt = (
     const sameOrNextDay =
       formatToPHDateString(bookingStart) === formatToPHDateString(date) ||
       formatToPHDateString(bookingEnd) === formatToPHDateString(date)
-    console.info({
-      bookingStart: formatToPHDateString(bookingStart),
-      date: formatToPHDateString(date),
-    })
     if (!sameOrNextDay) return false
 
     let bookStart = formatToPHMinutes(bookingStart)
@@ -66,7 +62,6 @@ export function AvailabilityCourt({
   courtWithBookings,
   isLoading,
 }: AvailabilityCourtProps & { isLoading?: boolean }) {
-  console.info({ date, ph: formatToPHDateString(date) })
   return (
     <section className="py-6 px-3 sm:px-6 bg-white rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10 space-y-8">
       <div className="max-w-6xl mx-auto">

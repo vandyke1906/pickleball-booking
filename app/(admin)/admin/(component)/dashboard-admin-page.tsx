@@ -148,8 +148,6 @@ export default function DashboardAdminPage() {
     })
   }, [searchParams])
 
-  console.info({ min, max })
-
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <header style={{ height: "60px" }}>Booking Calendar</header>
