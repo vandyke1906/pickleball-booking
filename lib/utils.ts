@@ -26,13 +26,9 @@ export const getEndTime = (start: string, durationHours: number): string => {
 }
 
 export function makeBookingDate(dateString: string, timeString: string, durationHours: number) {
-  const [year, month, day] = dateString.split("-").map(Number)
-  const [hour, minute] = timeString.split(":").map(Number)
-
-  // Manila is UTC+8 → subtract 8 hours to get UTC
-  const startUTC = new Date(Date.UTC(year, month - 1, day, hour - 8, minute))
+  const iso = `${dateString}T${timeString}:00`
+  const startUTC = toDate(iso, { timeZone: DEFAULT_TIMEZONE })
   const endUTC = addHours(startUTC, durationHours)
-
   return { start: startUTC, end: endUTC }
 }
 
