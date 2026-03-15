@@ -1,5 +1,5 @@
 import { clsx, type ClassValue } from "clsx"
-import { toZonedTime } from "date-fns-tz"
+import { toDate, toZonedTime } from "date-fns-tz"
 import { twMerge } from "tailwind-merge"
 import { enUS } from "date-fns/locale"
 import { addHours, format } from "date-fns"
@@ -281,15 +281,21 @@ export function buildDateRanges(
   dateParam: string,
   hours: { startHour: number; endHour: number }[],
 ) {
+  const timeZone = "Asia/Manila"
+
   return hours.map((h) => {
-    const start = new Date(`${dateParam}T00:00:00+08:00`)
+    // Base date in Manila zone
+    const base = toDate(`${dateParam}T00:00:00`, { timeZone })
+
+    // Start
+    const start = toDate(base, { timeZone })
     start.setHours(h.startHour, 0, 0, 0)
 
-    const end = new Date(`${dateParam}T00:00:00+08:00`)
+    // End
+    const end = toDate(base, { timeZone })
     end.setHours(h.endHour % 24, 0, 0, 0)
-
     if (h.endHour > 24) {
-      end.setDate(end.getDate() + 1) // push to next day
+      end.setDate(end.getDate() + 1)
     }
 
     return { start, end }
