@@ -72,21 +72,16 @@ export default function BookingPage({ slug }: { slug: string }) {
 
   const form = useForm<BookingPayload>({
     resolver: zodResolver(bookingSchema),
-    defaultValues: (() => {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      return saved
-        ? JSON.parse(saved)
-        : {
-            date: "",
-            startTime: "",
-            duration: 1,
-            courtIds: [],
-            fullName: "",
-            contactNumber: "",
-            emailAddress: "",
-            proofOfPayment: undefined,
-          }
-    })(),
+    defaultValues: {
+      date: "",
+      startTime: "",
+      duration: 1,
+      courtIds: [],
+      fullName: "",
+      contactNumber: "",
+      emailAddress: "",
+      proofOfPayment: undefined,
+    },
   })
 
   const dateString = form.watch("date")
@@ -197,11 +192,12 @@ export default function BookingPage({ slug }: { slug: string }) {
     })
   }, [courtBookings, date, form])
 
+  //load data localstorage
   useEffect(() => {
-    const subscription = form.watch((values) => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(values))
-    })
-    return () => subscription.unsubscribe()
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      form.reset(JSON.parse(saved))
+    }
   }, [form])
 
   const handleFindBooking = () => {
