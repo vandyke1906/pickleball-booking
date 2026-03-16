@@ -10,9 +10,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { CarouselWrapper } from "@/app/(public)/(components)/payment-carousel"
 
 interface PaymentQRDialogProps {
-  qrImageSrc: string
   amount?: number
   currency?: string
   reference?: string
@@ -23,7 +23,6 @@ interface PaymentQRDialogProps {
 }
 
 export function PaymentQRDialog({
-  qrImageSrc,
   amount,
   currency = "PHP",
   paymentInstructions = "Scan the QR code with your mobile banking or e-wallet app to complete payment.",
@@ -64,6 +63,22 @@ export function PaymentQRDialog({
     }
   }
 
+  const paymentMethods = [
+    {
+      image: "/images/logo.png",
+      description: "GCash Payment",
+      children: isMobile && (
+        <Button type="button" variant="default" className="w-full" onClick={openGCash}>
+          Open in GCash
+        </Button>
+      ),
+    },
+    {
+      image: "/images/bank-transfer.png",
+      description: "Bank Transfer",
+    },
+  ]
+
   return (
     <Dialog>
       <DialogTrigger asChild className="w-full">
@@ -75,7 +90,9 @@ export function PaymentQRDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Complete Payment</DialogTitle>
-          <DialogDescription>Scan the QR code below to pay for your booking.</DialogDescription>
+          <DialogDescription>
+            Please select any of payment method to pay your booking.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-6 py-4">
@@ -86,8 +103,8 @@ export function PaymentQRDialog({
             </div>
           )}
 
-          <div className="p-4 bg-white rounded-xl shadow-sm border">
-            <img
+          <div className="p-4 border flex flex-col gap-4">
+            {/* <img
               src={qrImageSrc}
               alt="Payment QR Code"
               width={220}
@@ -96,6 +113,13 @@ export function PaymentQRDialog({
               loading="lazy"
               decoding="async"
             />
+
+            {isMobile && (
+              <Button type="button" variant="default" className="w-full" onClick={openGCash}>
+                Open in GCash
+              </Button>
+            )} */}
+            <CarouselWrapper items={paymentMethods} autoPlay interval={2000} />
           </div>
 
           <div className="w-full space-y-3 text-center text-sm">
@@ -104,11 +128,6 @@ export function PaymentQRDialog({
         </div>
 
         <DialogFooter className="sm:justify-center flex flex-col gap-2">
-          {isMobile && (
-            <Button type="button" variant="default" onClick={openGCash}>
-              Open in GCash
-            </Button>
-          )}
           <DialogClose asChild>
             <Button type="button" variant="secondary">
               Close
