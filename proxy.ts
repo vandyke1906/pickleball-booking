@@ -17,6 +17,12 @@ export async function proxy(request: NextRequest) {
   )
     return NextResponse.next()
 
+  // Country restriction (using Vercel header)
+  const country = request.headers.get("x-vercel-ip-country")
+  if (country !== "PH") {
+    return NextResponse.redirect(new URL("/restricted", request.url))
+  }
+
   // If user is logged in and tries to visit /auth/signin → redirect to /admin
   if (token && pathname.startsWith("/auth/signin")) {
     return NextResponse.redirect(new URL("/admin", request.url))

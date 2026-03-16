@@ -37,18 +37,31 @@ export function PaymentQRDialog({
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 
   const openGCash = () => {
-    const gcashUrl = "gcash://" // Just open the app, no params
+    const gcashUrl = "gcash://" // Custom scheme to open the app
 
-    const fallbackUrl = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+    const isAndroid = /Android/i.test(navigator.userAgent)
+
+    const fallbackUrl = isIOS
       ? "https://apps.apple.com/ph/app/gcash/id520020791"
       : "https://play.google.com/store/apps/details?id=com.globe.gcash.android"
 
-    // Try opening GCash
-    window.location.href = gcashUrl
+    // Only attempt on mobile devices
+    if (isIOS || isAndroid) {
+      const now = Date.now()
 
-    setTimeout(() => {
-      window.location.href = fallbackUrl
-    }, 1500)
+      // Try opening GCash
+      window.location.href = gcashUrl
+
+      // If app not installed, redirect to store after ~1.5s
+      setTimeout(() => {
+        if (Date.now() - now < 2000) {
+          window.location.href = fallbackUrl
+        }
+      }, 1500)
+    } else {
+      alert("Please use a mobile device to open GCash.")
+    }
   }
 
   return (
