@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { format, startOfDay } from "date-fns"
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { AvailabilityCourt } from "@/app/(public)/(components)/availability-court"
 import {
   calculateDuration,
@@ -55,6 +55,8 @@ import ShinyText from "@/components/animated/shiny-text"
 import { OrganizationInfo } from "@/app/(public)/(components)/organization-info"
 import { PaymentQRDialog } from "@/app/(public)/(components)/payment-qr-code"
 
+const STORAGE_KEY = "pickl.digos.booking"
+
 const parseLocalDate = (dateString: string) => {
   const [year, month, day] = dateString.split("-").map(Number)
   return new Date(year, month - 1, day) // local midnight
@@ -70,16 +72,21 @@ export default function BookingPage({ slug }: { slug: string }) {
 
   const form = useForm<BookingPayload>({
     resolver: zodResolver(bookingSchema),
-    defaultValues: {
-      date: "",
-      startTime: "",
-      duration: 1,
-      courtIds: [],
-      fullName: "",
-      contactNumber: "",
-      emailAddress: "",
-      proofOfPayment: undefined as any,
-    },
+    defaultValues: (() => {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      return saved
+        ? JSON.parse(saved)
+        : {
+            date: "",
+            startTime: "",
+            duration: 1,
+            courtIds: [],
+            fullName: "",
+            contactNumber: "",
+            emailAddress: "",
+            proofOfPayment: undefined,
+          }
+    })(),
   })
 
   const dateString = form.watch("date")
@@ -190,6 +197,13 @@ export default function BookingPage({ slug }: { slug: string }) {
     })
   }, [courtBookings, date, form])
 
+  useEffect(() => {
+    const subscription = form.watch((values) => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(values))
+    })
+    return () => subscription.unsubscribe()
+  }, [form])
+
   const handleFindBooking = () => {
     const code: string = refCode?.current?.value || ""
     if (!code) return
@@ -262,34 +276,6 @@ export default function BookingPage({ slug }: { slug: string }) {
 
     return basePrice * selectedCourtIds.length
   }, [form.watch("courtIds"), form.watch("duration"), form.watch("startTime"), orgWithCourts])
-
-  // const bookings = courtBookings.flatMap((court) =>
-  //   (court.bookings ?? []).map((booking: any) => {
-  //     const start = toPhilippineTime(new Date(booking.startTime))
-  //     const end = toPhilippineTime(new Date(booking.endTime))
-
-  //     return {
-  //       id: booking.id,
-  //       code: booking.code,
-  //       status: booking.status,
-  //       title: `${booking.fullName ?? ""}`,
-  //       bookedBy: `${booking.fullName ?? ""}`,
-  //       contactNumber: `${booking.contactNumber ?? ""}`,
-  //       emailAddress: `${booking.emailAddress ?? ""}`,
-  //       proofOfPayment: booking.proofOfPaymentLink,
-  //       totalPrice: booking.totalPrice,
-  //       start,
-  //       end: end,
-  //       courts: (booking.courts || []).map((c: any) => ({
-  //         id: c.id,
-  //         name: c.name,
-  //       })),
-  //       resourceId: court.id,
-  //     }
-  //   }),
-  // )
-
-  // console.info({ bookings })
 
   return (
     <>
