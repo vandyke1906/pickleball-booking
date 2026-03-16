@@ -153,7 +153,7 @@ export function OrganizationInfo({ openingHours, pricingRules, courts }: OrgProp
             <ul className="space-y-2 text-gray-200">
               {courts.map((c) => (
                 <li key={c.id}>
-                  <span className="font-medium">{c.name}</span> — {c.location}
+                  <span className="font-medium">{c.name}</span>
                 </li>
               ))}
             </ul>

@@ -501,7 +501,7 @@ export default function BookingPage({ slug }: { slug: string }) {
               </div>
 
               {/* payment show */}
-              {date && startTime && duration && selectedCourtIds.length ? (
+              {canBook ? (
                 <PaymentQRDialog
                   qrImageSrc="/images/logo.png"
                   amount={totalPayment}

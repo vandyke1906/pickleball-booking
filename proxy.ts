@@ -10,6 +10,13 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
+  if (
+    pathname.startsWith("/images") ||
+    pathname.startsWith("/audio") ||
+    pathname.match(/\.(mp3|png|jpg|jpeg|gif|svg|ico|webp)$/)
+  )
+    return NextResponse.next()
+
   // If user is logged in and tries to visit /auth/signin → redirect to /admin
   if (token && pathname.startsWith("/auth/signin")) {
     return NextResponse.redirect(new URL("/admin", request.url))
