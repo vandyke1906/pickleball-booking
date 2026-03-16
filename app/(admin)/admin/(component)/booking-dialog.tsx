@@ -137,7 +137,7 @@ export function BookingDialog({ open, onOpenChange, booking, onClose }: BookingD
                       Please wait...
                     </>
                   ) : (
-                    "Accept"
+                    "Accept Booking"
                   )}
                 </Button>
                 <Button
@@ -155,7 +155,7 @@ export function BookingDialog({ open, onOpenChange, booking, onClose }: BookingD
                       Please wait...
                     </>
                   ) : (
-                    "Reject"
+                    "Reject Booking"
                   )}
                 </Button>
               </>
@@ -177,7 +177,28 @@ export function BookingDialog({ open, onOpenChange, booking, onClose }: BookingD
                     Please wait...
                   </>
                 ) : (
-                  "Delete"
+                  "Delete Booking"
+                )}
+              </Button>
+            )}
+
+            {booking.status === "confirmed" && (
+              <Button
+                variant="destructive"
+                disabled={mutation.isPending}
+                onClick={() => {
+                  setIsDelete(false)
+                  setAcceptBooking(false)
+                  setOpenConfirmDialog(true)
+                }}
+              >
+                {mutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Please wait...
+                  </>
+                ) : (
+                  "Cancel Booking"
                 )}
               </Button>
             )}
