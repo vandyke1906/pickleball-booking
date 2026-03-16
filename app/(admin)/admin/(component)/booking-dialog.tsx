@@ -9,15 +9,15 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { TBookingDetails } from "@/app/(admin)/admin/xxx/page"
 import BadgeStatus, { TStatus } from "@/components/common/badge-status"
 import { formatFloat, formatISODateString } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { useState } from "react"
 import ConfirmationDialog from "@/components/common/confirm-dialog"
 import { CheckCircle2, Loader2, X } from "lucide-react"
-import { useConfirmBooking } from "@/lib/mutations/booking/booking.mutation"
+import { useConfirmBooking, useDeleteBooking } from "@/lib/mutations/booking/booking.mutation"
 import { preventDialogCloseProps } from "@/components/dialog/dialog-helper"
+import { TBookingDetails } from "@/app/(admin)/admin/(component)/dashboard-admin-page"
 
 interface BookingDialogProps {
   open: boolean
@@ -28,9 +28,12 @@ interface BookingDialogProps {
 
 export function BookingDialog({ open, onOpenChange, booking, onClose }: BookingDialogProps) {
   const [openConfirmDialog, setOpenConfirmDialog] = useState(false)
+  const [isDelete, setIsDelete] = useState(false)
   const [acceptBooking, setAcceptBooking] = useState(false)
 
   const mutation = useConfirmBooking()
+  const mutationDelete = useDeleteBooking()
+
   return (
     <>
       <Dialog
@@ -123,6 +126,7 @@ export function BookingDialog({ open, onOpenChange, booking, onClose }: BookingD
                   variant="success"
                   disabled={mutation.isPending}
                   onClick={() => {
+                    setIsDelete(false)
                     setAcceptBooking(true)
                     setOpenConfirmDialog(true)
                   }}
@@ -140,6 +144,7 @@ export function BookingDialog({ open, onOpenChange, booking, onClose }: BookingD
                   variant="destructive"
                   disabled={mutation.isPending}
                   onClick={() => {
+                    setIsDelete(false)
                     setAcceptBooking(false)
                     setOpenConfirmDialog(true)
                   }}
@@ -155,6 +160,27 @@ export function BookingDialog({ open, onOpenChange, booking, onClose }: BookingD
                 </Button>
               </>
             )}
+
+            {booking.status === "cancelled" && (
+              <Button
+                variant="destructive"
+                disabled={mutationDelete.isPending}
+                onClick={() => {
+                  setIsDelete(true)
+                  setAcceptBooking(false)
+                  setOpenConfirmDialog(true)
+                }}
+              >
+                {mutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Please wait...
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -162,30 +188,39 @@ export function BookingDialog({ open, onOpenChange, booking, onClose }: BookingD
       {booking && (
         <ConfirmationDialog
           title="Confirm Booking"
-          variant={acceptBooking ? "confirm" : "delete"}
+          variant={acceptBooking && !isDelete ? "confirm" : "delete"}
           Icon={
-            acceptBooking ? (
+            acceptBooking && !isDelete ? (
               <CheckCircle2 className="text-green-500" size={20} />
             ) : (
               <X className="text-red-500" size={20} />
             )
           }
-          description={`Are you sure you want to ${acceptBooking ? "accept" : "reject"} booking "${booking.code}"?`}
+          description={`Are you sure you want to ${isDelete ? "delete" : acceptBooking ? "accept" : "reject"} booking "${booking.code}"?`}
           open={openConfirmDialog}
           setOpen={setOpenConfirmDialog}
-          isLoading={mutation.isPending}
+          isLoading={mutation.isPending || mutationDelete.isPending}
           onConfirm={async () => {
             const id: string = booking.id
             if (!id) return
-            mutation.mutate(
-              { id, accept: acceptBooking },
-              {
+            if (isDelete) {
+              mutationDelete.mutate(id, {
                 onSuccess: () => {
                   onOpenChange(false)
                   if (onClose) onClose()
                 },
-              },
-            )
+              })
+            } else {
+              mutation.mutate(
+                { id, accept: acceptBooking },
+                {
+                  onSuccess: () => {
+                    onOpenChange(false)
+                    if (onClose) onClose()
+                  },
+                },
+              )
+            }
           }}
         />
       )}

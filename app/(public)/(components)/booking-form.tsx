@@ -62,7 +62,10 @@ const parseLocalDate = (dateString: string) => {
 
 export default function BookingPage({ slug }: { slug: string }) {
   const refCode = useRef<HTMLInputElement>(null)
+  const scheduleRef = useRef<HTMLDivElement>(null)
   const [bookingDetails, setBookingDetails] = useState(null)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+
   const [openNotFoundDialog, setOpenNotFoundDialog] = useState(false)
 
   const form = useForm<BookingPayload>({
@@ -136,42 +139,6 @@ export default function BookingPage({ slug }: { slug: string }) {
     return calculateDuration(selected, orgWithCourts.openingHours)
   }, [form, orgWithCourts, form.getValues("startTime")])
 
-  // const canBook = useMemo(() => {
-  //   if (!courtBookings || !date) return false
-
-  //   const courtIds = form.watch("courtIds")
-  //   const startTime = form.watch("startTime")
-  //   const duration = form.watch("duration")
-
-  //   if (courtIds.length === 0) return false
-
-  //   const proposedStartMin = toMinutes(startTime)
-  //   const proposedEndMin = proposedStartMin + duration * 60
-
-  //   return courtIds.every((courtId) => {
-  //     const currentCourt = courtBookings.find((c) => c.id === courtId)
-  //     const currentBookings = currentCourt?.bookings || []
-
-  //     for (const booking of currentBookings) {
-  //       const bookingStart = formatDateTime(booking.startTime)
-  //       const bookingEnd = formatDateTime(booking.endTime)
-
-  //       const sameDay =
-  //         bookingStart.toLocaleDateString("en-PH") === date.toLocaleDateString("en-PH")
-  //       if (!sameDay) continue
-
-  //       const bookStartMin = bookingStart.getHours() * 60 + bookingStart.getMinutes()
-  //       const bookEndMin = bookingEnd.getHours() * 60 + bookingEnd.getMinutes()
-
-  //       if (proposedStartMin < bookEndMin && proposedEndMin > bookStartMin) {
-  //         return false // overlap found
-  //       }
-  //     }
-
-  //     return true // no overlap for this court
-  //   })
-  // }, [courtBookings, date, form])
-
   const canBook = useMemo(() => {
     if (!courtBookings || !date) return false
 
@@ -242,6 +209,10 @@ export default function BookingPage({ slug }: { slug: string }) {
     })
   }
 
+  const handleFocusSchedule = () => {
+    scheduleRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
   const onSubmit = (values: BookingPayload) => {
     if (!canBook) return
     mutation.mutate(values, {
@@ -292,37 +263,37 @@ export default function BookingPage({ slug }: { slug: string }) {
     return basePrice * selectedCourtIds.length
   }, [form.watch("courtIds"), form.watch("duration"), form.watch("startTime"), orgWithCourts])
 
-  const bookings = courtBookings.flatMap((court) =>
-    (court.bookings ?? []).map((booking: any) => {
-      const start = toPhilippineTime(new Date(booking.startTime))
-      const end = toPhilippineTime(new Date(booking.endTime))
+  // const bookings = courtBookings.flatMap((court) =>
+  //   (court.bookings ?? []).map((booking: any) => {
+  //     const start = toPhilippineTime(new Date(booking.startTime))
+  //     const end = toPhilippineTime(new Date(booking.endTime))
 
-      return {
-        id: booking.id,
-        code: booking.code,
-        status: booking.status,
-        title: `${booking.fullName ?? ""}`,
-        bookedBy: `${booking.fullName ?? ""}`,
-        contactNumber: `${booking.contactNumber ?? ""}`,
-        emailAddress: `${booking.emailAddress ?? ""}`,
-        proofOfPayment: booking.proofOfPaymentLink,
-        totalPrice: booking.totalPrice,
-        start,
-        end: end,
-        courts: (booking.courts || []).map((c: any) => ({
-          id: c.id,
-          name: c.name,
-        })),
-        resourceId: court.id,
-      }
-    }),
-  )
+  //     return {
+  //       id: booking.id,
+  //       code: booking.code,
+  //       status: booking.status,
+  //       title: `${booking.fullName ?? ""}`,
+  //       bookedBy: `${booking.fullName ?? ""}`,
+  //       contactNumber: `${booking.contactNumber ?? ""}`,
+  //       emailAddress: `${booking.emailAddress ?? ""}`,
+  //       proofOfPayment: booking.proofOfPaymentLink,
+  //       totalPrice: booking.totalPrice,
+  //       start,
+  //       end: end,
+  //       courts: (booking.courts || []).map((c: any) => ({
+  //         id: c.id,
+  //         name: c.name,
+  //       })),
+  //       resourceId: court.id,
+  //     }
+  //   }),
+  // )
 
   // console.info({ bookings })
 
   return (
     <>
-      <div className="min-h-screen">
+      <div className="min-h-screen relative">
         {/* Form */}
         <motion.section
           initial={{ y: 20, opacity: 0 }}
@@ -372,6 +343,10 @@ export default function BookingPage({ slug }: { slug: string }) {
               onSubmit={form.handleSubmit(onSubmit)}
               className="bg-white border border-slate-200 rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10 space-y-8"
             >
+              <p className="text-gray-600 mb-2 text-sm">
+                To view schedule, please select a date first.
+              </p>
+
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 {/* Date */}
                 <div className="rounded w-full space-y-2">
@@ -503,10 +478,9 @@ export default function BookingPage({ slug }: { slug: string }) {
               {/* payment show */}
               {canBook ? (
                 <PaymentQRDialog
-                  qrImageSrc="/images/logo.png"
                   amount={totalPayment}
                   currency="PHP"
-                  paymentInstructions="Use GCash to pay for your booking. Thank you"
+                  paymentInstructions="Please screenshot your payment and attach it in the 'Proof of Payment' section for verification. Thank you!"
                   triggerText="Pay Now"
                 />
               ) : null}
@@ -635,18 +609,33 @@ export default function BookingPage({ slug }: { slug: string }) {
           </div>
         </motion.section>
 
-        {/* Availability Table */}
-        {dateString && (
-          <AvailabilityCourt
-            date={date as Date}
-            startTime={startTime}
-            duration={duration}
-            selectedCourtIds={selectedCourtIds}
-            timeSlots={timeSlots}
-            courtWithBookings={courtBookings}
-            isLoading={isLoadingCourtBookings || isLoadingOrgWithCourts}
-          />
+        {Boolean(dateString) && (
+          <motion.button
+            onClick={handleFocusSchedule}
+            className="fixed bottom-6 right-6 bg-primary text-white rounded-full p-4 shadow-lg hover:bg-green-700 transition z-50"
+            initial={{ opacity: 0, scale: 0.8, y: 50 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 50 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            📅
+          </motion.button>
         )}
+
+        {/* Availability Table */}
+        <div ref={scheduleRef} className="mt-10 p-4 border rounded bg-gray-50">
+          {dateString && (
+            <AvailabilityCourt
+              date={date as Date}
+              startTime={startTime}
+              duration={duration}
+              selectedCourtIds={selectedCourtIds}
+              timeSlots={timeSlots}
+              courtWithBookings={courtBookings}
+              isLoading={isLoadingCourtBookings || isLoadingOrgWithCourts}
+            />
+          )}
+        </div>
 
         {orgWithCourts && (
           <OrganizationInfo

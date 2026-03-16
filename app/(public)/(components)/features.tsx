@@ -61,7 +61,7 @@ export function Features() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="relative z-10 w-full max-w-6xl mx-auto text-center"
+        className="relative w-full max-w-6xl mx-auto text-center"
       >
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">

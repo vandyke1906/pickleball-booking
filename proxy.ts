@@ -1,6 +1,7 @@
 import { getToken } from "next-auth/jwt"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import geoip from "geoip-lite"
 
 export async function proxy(request: NextRequest) {
   const token = await getToken({
@@ -16,12 +17,6 @@ export async function proxy(request: NextRequest) {
     pathname.match(/\.(mp3|png|jpg|jpeg|gif|svg|ico|webp)$/)
   )
     return NextResponse.next()
-
-  // Country restriction (using Vercel header)
-  const country = request.headers.get("x-vercel-ip-country")
-  if (country !== "PH") {
-    return NextResponse.redirect(new URL("/restricted", request.url))
-  }
 
   // If user is logged in and tries to visit /auth/signin → redirect to /admin
   if (token && pathname.startsWith("/auth/signin")) {
