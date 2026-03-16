@@ -37,7 +37,8 @@ export function PaymentQRDialog({
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 
   const openGCash = () => {
-    const gcashUrl = `gcash://pay?amount=${amount ?? ""}&currency=${currency}&reference=${reference ?? ""}`
+    const gcashUrl = "gcash://" // Just open the app, no params
+
     const fallbackUrl = /iPhone|iPad|iPod/i.test(navigator.userAgent)
       ? "https://apps.apple.com/ph/app/gcash/id520020791"
       : "https://play.google.com/store/apps/details?id=com.globe.gcash.android"
@@ -45,7 +46,6 @@ export function PaymentQRDialog({
     // Try opening GCash
     window.location.href = gcashUrl
 
-    // Fallback after short delay
     setTimeout(() => {
       window.location.href = fallbackUrl
     }, 1500)
