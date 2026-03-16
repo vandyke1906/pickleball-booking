@@ -17,7 +17,7 @@ export const POST = withRateLimit(
       const { accept } = body
 
       const result = await prisma.booking.update({
-        where: { id, status: "pending" },
+        where: { id, status: { in: ["pending", "confirmed"] } },
         data: {
           status: accept ? "confirmed" : "cancelled",
         },
