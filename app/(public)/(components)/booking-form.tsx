@@ -192,11 +192,20 @@ export default function BookingPage({ slug }: { slug: string }) {
     })
   }, [courtBookings, date, form])
 
-  //load data localstorage
+  // Hydrate from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      form.reset(JSON.parse(saved))
+    const saved = localStorage.getItem(STORAGE_KEY) //Hydrate from localStorage
+    if (saved) form.reset(JSON.parse(saved))
+
+    const subscription = form.watch((values) => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(values))
+    })
+
+    // 3. Cleanup: save one last time before unmount
+    return () => {
+      const currentValues = form.getValues()
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(currentValues))
+      subscription.unsubscribe()
     }
   }, [form])
 
