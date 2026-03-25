@@ -11,6 +11,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { CarouselWrapper } from "@/app/(public)/(components)/payment-carousel"
+import { preventDialogCloseProps } from "@/components/dialog/dialog-helper"
+import { useOpenWalletApp } from "@/lib/hooks/use-open-wallet-app"
 
 interface PaymentQRDialogProps {
   amount?: number
@@ -30,52 +32,57 @@ export function PaymentQRDialog({
   buttonVariant = "default",
   className,
 }: PaymentQRDialogProps) {
+  const { openWalletApp, isRedirecting } = useOpenWalletApp()
   const displayAmount =
     amount != null ? amount.toLocaleString("en-PH", { style: "currency", currency }) : null
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 
-  const openGCash = () => {
-    const gcashUrl = "gcash://" // Custom scheme to open the app
-
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
-    const isAndroid = /Android/i.test(navigator.userAgent)
-
-    const fallbackUrl = isIOS
-      ? "https://apps.apple.com/ph/app/gcash/id520020791"
-      : "https://play.google.com/store/apps/details?id=com.globe.gcash.android"
-
-    // Only attempt on mobile devices
-    if (isIOS || isAndroid) {
-      const now = Date.now()
-
-      // Try opening GCash
-      window.location.href = gcashUrl
-
-      // If app not installed, redirect to store after ~1.5s
-      setTimeout(() => {
-        if (Date.now() - now < 2000) {
-          window.location.href = fallbackUrl
-        }
-      }, 1500)
-    } else {
-      alert("Please use a mobile device to open GCash.")
-    }
-  }
-
   const paymentMethods = [
     {
-      image: "/images/logo.png",
+      image: "/images/payments/gcash-1.jpg",
       description: "GCash Payment",
       children: isMobile && (
-        <Button type="button" variant="default" className="w-full" onClick={openGCash}>
-          Open in GCash
+        <Button
+          type="button"
+          variant="default"
+          className="w-full"
+          disabled={isRedirecting}
+          onClick={() => openWalletApp("gcash")}
+        >
+          {isRedirecting ? "Opening GCash..." : "Open GCash App"}
         </Button>
       ),
     },
     {
-      image: "/images/bank-transfer.png",
-      description: "Bank Transfer",
+      image: "/images/payments/gcash-2.jpg",
+      description: "GCash Payment",
+      children: isMobile && (
+        <Button
+          type="button"
+          variant="default"
+          className="w-full"
+          disabled={isRedirecting}
+          onClick={() => openWalletApp("gcash")}
+        >
+          {isRedirecting ? "Opening GCash..." : "Open GCash App"}
+        </Button>
+      ),
+    },
+    {
+      image: "/images/payments/maya-1.jpg",
+      description: "Maya Payment",
+      children: isMobile && (
+        <Button
+          type="button"
+          variant="default"
+          className="w-full"
+          disabled={isRedirecting}
+          onClick={() => openWalletApp("maya")}
+        >
+          {isRedirecting ? "Opening Maya..." : "Open Maya App"}
+        </Button>
+      ),
     },
   ]
 
@@ -87,7 +94,7 @@ export function PaymentQRDialog({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" {...preventDialogCloseProps}>
         <DialogHeader>
           <DialogTitle>Complete Payment</DialogTitle>
           <DialogDescription>
@@ -95,7 +102,7 @@ export function PaymentQRDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col items-center gap-6 py-4">
+        <div className="flex flex-col items-center gap-6">
           {displayAmount && (
             <div className="text-center">
               <div className="text-sm text-muted-foreground">Amount to Pay</div>
@@ -103,22 +110,7 @@ export function PaymentQRDialog({
             </div>
           )}
 
-          <div className="p-4 border flex flex-col gap-4">
-            {/* <img
-              src={qrImageSrc}
-              alt="Payment QR Code"
-              width={220}
-              height={220}
-              className="object-contain"
-              loading="lazy"
-              decoding="async"
-            />
-
-            {isMobile && (
-              <Button type="button" variant="default" className="w-full" onClick={openGCash}>
-                Open in GCash
-              </Button>
-            )} */}
+          <div className="p-2 w-full flex flex-col gap-4">
             <CarouselWrapper items={paymentMethods} autoPlay interval={2000} />
           </div>
 
