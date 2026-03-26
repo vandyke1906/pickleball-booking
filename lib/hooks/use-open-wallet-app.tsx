@@ -1,52 +1,60 @@
 import { useState } from "react"
+import { toast } from "sonner" // or your toast library
 
 export const useOpenWalletApp = () => {
   const [isRedirecting, setIsRedirecting] = useState(false)
 
-  const openWalletApp = (wallet: "gcash" | "maya") => {
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
-    const isAndroid = /Android/i.test(navigator.userAgent)
+  const openWalletApp = (wallet: "gcash" | "maya" | "bdo") => {
+    const ua = navigator.userAgent
+    const isIOS = /iPhone|iPad|iPod/i.test(ua)
+    const isAndroid = /Android/i.test(ua)
 
     if (!isIOS && !isAndroid) {
-      alert("Please use a mobile device (iOS or Android).")
+      toast.error("Please open this on a mobile device.")
       return
     }
 
     let deepLink = ""
-    let fallbackUrl = ""
-
-    if (wallet === "gcash") {
-      deepLink = isAndroid
-        ? "intent://#Intent;scheme=gcash;package=com.globe.gcash.android;end"
-        : "gcash://"
-
-      fallbackUrl = isIOS
-        ? "https://apps.apple.com/ph/app/gcash/id520020791"
-        : "https://play.google.com/store/apps/details?id=com.globe.gcash.android"
-    } else if (wallet === "maya") {
-      deepLink = isAndroid ? "intent://#Intent;scheme=maya;package=com.paymaya;end" : "maya://"
-
-      fallbackUrl = isIOS
-        ? "https://apps.apple.com/ph/app/maya-savings-loans-cards/id991673877"
-        : "https://play.google.com/store/apps/details?id=com.paymaya"
+    switch (wallet) {
+      case "gcash":
+        deepLink = isAndroid
+          ? "intent://#Intent;scheme=gcash;package=com.globe.gcash.android;end"
+          : "gcash://"
+        break
+      case "maya":
+        deepLink = isAndroid ? "intent://#Intent;scheme=maya;package=com.paymaya;end" : "maya://"
+        break
+      case "bdo":
+        deepLink = isAndroid
+          ? "intent://#Intent;scheme=bdo://;package=ph.com.bdo.retail;end"
+          : "bdopay://"
+        break
     }
 
     setIsRedirecting(true)
-    const startTime = Date.now()
+    const loadingToastId = toast.loading("Opening wallet app…")
+    const start = Date.now()
 
-    // Critical: Try to open the app
-    window.location.href = deepLink
+    if (isIOS) {
+      window.location.href = deepLink
+    } else {
+      window.location.assign(deepLink)
+    }
 
-    // Fallback logic
+    // Check if app opened
     setTimeout(() => {
-      const elapsed = Date.now() - startTime
+      const elapsed = Date.now() - start
 
-      if (elapsed < 2000 && document.visibilityState === "visible") {
-        window.location.href = fallbackUrl
-      } else {
+      if (document.visibilityState === "visible" && elapsed < 2500) {
+        toast.dismiss(loadingToastId)
+        toast.info("App not detected. Please make sure the app is installed.")
         setIsRedirecting(false)
+        return
       }
-    }, 1600)
+
+      toast.dismiss(loadingToastId)
+      setIsRedirecting(false)
+    }, 1800)
   }
 
   return { openWalletApp, isRedirecting }

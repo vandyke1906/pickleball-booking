@@ -40,7 +40,7 @@ export function PaymentQRDialog({
 
   const paymentMethods = [
     {
-      image: "/images/payments/gcash-1.jpg",
+      image: "/images/payments/gcash-1.png",
       description: "GCash Payment",
       children: isMobile && (
         <Button
@@ -55,7 +55,7 @@ export function PaymentQRDialog({
       ),
     },
     {
-      image: "/images/payments/gcash-2.jpg",
+      image: "/images/payments/gcash-2.png",
       description: "GCash Payment",
       children: isMobile && (
         <Button
@@ -70,7 +70,7 @@ export function PaymentQRDialog({
       ),
     },
     {
-      image: "/images/payments/maya-1.jpg",
+      image: "/images/payments/maya-1.png",
       description: "Maya Payment",
       children: isMobile && (
         <Button
@@ -84,6 +84,21 @@ export function PaymentQRDialog({
         </Button>
       ),
     },
+    {
+      image: "/images/payments/bdo-1.png",
+      description: "BDO Payment",
+      children: isMobile && (
+        <Button
+          type="button"
+          variant="default"
+          className="w-full"
+          disabled={isRedirecting}
+          onClick={() => openWalletApp("bdo")}
+        >
+          {isRedirecting ? "Opening BDO..." : "Open BDO App"}
+        </Button>
+      ),
+    },
   ]
 
   return (
@@ -93,16 +108,15 @@ export function PaymentQRDialog({
           {triggerText}
         </Button>
       </DialogTrigger>
+      <DialogContent className="w-[92vw] max-w-sm p-0 sm:p-0 overflow-hidden">
+        <div className="p-5 flex flex-col items-center gap-5">
+          <DialogHeader>
+            <DialogTitle>Complete Payment</DialogTitle>
+            <DialogDescription>
+              Please select any of payment method to pay your booking.
+            </DialogDescription>
+          </DialogHeader>
 
-      <DialogContent className="sm:max-w-md" {...preventDialogCloseProps}>
-        <DialogHeader>
-          <DialogTitle>Complete Payment</DialogTitle>
-          <DialogDescription>
-            Please select any of payment method to pay your booking.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex flex-col items-center gap-6">
           {displayAmount && (
             <div className="text-center">
               <div className="text-sm text-muted-foreground">Amount to Pay</div>
@@ -110,22 +124,22 @@ export function PaymentQRDialog({
             </div>
           )}
 
-          <div className="p-2 w-full flex flex-col gap-4">
-            <CarouselWrapper items={paymentMethods} autoPlay interval={2000} />
+          <div className="w-full max-w-sm mx-auto">
+            <CarouselWrapper items={paymentMethods} autoPlay interval={8000} />
           </div>
 
-          <div className="w-full space-y-3 text-center text-sm">
-            <p className="text-muted-foreground leading-relaxed">{paymentInstructions}</p>
+          <div className="w-full text-center text-sm px-2">
+            <p className="text-muted-foreground">{paymentInstructions}</p>
           </div>
+
+          <DialogFooter className="w-full px-2">
+            <DialogClose asChild>
+              <Button variant="secondary" className="w-full">
+                Close
+              </Button>
+            </DialogClose>
+          </DialogFooter>
         </div>
-
-        <DialogFooter className="sm:justify-center flex flex-col gap-2">
-          <DialogClose asChild>
-            <Button type="button" variant="secondary">
-              Close
-            </Button>
-          </DialogClose>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
