@@ -36,7 +36,7 @@ export const GET = withRateLimit(async (request: Request) => {
           startTime: { gte: r.start },
           endTime: { lte: r.end },
         })),
-        status: { in: ["pending", "confirmed"] },
+        status: { in: ["pending", "confirmed", "reserved"] },
       }
 
       console.info({ dateParam, normalized })
@@ -86,7 +86,7 @@ export const GET = withRateLimit(async (request: Request) => {
               ? {}
               : statusesParam.length
                 ? { status: { in: statusesParam } }
-                : { status: { in: ["pending", "confirmed"] } },
+                : { status: { in: ["pending", "confirmed", "reserved"] } },
           select: {
             id: true,
             code: true,
