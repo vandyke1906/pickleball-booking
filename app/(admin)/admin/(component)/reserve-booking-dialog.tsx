@@ -47,6 +47,7 @@ interface DialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onClose?: () => void
+  onConfirm?: () => void
 }
 
 export function ReserveBookingDialog({
@@ -54,11 +55,8 @@ export function ReserveBookingDialog({
   open,
   onOpenChange,
   onClose,
+  onConfirm,
 }: DialogProps) {
-  const [openConfirmDialog, setOpenConfirmDialog] = useState(false)
-  const [isDelete, setIsDelete] = useState(false)
-  const [acceptBooking, setAcceptBooking] = useState(false)
-
   const form = useForm<AdminBookingPayload>({
     resolver: zodResolver(adminBookingSchema),
     defaultValues: {
@@ -181,8 +179,9 @@ export function ReserveBookingDialog({
   const onSubmit = (values: AdminBookingPayload) => {
     if (!canReserve) return
     mutation.mutate(values, {
-      onSuccess: (data) => {
+      onSuccess: () => {
         form.reset()
+        onConfirm?.()
       },
     })
   }

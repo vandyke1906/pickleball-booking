@@ -236,6 +236,10 @@ export default function DashboardAdminPage() {
           onClose={() => {
             setSelectedBooking(null)
           }}
+          onConfirm={() => {
+            setSelectedBooking(null)
+            setOpenReserveBookingDialog(false)
+          }}
         />
       )}
     </div>
