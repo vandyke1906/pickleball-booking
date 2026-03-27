@@ -183,12 +183,9 @@ export function ReserveBookingDialog({
     mutation.mutate(values, {
       onSuccess: (data) => {
         form.reset()
-        // setBookingDetails(data?.result)
       },
     })
   }
-
-  console.info({ error: form.formState.errors })
 
   return (
     <>
