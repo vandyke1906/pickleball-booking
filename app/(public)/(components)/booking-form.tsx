@@ -34,6 +34,7 @@ import {
   formatToPHMinutes,
   getEndTime,
   normalizeOpeningHoursClient,
+  parseLocalDate,
   toMinutes,
   toPhilippineTime,
 } from "@/lib/utils"
@@ -56,11 +57,6 @@ import { OrganizationInfo } from "@/app/(public)/(components)/organization-info"
 import { PaymentQRDialog } from "@/app/(public)/(components)/payment-qr-code"
 
 const STORAGE_KEY = "pickl.digos.booking"
-
-const parseLocalDate = (dateString: string) => {
-  const [year, month, day] = dateString.split("-").map(Number)
-  return new Date(year, month - 1, day) // local midnight
-}
 
 export default function BookingPage({ slug }: { slug: string }) {
   const refCode = useRef<HTMLInputElement>(null)
@@ -142,11 +138,11 @@ export default function BookingPage({ slug }: { slug: string }) {
   }, [form, orgWithCourts, form.getValues("startTime")])
 
   const canBook = useMemo(() => {
-    if (!courtBookings || !date) return false
-
     const courtIds = form.watch("courtIds")
     const startTime = form.watch("startTime")
     const duration = form.watch("duration")
+
+    if (!courtBookings || !date || !courtIds.length || !startTime || !duration) return false
 
     if (courtIds.length === 0) return false
 
@@ -190,7 +186,7 @@ export default function BookingPage({ slug }: { slug: string }) {
 
       return true // no overlap for this court
     })
-  }, [courtBookings, date, form])
+  }, [courtBookings, date, form, startTime, duration, selectedCourtIds])
 
   // Hydrate from localStorage on mount
   useEffect(() => {

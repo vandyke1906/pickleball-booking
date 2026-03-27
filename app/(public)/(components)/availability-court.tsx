@@ -5,6 +5,7 @@ import { cn, formatDateTime, formatToPHDateString, formatToPHMinutes, toMinutes 
 import { TCourtWithBooking } from "@/lib/hooks/court/court.hook"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useMemo } from "react"
+import { ReadableStatus, TStatus } from "@/components/common/badge-status"
 interface AvailabilityCourtProps {
   date: Date
   startTime: string
@@ -15,7 +16,46 @@ interface AvailabilityCourtProps {
   isLoading: boolean
 }
 
-const isBlockAvailableForCourt = (
+// const isBlockAvailableForCourt = (
+//   court: TCourtWithBooking,
+//   proposedStart: string,
+//   dur: number,
+//   date: Date,
+// ) => {
+//   const [h, m] = proposedStart.split(":").map(Number)
+
+//   // Proposed block in PH minutes
+//   let propStart = h * 60 + m
+//   let propEnd = propStart + dur * 60
+
+//   // If it crosses midnight, extend into next day
+//   if (propEnd >= 24 * 60) {
+//     propEnd += 24 * 60
+//   }
+
+//   return !court.bookings.some((b) => {
+//     const bookingStart = new Date(b.startTime)
+//     const bookingEnd = new Date(b.endTime)
+
+//     const sameOrNextDay =
+//       formatToPHDateString(bookingStart) === formatToPHDateString(date) ||
+//       formatToPHDateString(bookingEnd) === formatToPHDateString(date)
+//     if (!sameOrNextDay) return false
+
+//     let bookStart = formatToPHMinutes(bookingStart)
+//     let bookEnd = formatToPHMinutes(bookingEnd)
+
+//     // Handle overnight booking
+//     if (formatToPHDateString(bookingEnd) !== formatToPHDateString(bookingStart)) {
+//       bookEnd += 24 * 60
+//     }
+
+//     // Overlap check
+//     return propStart < bookEnd && propEnd > bookStart
+//   })
+// }
+
+const courtAvailability = (
   court: TCourtWithBooking,
   proposedStart: string,
   dur: number,
@@ -32,14 +72,16 @@ const isBlockAvailableForCourt = (
     propEnd += 24 * 60
   }
 
-  return !court.bookings.some((b) => {
+  let conflictBooking: (typeof court.bookings)[number] | null = null
+
+  for (const b of court.bookings) {
     const bookingStart = new Date(b.startTime)
     const bookingEnd = new Date(b.endTime)
 
     const sameOrNextDay =
       formatToPHDateString(bookingStart) === formatToPHDateString(date) ||
       formatToPHDateString(bookingEnd) === formatToPHDateString(date)
-    if (!sameOrNextDay) return false
+    if (!sameOrNextDay) continue
 
     let bookStart = formatToPHMinutes(bookingStart)
     let bookEnd = formatToPHMinutes(bookingEnd)
@@ -50,8 +92,20 @@ const isBlockAvailableForCourt = (
     }
 
     // Overlap check
-    return propStart < bookEnd && propEnd > bookStart
-  })
+    if (propStart < bookEnd && propEnd > bookStart) {
+      conflictBooking = b
+      break
+    }
+  }
+  let status = "Available"
+  if (conflictBooking) {
+    if (["pending", "confirmed"].includes(conflictBooking.status)) status = "Booked"
+    else if (conflictBooking.status === "reserved") status = "Reserved"
+  }
+  return {
+    isBooked: !!conflictBooking,
+    status,
+  }
 }
 
 export function AvailabilityCourt({
@@ -158,7 +212,8 @@ function CourtAvailabilityTable({
                 {time.label}
               </td>
               {courtWithBookings.map((court) => {
-                const isAvailable = isBlockAvailableForCourt(court, time.value, duration, date)
+                const courtState = courtAvailability(court, time.value, duration, date)
+                const isAvailable = !courtState.isBooked
                 const isSelected = selectedCourtIds.includes(court.id)
 
                 return (
@@ -178,7 +233,8 @@ function CourtAvailabilityTable({
                           "bg-red-50 border border-red-300 text-red-700",
                       )}
                     >
-                      {isAvailable ? "Available" : "Booked"}
+                      {/* {isAvailable ? "Available" : "Booked"} */}
+                      {courtState.status}
                     </div>
                   </td>
                 )
@@ -261,7 +317,9 @@ function CourtAvailabilityCards({
             {" "}
             {/* tighter spacing between courts */}
             {courtWithBookings.map((court) => {
-              const isAvailable = isBlockAvailableForCourt(court, time.value, duration, date)
+              // const isAvailable = isBlockAvailableForCourt(court, time.value, duration, date)
+              const courtState = courtAvailability(court, time.value, duration, date)
+              const isAvailable = !courtState.isBooked
               const isSelected = selectedCourtIds.includes(court.id)
 
               return (
@@ -280,7 +338,10 @@ function CourtAvailabilityCards({
                   )}
                 >
                   <span className="font-medium truncate">{court.name}</span>
-                  <span>{isAvailable ? "Available" : "Booked"}</span>
+                  <span>
+                    {/* {isAvailable ? "Available" : "Booked"} */}
+                    {courtState.status}
+                  </span>
                 </div>
               )
             })}

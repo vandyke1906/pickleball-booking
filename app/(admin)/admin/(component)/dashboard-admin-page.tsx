@@ -2,8 +2,10 @@
 
 import { BookingDialog } from "@/app/(admin)/admin/(component)/booking-dialog"
 import { CalendarSkeleton } from "@/app/(admin)/admin/(component)/calendar-skeleton"
+import { ReserveBookingDialog } from "@/app/(admin)/admin/(component)/reserve-booking-dialog"
 import BigCalendar from "@/components/big-calendar/big-calendar"
 import BadgeStatus from "@/components/common/badge-status"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCourtBookings, useOrganizationCourts } from "@/lib/hooks/court/court.hook"
 import { useGetBookingByCode } from "@/lib/mutations/booking/booking.mutation"
@@ -36,16 +38,18 @@ export default function DashboardAdminPage() {
 
   const [selectedBooking, setSelectedBooking] = useState<TBookingDetails | null>(null)
   const [openEventDialog, setOpenEventDialog] = useState(false)
+  const [openReserveBookingDialog, setOpenReserveBookingDialog] = useState(false)
 
   const mutationGetBooking = useGetBookingByCode()
   const { data: orgWithCourts, isLoading: isLoadingOrgWithCourts } = useOrganizationCourts({
     slug: session?.user?.organization?.slug || "no_org",
   })
+
   const { data: courtBookings, isLoading: isLoadingCourtBookings } = useCourtBookings({
     enabled: true,
     organizationId: orgWithCourts?.id || "",
     isAll: true,
-    statuses: ["pending", "confirmed"],
+    statuses: ["pending", "confirmed", "reserved"],
   })
 
   const isHourAllowed = useCallback(
@@ -116,6 +120,7 @@ export default function DashboardAdminPage() {
   const getEventClassNames = (event: any) => {
     switch (event.status) {
       case "confirmed":
+      case "reserved":
         return { className: "confirmed" }
       case "pending":
         return { className: "pending" }
@@ -150,7 +155,17 @@ export default function DashboardAdminPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      <header style={{ height: "60px" }}>Booking Calendar</header>
+      <header className="p-2 border-b border-gray-200 flex justify-end">
+        <Button
+          onClick={() => {
+            setSelectedBooking(null)
+            setOpenReserveBookingDialog(true)
+          }}
+          className="md:w-auto w-full"
+        >
+          + Reserve Booking
+        </Button>
+      </header>
       <main style={{ flex: 1 }} className="relative">
         <BigCalendar
           className="rbc-calendar"
@@ -207,6 +222,18 @@ export default function DashboardAdminPage() {
           onOpenChange={setOpenEventDialog}
           onClose={() => {
             removeConfirmationBookingParamCallback()
+            setSelectedBooking(null)
+          }}
+        />
+      )}
+
+      {/* for new booking */}
+      {!selectedBooking && (
+        <ReserveBookingDialog
+          organizationSlug={session?.user?.organization?.slug || ""}
+          open={openReserveBookingDialog}
+          onOpenChange={setOpenReserveBookingDialog}
+          onClose={() => {
             setSelectedBooking(null)
           }}
         />
