@@ -23,6 +23,23 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Pickleball Booking",
   description: "Online Pickleball Booking System",
+  openGraph: {
+    title: "Pickl. Digos",
+    description:
+      "Book your pickleball court easily. Fast, reliable, and hassle-free scheduling for players and enthusiasts.",
+    url: "https://pickleballbook.vercel.app",
+    siteName: "PickleballBooking",
+    images: [
+      {
+        url: "/images/logo.png",
+        width: 1200,
+        height: 630,
+        alt: "Pickl. Digos Logo",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
 }
 
 export default function RootLayout({
