@@ -55,6 +55,7 @@ import { BookingDetailsDialog } from "@/app/(public)/(components)/booking-dialog
 import ShinyText from "@/components/animated/shiny-text"
 import { OrganizationInfo } from "@/app/(public)/(components)/organization-info"
 import { PaymentQRDialog } from "@/app/(public)/(components)/payment-qr-code"
+import { BookingPolicyDialog } from "@/app/(public)/(components)/booking-policy-dialog"
 
 const STORAGE_KEY = "pickl.digos.booking"
 
@@ -65,6 +66,8 @@ export default function BookingPage({ slug }: { slug: string }) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const [openNotFoundDialog, setOpenNotFoundDialog] = useState(false)
+  const [showPolicyDialog, setShowPolicyDialog] = useState(false)
+  const [pendingValues, setPendingValues] = useState<BookingPayload | null>(null)
 
   const form = useForm<BookingPayload>({
     resolver: zodResolver(bookingSchema),
@@ -230,10 +233,25 @@ export default function BookingPage({ slug }: { slug: string }) {
 
   const onSubmit = (values: BookingPayload) => {
     if (!canBook) return
-    mutation.mutate(values, {
+
+    setPendingValues(values)
+    setShowPolicyDialog(true)
+    // mutation.mutate(values, {
+    //   onSuccess: (data) => {
+    //     form.reset()
+    //     setBookingDetails(data?.result)
+    //   },
+    // })
+  }
+
+  const handleConfirmBooking = () => {
+    if (!pendingValues) return
+
+    mutation.mutate(pendingValues, {
       onSuccess: (data) => {
         form.reset()
         setBookingDetails(data?.result)
+        setPendingValues(null)
       },
     })
   }
@@ -481,6 +499,7 @@ export default function BookingPage({ slug }: { slug: string }) {
                   id="fullName"
                   type="text"
                   placeholder="Enter Name"
+                  required
                   {...form.register("fullName")}
                 />
                 {form.formState.errors.fullName && (
@@ -497,6 +516,7 @@ export default function BookingPage({ slug }: { slug: string }) {
                   id="contactNumber"
                   type="text"
                   placeholder="Enter Contact Number"
+                  required
                   {...form.register("contactNumber")}
                 />
                 {form.formState.errors.contactNumber && (
@@ -515,6 +535,7 @@ export default function BookingPage({ slug }: { slug: string }) {
                   id="emailAddress"
                   type="email"
                   placeholder="Enter Email"
+                  required
                   {...form.register("emailAddress")}
                 />
                 {form.formState.errors.emailAddress && (
@@ -639,6 +660,11 @@ export default function BookingPage({ slug }: { slug: string }) {
           onOpenChange={() => setBookingDetails(null)}
         />
       )}
+      <BookingPolicyDialog
+        open={showPolicyDialog}
+        onOpenChange={setShowPolicyDialog}
+        onConfirm={handleConfirmBooking}
+      />
       <DialogNotFound open={openNotFoundDialog} onOpen={setOpenNotFoundDialog} />
     </>
   )

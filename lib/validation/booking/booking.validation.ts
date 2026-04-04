@@ -7,8 +7,8 @@ export const bookingSchema = z.object({
   duration: z.number().min(1).max(16),
   courtIds: z.array(z.string()).min(1, "At least one court must be selected"),
   fullName: z.string().min(2, "Full name is required"),
-  contactNumber: z.string().optional(),
-  emailAddress: z.email().optional().or(z.literal("")).optional(),
+  contactNumber: z.string().min(1, "Contact number is required"),
+  emailAddress: z.email({ message: "Invalid email address" }),
   proofOfPayment: z
     .instanceof(File, { message: "Proof of payment file is required" })
     .refine((file) => file.size <= 5 * 1024 * 1024, {
