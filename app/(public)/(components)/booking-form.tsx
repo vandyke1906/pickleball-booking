@@ -480,16 +480,6 @@ export default function BookingPage({ slug }: { slug: string }) {
                 </div>
               </div>
 
-              {/* payment show */}
-              {canBook ? (
-                <PaymentQRDialog
-                  amount={totalPayment}
-                  currency="PHP"
-                  paymentInstructions="Please screenshot your payment and attach it in the 'Proof of Payment' section for verification. Thank you!"
-                  triggerText="Pay Now"
-                />
-              ) : null}
-
               {/* fullName */}
               <div className="space-y-2">
                 <Label htmlFor="fullName" className="font-semibold text-slate-700">
@@ -604,7 +594,18 @@ export default function BookingPage({ slug }: { slug: string }) {
                   </div>
                 )}
               </div>
+
+              {/* payment show */}
+              {canBook ? (
+                <PaymentQRDialog
+                  buttonVariant="secondary"
+                  amount={totalPayment}
+                  currency="PHP"
+                  triggerText="Show Payment Methods"
+                />
+              ) : null}
             </form>
+
             {/* form booking */}
             <div className="mt-4 text-center text-sm text-slate-500">
               {selectedCourtIds.length > 0 && canBook && (

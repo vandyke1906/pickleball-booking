@@ -18,7 +18,6 @@ interface PaymentQRDialogProps {
   amount?: number
   currency?: string
   reference?: string
-  paymentInstructions?: string
   triggerText?: string
   buttonVariant?: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive"
   className?: string
@@ -27,7 +26,6 @@ interface PaymentQRDialogProps {
 export function PaymentQRDialog({
   amount,
   currency = "PHP",
-  paymentInstructions = "Scan the QR code with your mobile banking or e-wallet app to complete payment.",
   triggerText = "Pay with QR",
   buttonVariant = "default",
   className,
@@ -111,11 +109,31 @@ export function PaymentQRDialog({
       <DialogContent className="w-[92vw] max-w-sm p-0 sm:p-0 overflow-hidden">
         <div className="p-5 flex flex-col items-center gap-5">
           <DialogHeader>
-            <DialogTitle>Complete Payment</DialogTitle>
+            <DialogTitle>Payment Options</DialogTitle>
             <DialogDescription>
-              Please select any of payment method to pay your booking.
+              Please choose a payment method below to proceed with your booking.
+              <br />
+              <br />
+              <strong>Important:</strong> Completing the payment alone does NOT reserve your slot.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="text-sm text-muted-foreground w-full">
+            <ol className="list-decimal pl-5 space-y-1 text-left">
+              <li>Take a screenshot or photo of your payment receipt.</li>
+              <li>
+                Attach it in the <strong>Proof of Payment</strong> section.
+              </li>
+              <li>
+                Click <strong>"Book Now"</strong> to submit your booking.
+              </li>
+            </ol>
+
+            <p className="mt-3 font-medium text-center">
+              Your slot will only be <strong>reserved and confirmed</strong> after completing all
+              steps.
+            </p>
+          </div>
 
           {displayAmount && (
             <div className="text-center">
@@ -126,10 +144,6 @@ export function PaymentQRDialog({
 
           <div className="w-full max-w-sm mx-auto">
             <CarouselWrapper items={paymentMethods} autoPlay interval={8000} />
-          </div>
-
-          <div className="w-full text-center text-sm px-2">
-            <p className="text-muted-foreground">{paymentInstructions}</p>
           </div>
 
           <DialogFooter className="w-full px-2">
