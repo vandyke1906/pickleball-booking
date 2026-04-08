@@ -10,14 +10,15 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { SessionProvider, useSession } from "next-auth/react"
-import { SSEProvider } from "@/lib/providers/server-event-provider"
+// import { SSEProvider } from "@/lib/providers/server-event-provider"
 import { NotificationsProvider } from "@/lib/providers/notification-provider"
 import { Notifications } from "@/app/(admin)/admin/(component)/notifications"
+import { PusherProvider } from "@/lib/providers/pusher-provider"
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      <SSEProvider>
+      <PusherProvider>
         <NotificationsProvider>
           <SidebarProvider>
             <AppSidebar className="relative z-40" />
@@ -46,7 +47,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </SidebarInset>
           </SidebarProvider>
         </NotificationsProvider>
-      </SSEProvider>
+      </PusherProvider>
     </SessionProvider>
   )
 }

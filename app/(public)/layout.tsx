@@ -1,10 +1,11 @@
 "use client"
 import { BokehBackground } from "@/components/animated/background/bokeh-background"
-import { SSEProvider } from "@/lib/providers/server-event-provider"
+import { PusherProvider } from "@/lib/providers/pusher-provider"
+// import { SSEProvider } from "@/lib/providers/server-event-provider"
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
-    <SSEProvider>
+    <PusherProvider>
       <main className="flex-1 overflow-y-auto">
         <div className="p-4">
           <div className="min-h-screen bg-slate-50 relative">
@@ -13,6 +14,6 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           </div>
         </div>
       </main>
-    </SSEProvider>
+    </PusherProvider>
   )
 }

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { makeBookingDate } from "@/lib/utils"
 import { customAlphabet } from "nanoid"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
-import { BroadcastEventTypes } from "@/lib/sse-broadcaster.type"
+import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 
 const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"

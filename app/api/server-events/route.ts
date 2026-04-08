@@ -1,6 +1,6 @@
 import { isServerAuthenticated } from "@/lib/auth/auth.server"
 import { EventSubscribe } from "@/lib/server-event/broadcaster.event"
-import { TBroadcastEvent } from "@/lib/sse-broadcaster.type"
+import { TBroadcastEvent } from "@/lib/event-broadcaster.type"
 import { NextRequest, NextResponse } from "next/server"
 
 export const runtime = "nodejs"
