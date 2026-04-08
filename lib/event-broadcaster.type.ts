@@ -7,6 +7,7 @@ export const BroadcastEventTypes = {
   CHAT_MESSAGE: "chat:message",
   SYSTEM_MAINTENANCE: "system:maintenance",
   BOOKING_CREATED: "booking:created",
+  BOOKING_CANCELLED: "booking:cancelled",
 } as const
 
 export type TEventType = (typeof BroadcastEventTypes)[keyof typeof BroadcastEventTypes]

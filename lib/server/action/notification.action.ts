@@ -3,7 +3,7 @@
 import { isServerAuthenticated } from "@/lib/auth/auth.server"
 import { prisma } from "@/lib/prisma"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
-import { BroadcastEventTypes } from "@/lib/sse-broadcaster.type"
+import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import {
   NotificationData,
   NotificationSchema,

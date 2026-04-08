@@ -4,7 +4,7 @@ import { formatTimeOnly, makeBookingDate } from "@/lib/utils"
 import { put } from "@vercel/blob"
 import { customAlphabet } from "nanoid"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
-import { BroadcastEventTypes } from "@/lib/sse-broadcaster.type"
+import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { formatISO } from "date-fns"
 import {
   sendAdminBookingNotificationEmail,
@@ -248,8 +248,8 @@ export const POST = withRateLimit(async (req: Request) => {
 
     //notification related
     Promise.allSettled([
-      sendBookingConfirmationEmail({ booking }),
-      sendAdminBookingNotificationEmail({ adminEmailAddress: organizationEmail, booking }),
+      // sendBookingConfirmationEmail({ booking }),
+      // sendAdminBookingNotificationEmail({ adminEmailAddress: organizationEmail, booking }),
       createNotificationForOrg(result?.courts?.[0].organizationId, {
         title: "Booking Created",
         message: `Booking ${result.code} was created by ${result.fullName}`,

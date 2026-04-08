@@ -63,6 +63,7 @@ export function useOrganizationCourts({ slug }: { slug: string }) {
   >({
     queryKey: qKeyCourts.organizationCourts(slug),
     queryFn: () => fetcher(url),
+    enabled: typeof slug === "string" && slug.trim().length > 0,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 30, // still 30 minutes is fine
   })

@@ -1,15 +1,15 @@
-import { TEventHandler } from "@/lib/sse-broadcaster.type"
+import { TEventHandler } from "@/lib/event-broadcaster.type"
 
 const listeners = new Map<string, Set<TEventHandler>>()
 
-export function dispatchSSEEvent(type: string, data: any) {
+export function dispatchEvent(type: string, data: any) {
   const handlers = listeners.get(type)
   if (handlers) {
     handlers.forEach((cb) => cb(data))
   }
 }
 
-export function onSSE<T>(type: string, callback: TEventHandler<T>) {
+export function onEvent<T>(type: string, callback: TEventHandler<T>) {
   if (!listeners.has(type)) listeners.set(type, new Set())
   listeners.get(type)!.add(callback as TEventHandler)
 

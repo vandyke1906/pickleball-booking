@@ -4,6 +4,8 @@ import { isServerAuthenticated } from "@/lib/auth/auth.server"
 import { sendClientBookingStatusEmail } from "@/lib/nodemailer/sender/sender.email"
 import { ReadableStatus, TStatus } from "@/components/common/badge-status"
 import { withRateLimit } from "@/lib/server/rate-limiter"
+import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
+import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 
 export const POST = withRateLimit(
   async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
@@ -22,6 +24,13 @@ export const POST = withRateLimit(
           status: accept ? "confirmed" : "cancelled",
         },
         include: { courts: true },
+      })
+
+      
+      //update ui of all clients
+      EventBroadcast({
+        type: BroadcastEventTypes.BOOKING_CANCELLED,
+        data: result,
       })
 
       sendClientBookingStatusEmail({

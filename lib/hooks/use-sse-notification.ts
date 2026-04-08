@@ -2,8 +2,8 @@
 
 import { useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { onSSE } from "@/lib/hooks/server-events/sse-event.dispatcher"
-import { BroadcastEventTypes } from "@/lib/sse-broadcaster.type"
+import { onEvent } from "@/lib/hooks/server-events/event.dispatcher"
+import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { notificationKeys } from "@/lib/hooks/notification/notification.hook"
 import type { NotificationData } from "@/lib/validation/notification/notification.validation"
 
@@ -12,7 +12,7 @@ export function useSSENotification(userId?: string) {
   const audioRef = useRef<HTMLAudioElement>(null)
 
   // subscribe once when hook is used
-  onSSE(BroadcastEventTypes.NOTIFICATION, (incoming: NotificationData) => {
+  onEvent(BroadcastEventTypes.NOTIFICATION, (incoming: NotificationData) => {
     if (!userId) return
 
     const key = notificationKeys.todayList(userId ?? "unauthenticated")

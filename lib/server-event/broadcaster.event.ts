@@ -1,6 +1,7 @@
 import { redisPublisher, redisSubscriber, SubscriberStore } from "@/lib/redis/redis"
-import { TBroadcastEvent } from "@/lib/sse-broadcaster.type"
+import { TBroadcastEvent } from "@/lib/event-broadcaster.type"
 import { randomUUID } from "crypto"
+import { pusher } from "@/lib/pusher"
 
 export async function EventBroadcast<T>(event: TBroadcastEvent<T>): Promise<void> {
   const safeEvent: TBroadcastEvent<T> = {
@@ -10,13 +11,15 @@ export async function EventBroadcast<T>(event: TBroadcastEvent<T>): Promise<void
   }
 
   const count = await SubscriberStore.count()
-  console.info(
-    `[SSE] broadcast → ${safeEvent.type} (id: ${safeEvent.id}) | subs: ${count} | pid: ${process.pid}`,
-  )
+  console.info( `[Broadcast] → ${safeEvent.type} (id: ${safeEvent.id}) | subs: ${count} | pid: ${process.pid}`, )
 
-  if (count === 0) console.warn("[SSE] No active subscribers – event dropped")
+
+  if (count === 0) console.warn("[Event] No active subscribers – event dropped")
 
   await redisPublisher.publish("events", JSON.stringify(safeEvent))
+  // Also push to Pusher channel
+  await pusher.trigger("booking-channel", safeEvent.type, safeEvent.data)
+
 }
 
 export async function EventSubscribe(
