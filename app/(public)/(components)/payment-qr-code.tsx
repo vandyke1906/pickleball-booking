@@ -52,21 +52,21 @@ export function PaymentQRDialog({
         </Button>
       ),
     },
-    {
-      image: "/images/payments/gcash-2.png",
-      description: "GCash Payment",
-      children: isMobile && (
-        <Button
-          type="button"
-          variant="default"
-          className="w-full"
-          disabled={isRedirecting}
-          onClick={() => openWalletApp("gcash")}
-        >
-          {isRedirecting ? "Opening GCash..." : "Open GCash App"}
-        </Button>
-      ),
-    },
+    // {
+    //   image: "/images/payments/gcash-2.png",
+    //   description: "GCash Payment",
+    //   children: isMobile && (
+    //     <Button
+    //       type="button"
+    //       variant="default"
+    //       className="w-full"
+    //       disabled={isRedirecting}
+    //       onClick={() => openWalletApp("gcash")}
+    //     >
+    //       {isRedirecting ? "Opening GCash..." : "Open GCash App"}
+    //     </Button>
+    //   ),
+    // },
     {
       image: "/images/payments/maya-1.png",
       description: "Maya Payment",
