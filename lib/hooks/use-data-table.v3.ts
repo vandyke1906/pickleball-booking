@@ -117,7 +117,7 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     perPageKey,
     parseAsInteger
       .withOptions(queryStateOptions)
-      .withDefault(initialState?.pagination?.pageSize ?? 10),
+      .withDefault(initialState?.pagination?.pageSize ?? 50), //TODO get default page size from env or config
   )
   //TODO set table pagination
 

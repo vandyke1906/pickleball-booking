@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export const DEFAULT_PER_PAGE = process.env.DEFAULT_PER_PAGE || "100"
+export const DEFAULT_PER_PAGE = process.env.DEFAULT_PER_PAGE || "50"
 
 export const DEFAULT_TIMEZONE = "Asia/Manila"
 export const locales = { "en-PH": enUS }
