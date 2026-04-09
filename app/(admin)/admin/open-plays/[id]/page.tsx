@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { useOpenPlay } from "@/lib/hooks/open-play/open-play.hook"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -25,7 +25,14 @@ import {
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Label } from "@/components/ui/label"
-import { useCreateOpenPlayPlayer } from "@/lib/mutations/open-play/open-play.mutation"
+import {
+  useCreateOpenPlayPlayer,
+  useDeleteOpenPlayPlayer,
+  useUpdateOpenPlayPlayer,
+} from "@/lib/mutations/open-play/open-play.mutation"
+import ConfirmationDialog from "@/components/common/confirm-dialog"
+import { X } from "lucide-react"
+import { preventDialogCloseProps } from "@/components/dialog/dialog-helper"
 
 export default function OpenPlayPage() {
   const params = useParams()
@@ -35,8 +42,14 @@ export default function OpenPlayPage() {
   const { data: openPlay, isLoading, isError, error } = useOpenPlay(id)
 
   const [openPlayerFormDialog, setOpenPlayerFormDialog] = useState(false)
+  const [editingPlayer, setEditingPlayer] = useState<any>(null)
+  const [confirmDeleteDialogOpen, setConfirmDeleteDialogOpen] = useState(false)
+  const [playerToDelete, setPlayerToDelete] = useState<any>(null)
 
-  const mutation = useCreateOpenPlayPlayer()
+  const createMutation = useCreateOpenPlayPlayer()
+  const updateMutation = useUpdateOpenPlayPlayer()
+  const deleteMutation = useDeleteOpenPlayPlayer()
+
   const form = useForm<OpenPlayPlayerPayload>({
     resolver: zodResolver(openPlayPlayerSchema),
     defaultValues: {
@@ -44,8 +57,17 @@ export default function OpenPlayPage() {
       playerName: "",
       contactNumber: "",
       emailAddress: "",
+      code: "",
     },
   })
+
+  // Reset form whenever dialog closes or editingPlayer changes
+  useEffect(() => {
+    if (!openPlayerFormDialog) {
+      setEditingPlayer(null)
+      form.reset({ openPlayId: id })
+    }
+  }, [openPlayerFormDialog, id])
 
   if (isLoading) {
     return <div className="p-6 text-muted-foreground">Loading open play...</div>
@@ -60,12 +82,49 @@ export default function OpenPlayPage() {
   }
 
   const onSubmit = (values: OpenPlayPlayerPayload) => {
-    mutation.mutate(values, {
-      onSuccess: () => {
-        setOpenPlayerFormDialog(false)
-        form.reset({ openPlayId: id })
+    if (editingPlayer) {
+      updateMutation.mutate(
+        { id: editingPlayer.id, payload: values },
+        {
+          onSuccess: () => {
+            setOpenPlayerFormDialog(false)
+            form.reset({ openPlayId: id })
+            setEditingPlayer(null)
+          },
+        },
+      )
+    } else {
+      createMutation.mutate(values, {
+        onSuccess: () => {
+          setOpenPlayerFormDialog(false)
+          form.reset({ openPlayId: id })
+        },
+      })
+    }
+  }
+
+  const onEditPlayer = (player: any) => {
+    setEditingPlayer(player)
+    form.reset({ ...player, openPlayId: id })
+    setOpenPlayerFormDialog(true)
+  }
+
+  const onDeletePlayer = (player: any) => {
+    setPlayerToDelete(player)
+    setConfirmDeleteDialogOpen(true)
+  }
+
+  const handleDeletePlayer = () => {
+    if (!playerToDelete.id) return
+    deleteMutation.mutate(
+      { id: playerToDelete.id, openPlayId: id },
+      {
+        onSuccess: () => {
+          setConfirmDeleteDialogOpen(false)
+          setPlayerToDelete(null)
+        },
       },
-    })
+    )
   }
 
   return (
@@ -84,12 +143,22 @@ export default function OpenPlayPage() {
                 <Button size="sm">+ Register Player</Button>
               </DialogTrigger>
 
-              <DialogContent className="w-full sm:max-w-md">
-                <form onSubmit={form.handleSubmit(onSubmit)}>
-                  <fieldset disabled={mutation.isPending} className="space-y-6">
+              <DialogContent className="w-full sm:max-w-md" {...preventDialogCloseProps}>
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  key={editingPlayer?.id || "new-player"}
+                >
+                  <fieldset
+                    disabled={createMutation.isPending || updateMutation.isPending}
+                    className="space-y-6"
+                  >
                     <DialogHeader>
-                      <DialogTitle>Register Player</DialogTitle>
-                      <DialogDescription>Add a player to this open play session.</DialogDescription>
+                      <DialogTitle>{editingPlayer ? "Edit Player" : "Register Player"}</DialogTitle>
+                      <DialogDescription>
+                        {editingPlayer
+                          ? "Update player details for this open play session."
+                          : "Add a player to this open play session."}
+                      </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4">
@@ -158,8 +227,15 @@ export default function OpenPlayPage() {
                     </div>
 
                     <DialogFooter>
-                      <Button type="submit" disabled={mutation.isPending}>
-                        {mutation.isPending ? "Submitting..." : "Register Player"}
+                      <Button
+                        type="submit"
+                        disabled={createMutation.isPending || updateMutation.isPending}
+                      >
+                        {createMutation.isPending || updateMutation.isPending
+                          ? "Submitting..."
+                          : editingPlayer
+                            ? "Update Player"
+                            : "Register Player"}
                       </Button>
                     </DialogFooter>
                   </fieldset>
@@ -225,6 +301,18 @@ export default function OpenPlayPage() {
                     <div className="text-sm text-muted-foreground">
                       {player.contactNumber || "N/A"}
                     </div>
+                    <div className="flex gap-2">
+                      <Button size="xs" variant="outline" onClick={() => onEditPlayer(player)}>
+                        Edit
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="destructive"
+                        onClick={() => onDeletePlayer(player)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -234,6 +322,20 @@ export default function OpenPlayPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Confirmation Dialog */}
+      {playerToDelete && (
+        <ConfirmationDialog
+          title="Confirm Delete"
+          variant="delete"
+          Icon={<X className="text-red-500" size={20} />}
+          description={`Are you sure you want to delete player "${playerToDelete.playerName}"?`}
+          open={confirmDeleteDialogOpen}
+          setOpen={setConfirmDeleteDialogOpen}
+          isLoading={deleteMutation.isPending}
+          onConfirm={handleDeletePlayer}
+        />
+      )}
     </div>
   )
 }

@@ -8,6 +8,7 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
+// API functions
 async function createOpenPlay(payload: OpenPlayPayload) {
   const parsed = openPlaySchema.parse(payload)
 
@@ -31,7 +32,7 @@ async function createOpenPlay(payload: OpenPlayPayload) {
   return response.json()
 }
 
-export async function createOpenPlayPlayer(payload: OpenPlayPlayerPayload) {
+async function createOpenPlayPlayer(payload: OpenPlayPlayerPayload) {
   const parsed = openPlayPlayerSchema.parse(payload)
   const formData = new FormData()
   formData.append("openPlayId", parsed.openPlayId)
@@ -61,6 +62,35 @@ export async function createOpenPlayPlayer(payload: OpenPlayPlayerPayload) {
     throw new Error("Unexpected error registering player")
   }
 }
+
+async function updateOpenPlayPlayer(id: string, payload: Partial<OpenPlayPlayerPayload>) {
+  const formData = new FormData()
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) formData.append(key, String(value))
+  })
+
+  const res = await fetch(`/api/open-plays/players/${id}`, {
+    method: "PUT",
+    body: formData,
+  })
+
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error?.error || "Update failed")
+  }
+
+  return res.json()
+}
+
+async function deleteOpenPlayPlayer(id: string) {
+  const res = await fetch(`/api/open-plays/players/${id}`, { method: "DELETE" })
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error?.error || "Delete failed")
+  }
+  return res.json()
+}
+// endOf API functions
 
 export function useCreateOpenPlay() {
   const queryClient = useQueryClient()
@@ -157,6 +187,86 @@ export function useCreateOpenPlayPlayer() {
     },
 
     onSettled: (_data, _error) => {
+      queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
+    },
+
+    retry: 1,
+  })
+}
+
+export function useUpdateOpenPlayPlayer() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<OpenPlayPlayerPayload> }) =>
+      updateOpenPlayPlayer(id, payload),
+
+    onMutate: async ({ id, payload }) => {
+      await queryClient.cancelQueries({ queryKey: ["open-play-player", id] })
+      const previousPlayer = queryClient.getQueryData(["open-play-player", id])
+      if (previousPlayer) {
+        queryClient.setQueryData(["open-play-player", id], {
+          ...previousPlayer,
+          ...payload,
+        })
+      }
+
+      return { previousPlayer }
+    },
+
+    onError: (error, { id }, context) => {
+      if (context?.previousPlayer) {
+        queryClient.setQueryData(["open-play-player", id], context.previousPlayer)
+      }
+      toast.error("Update failed", { description: (error as Error).message })
+    },
+
+    onSuccess: () => {
+      toast.success("Player updated", { description: "Player details updated successfully" })
+    },
+
+    onSettled: (_data, _error) => {
+      queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
+    },
+
+    retry: 1,
+  })
+}
+
+export function useDeleteOpenPlayPlayer() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id }: { id: string; openPlayId: string }) => deleteOpenPlayPlayer(id),
+
+    onMutate: async ({ id, openPlayId }) => {
+      await queryClient.cancelQueries({ queryKey: ["open-play", openPlayId] })
+      const previousOpenPlay = queryClient.getQueryData(["open-play", openPlayId])
+
+      if (previousOpenPlay) {
+        queryClient.setQueryData(["open-play", openPlayId], (old: any) => ({
+          ...old,
+          players: (old.players || []).filter((p: any) => p.id !== id),
+        }))
+      }
+
+      return { previousOpenPlay }
+    },
+
+    onError: (error, { id, openPlayId }, context) => {
+      if (context?.previousOpenPlay) {
+        queryClient.setQueryData(["open-play", openPlayId], context.previousOpenPlay)
+      }
+      toast.error("Delete failed", { description: (error as Error).message })
+    },
+
+    onSuccess: () => {
+      toast.success("Player deleted", {
+        description: "Player has been removed from the open play.",
+      })
+    },
+
+    onSettled: (_data, _error, { openPlayId }) => {
       queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
     },
 
