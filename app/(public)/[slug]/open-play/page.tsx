@@ -6,6 +6,7 @@ import { PlayCircle, Users, Volume2, VolumeX, Megaphone } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { motion, useAnimation } from "framer-motion"
 
 export default function PickleballOpenPlayQueue() {
   // Your real OpenPlay data
@@ -256,8 +257,9 @@ export default function PickleballOpenPlayQueue() {
           </div>
         </div>
 
-        {/* WAITING LINEUP - Minimum 2 players per group */}
-        <div className="w-full lg:w-5/12 flex flex-col">
+        {/* WAITING LINEUP */}
+        <div className="w-full lg:w-5/12 flex flex-col relative">
+          {/* Header */}
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
               <Users className="w-8 h-8 text-emerald-400" />
@@ -271,7 +273,9 @@ export default function PickleballOpenPlayQueue() {
             </Badge>
           </div>
 
+          {/* Main List */}
           <div className="flex-1 bg-zinc-900/80 rounded-3xl border border-emerald-500/30 overflow-hidden flex flex-col backdrop-blur-sm">
+            {/* Table Header */}
             <div className="hidden lg:grid grid-cols-12 bg-zinc-800/80 py-4 px-8 text-sm uppercase tracking-widest text-emerald-300 border-b border-emerald-500/20">
               <div className="col-span-1 text-center">#</div>
               <div className="col-span-3">SCHEDULED</div>
@@ -279,6 +283,7 @@ export default function PickleballOpenPlayQueue() {
               <div className="col-span-3 text-right">COUNTDOWN • COURT</div>
             </div>
 
+            {/* Rows */}
             <div className="flex-1 overflow-auto divide-y divide-emerald-900/50 text-base">
               {queue.map((item) => (
                 <div
@@ -306,7 +311,7 @@ export default function PickleballOpenPlayQueue() {
                     })}
                   </div>
 
-                  <div className="lg:col-span-5 text-xl font-medium text-white truncate">
+                  <div className="lg:col-span-5 text-xl font-medium text-white leading-relaxed break-words pr-4">
                     {item.players.join(", ")}
                   </div>
 
@@ -323,6 +328,9 @@ export default function PickleballOpenPlayQueue() {
                 </div>
               ))}
             </div>
+
+            {/* Footer Carousel */}
+            <FooterCarousel queue={queue} />
           </div>
         </div>
       </div>
@@ -332,6 +340,65 @@ export default function PickleballOpenPlayQueue() {
         Shared {openPlay.transitionMinutes}-minute transition • 2 or 4 players per group • Max 4 per
         court
       </footer>
+    </div>
+  )
+}
+
+const FooterCarousel = ({ queue }: { queue: any[] }) => {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const controls = useAnimation()
+  const [contentWidth, setContentWidth] = useState(0)
+
+  const SPEED = 50 // 50px per second, adjust to your liking
+
+  // Measure width after first render
+  useEffect(() => {
+    if (contentRef.current) {
+      setContentWidth(contentRef.current.offsetWidth)
+    }
+  }, [queue])
+
+  // Trigger animation after width is known
+  useEffect(() => {
+    if (contentWidth === 0) return
+    const containerWidth = containerRef.current?.offsetWidth || 0
+    const totalDistance = contentWidth + containerWidth
+
+    // Duration = distance / speed
+    const duration = totalDistance / SPEED
+
+    controls.start({
+      x: [containerWidth, -contentWidth],
+      transition: { duration, ease: "linear", repeat: Infinity },
+    })
+  }, [contentWidth, controls])
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full h-20 bg-zinc-800/90 border-t border-emerald-500/30 overflow-hidden relative"
+    >
+      <motion.div
+        ref={contentRef}
+        className="absolute whitespace-nowrap flex gap-8 items-center py-3"
+        animate={controls}
+        initial={{ x: 0 }}
+      >
+        {queue.map((item) => (
+          <div
+            key={`footer-${item.id}`}
+            className="flex flex-row items-center bg-emerald-900/30 rounded-xl px-4 py-2 min-w-[250px] space-x-4"
+          >
+            <div className="text-emerald-400 font-bold text-lg min-w-[50px]">G{item.position}</div>
+            <div className="text-white text-sm truncate">{item.players.join(", ")}</div>
+            <div className="text-emerald-300 text-xs min-w-[80px] text-right">
+              {item.scheduledAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} •
+              Court {item.courtNumber || "-"}
+            </div>
+          </div>
+        ))}
+      </motion.div>
     </div>
   )
 }
