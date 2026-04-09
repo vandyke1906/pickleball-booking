@@ -59,6 +59,8 @@ import { BookingPolicyDialog } from "@/app/(public)/(components)/booking-policy-
 
 const STORAGE_KEY = "pickl.digos.booking"
 
+const isUnavaibleBooking = true
+
 export default function BookingPage({ slug }: { slug: string }) {
   const refCode = useRef<HTMLInputElement>(null)
   const scheduleRef = useRef<HTMLDivElement>(null)
@@ -553,35 +555,42 @@ export default function BookingPage({ slug }: { slug: string }) {
 
               {/* Book Now button */}
               <div className="mt-8 flex flex-col items-center gap-3">
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="w-full max-w-md h-14 text-lg font-semibold"
-                  disabled={mutation.isPending || !canBook}
-                >
-                  {mutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Please wait...
-                    </>
-                  ) : canBook ? (
-                    <span className="flex flex-col sm:flex-row items-center sm:justify-center gap-2 sm:gap-1 sm:py-4 text-center">
-                      <span className="text-base sm:text-lg font-medium">
-                        {`Book Now – ${form.watch("courtIds").length} court${
-                          form.watch("courtIds").length !== 1 ? "s" : ""
-                        }`}
+                {isUnavaibleBooking ? (
+                  <Button disabled variant="outline">
+                    <Ban className="mr-2 h-4 w-4" />
+                    Booking Unavailable
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="w-full max-w-md h-14 text-lg font-semibold"
+                    disabled={mutation.isPending || !canBook}
+                  >
+                    {mutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Please wait...
+                      </>
+                    ) : canBook ? (
+                      <span className="flex flex-col sm:flex-row items-center sm:justify-center gap-2 sm:gap-1 sm:py-4 text-center">
+                        <span className="text-base sm:text-lg font-medium">
+                          {`Book Now – ${form.watch("courtIds").length} court${
+                            form.watch("courtIds").length !== 1 ? "s" : ""
+                          }`}
+                        </span>
+                        <span className="font-extrabold text-emerald-300 text-xl sm:text-2xl">
+                          {formatFloat(totalPayment)}
+                        </span>
                       </span>
-                      <span className="font-extrabold text-emerald-300 text-xl sm:text-2xl">
-                        {formatFloat(totalPayment)}
-                      </span>
-                    </span>
-                  ) : (
-                    <>
-                      <Ban className="mr-2 h-5 w-5 animate-pulse" />
-                      Not Allowed to Book
-                    </>
-                  )}
-                </Button>
+                    ) : (
+                      <>
+                        <Ban className="mr-2 h-5 w-5 animate-pulse" />
+                        Not Allowed to Book
+                      </>
+                    )}
+                  </Button>
+                )}
 
                 {form.watch("courtIds").length === 0 && (
                   <p className="text-sm text-slate-500">Select at least one court to continue</p>
