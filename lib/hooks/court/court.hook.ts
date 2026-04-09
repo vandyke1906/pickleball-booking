@@ -1,6 +1,7 @@
 import {
   Organization,
   OrganizationOpeningHour,
+  OrganizationOpenPlayRule,
   OrganizationPricingRule,
 } from "@/.config/prisma/generated/prisma"
 import { fetcher } from "@/lib/hooks/common.hook"
@@ -59,6 +60,7 @@ export function useOrganizationCourts({ slug }: { slug: string }) {
       courts: Array<Court>
       openingHours: OrganizationOpeningHour[]
       pricingRules: OrganizationPricingRule[]
+      openPlayRule: OrganizationOpenPlayRule | null
     }
   >({
     queryKey: qKeyCourts.organizationCourts(slug),

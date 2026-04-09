@@ -36,6 +36,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
           },
           orderBy: { name: "asc" },
         },
+        openPlayRule: true,
       },
     })
 
@@ -60,6 +61,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
         name: court.name,
         location: court.location,
       })),
+      openPlayRule: organization.openPlayRule,
     }
 
     return NextResponse.json(formatted)

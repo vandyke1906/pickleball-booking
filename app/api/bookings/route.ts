@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { NextRequest, NextResponse } from "next/server"
-import { formatTimeOnly, makeBookingDate } from "@/lib/utils"
+import { DEFAULT_PER_PAGE, formatTimeOnly, makeBookingDate } from "@/lib/utils"
 import { put } from "@vercel/blob"
 import { customAlphabet } from "nanoid"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
@@ -26,7 +26,12 @@ export const GET = withRateLimit(async (request: NextRequest) => {
     const { searchParams } = new URL(request.url)
     const dateStr = searchParams.get("date")
     const page = parseInt(searchParams.get("page") || "1", 10)
-    const perPage = parseInt(searchParams.get("perPage") || "10", 10)
+    const perPage =
+      parseInt(
+        searchParams.get("perPage") ??
+          (typeof DEFAULT_PER_PAGE !== "undefined" ? DEFAULT_PER_PAGE.toString() : "100"),
+        10,
+      ) || 100
     const skip = (page - 1) * perPage
 
     let whereClause: any = {}

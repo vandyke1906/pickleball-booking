@@ -13,7 +13,7 @@ model Organization {
 
   openingHours OrganizationOpeningHour[]   
   pricingRules OrganizationPricingRule[]
-  openPlayPricingRule OrganizationOpenPlayPricingRule?
+  openPlayRule OrganizationOpenPlayRule?
   
   courtLimit Int
   courts     Court[]
@@ -50,12 +50,12 @@ model OrganizationPricingRule {
   updatedAt      DateTime     @updatedAt
 }
 
-model OrganizationOpenPlayPricingRule {
+model OrganizationOpenPlayRule {
   id             String       @id @default(cuid())
   organizationId String @unique
   organization   Organization @relation(fields: [organizationId], references: [id])
 
-  openPlayMinutes Int @default(60)
+  transitionMinutes Int @default(60)
   price          Float
 
   createdAt      DateTime     @default(now())

@@ -19,7 +19,7 @@ export default function BookingList() {
 
   // Ensure defaults
   params.set("page", searchParams.get("page") ?? "1")
-  params.set("perPage", searchParams.get("perPage") ?? "10")
+  params.set("perPage", searchParams.get("perPage") ?? "")
 
   const filters = searchParams.get("filters") ? JSON.parse(searchParams.get("filters")!) : undefined
   const sort = searchParams.get("sort") ? JSON.parse(searchParams.get("sort")!) : undefined

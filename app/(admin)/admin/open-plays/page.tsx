@@ -24,7 +24,7 @@ export default function OpenPlaysPage() {
         </div>
       }
     >
-      <OpenPlaysList organizationId={session?.user?.organizationId} />
+      <OpenPlaysList />
     </Suspense>
   )
 }

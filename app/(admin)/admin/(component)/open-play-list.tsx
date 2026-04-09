@@ -2,47 +2,46 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { LandPlot, Plus } from "lucide-react"
+import { HandFist, LandPlot, Plus } from "lucide-react"
 import { DataTableV3 } from "@/components/data-table/data-table.v3"
 import { useSearchParams } from "next/navigation"
 import { TOpenPlayData, useOrganizationOpenPlays } from "@/lib/hooks/open-play/open-play.hook"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import OpenPlayDialog from "@/app/(admin)/admin/(component)/open-play-dialog"
+import { useSession } from "next-auth/react"
+import { formatDateString, formatTimeRange } from "@/lib/utils"
 
-export default function OpenPlaysList({ organizationId }: { organizationId?: string }) {
+export default function OpenPlaysList() {
+  const { data: session } = useSession()
+
+  const organizationId = session?.user?.organizationId
   const searchParams = useSearchParams()
-  const params = new URLSearchParams(searchParams.toString())
 
-  // Ensure defaults
-  params.set("organizationId", organizationId ?? "")
-  params.set("page", searchParams.get("page") ?? "1")
-  params.set("perPage", searchParams.get("perPage") ?? "10")
+  const params = useMemo(
+    () => ({
+      organizationId,
+      page: searchParams.get("page") ?? "1",
+      perPage: searchParams.get("perPage") ?? "",
+      filters: searchParams.get("filters") ?? "",
+      sort: searchParams.get("sort") ?? "",
+    }),
+    [searchParams, organizationId],
+  )
 
-  const filters = searchParams.get("filters") ? JSON.parse(searchParams.get("filters")!) : undefined
-  const sort = searchParams.get("sort") ? JSON.parse(searchParams.get("sort")!) : undefined
-
-  // Build final URL
-  if (filters) params.set("filters", JSON.stringify(filters))
-  else params.delete("filters")
-
-  if (sort) params.set("sort", JSON.stringify(sort))
-  else params.delete("sort")
-
-  const url = `/api/organization/open-plays?${params.toString()}`
-  const { data, isLoading, isError, error } = useOrganizationOpenPlays(url)
-
-  if (isError) return <p>Error: {String(error)}</p>
+  const { data, totalCount, perPage, isLoading, isError, error } = useOrganizationOpenPlays(params)
+  const [openNewOpenPlayDialog, setOpenNewOpenPlayDialog] = useState(false)
 
   const columns = useMemo<ColumnDef<TOpenPlayData>[]>(
     () => [
       {
-        accessorKey: "date",
+        accessorKey: "startTime",
         header: (props) => <DataTableColumnHeader {...props} />,
         cell: ({ row }) => (
           <div className="w-full h-full flex items-center justify-center">
-            <h1 className="font-extrabold text-xl">Date</h1>
+            {formatDateString(row.original.startTime.toLocaleString("default", { month: "short" }))}
           </div>
         ),
         enableColumnFilter: false,
@@ -50,74 +49,81 @@ export default function OpenPlaysList({ organizationId }: { organizationId?: str
           label: "Date",
           variant: "text",
           options: [],
-          exportValue: (row) => "",
-          widthMode: "percent",
-          widthValue: 10,
-        },
-      },
-      {
-        accessorKey: "timings",
-        header: (props) => <DataTableColumnHeader {...props} />,
-        cell: ({ row }) => {
-          return (
-            <div className="w-full h-full flex items-center justify-center">
-              <h1 className="font-extrabold text-xl">Timings</h1>
-            </div>
-          )
-        },
-        enableColumnFilter: false,
-        meta: {
-          label: "Details",
-          variant: "text",
-          options: [],
-          exportValue: (row) => "",
+          exportValue: (row) => {
+            formatDateString(row.startTime.toLocaleString("default", { month: "short" }))
+          },
           widthMode: "autofit",
         },
       },
       {
+        accessorKey: "timings",
+        enableColumnFilter: false,
+        enableSorting: false,
+        header: (props) => <DataTableColumnHeader {...props} />,
+        cell: ({ row }) => {
+          return (
+            <div className="w-full h-full flex items-center justify-center">
+              {formatTimeRange(row.original.startTime, row.original.endTime)}
+            </div>
+          )
+        },
+        meta: {
+          label: "Timings",
+          variant: "text",
+          options: [],
+          exportValue: (row) => formatTimeRange(row.startTime, row.endTime),
+          widthMode: "percent",
+          widthValue: 20,
+        },
+      },
+      {
         accessorKey: "courts",
+        enableColumnFilter: false,
+        enableSorting: false,
         accessorFn: (row) => row.courts.map((c) => c),
         header: (props) => <DataTableColumnHeader {...props} />,
         cell: ({ row }) => {
           return (
             <div className="grid gap-2">
-              {(row.original.courts || []).map((court, index) => (
-                <Badge variant="outline" key={index}>
-                  {court}
+              {(row.original.courts || []).map((court: any) => (
+                <Badge variant="default" key={court.id}>
+                  {court.name}
                 </Badge>
               ))}
             </div>
           )
         },
-        enableColumnFilter: false,
         meta: {
           label: "Courts",
           variant: "multiSelect",
           options: [],
-          exportValue: (row) => row.courts.join(", "),
+          exportValue: (row) => row.courts.map((c: any) => c.name).join(", "),
           widthMode: "percent",
-          widthValue: 10,
+          widthValue: 30,
         },
       },
       {
         accessorKey: "registeredPlayers",
+        enableColumnFilter: false,
+        enableSorting: false,
         accessorFn: (row) => row.courts.map((c) => c),
         header: (props) => <DataTableColumnHeader {...props} />,
         cell: ({ row }) => {
           return <div className="grid gap-2">{(row.original.players || []).length} Players</div>
         },
-        enableColumnFilter: false,
         meta: {
           label: "Registered Players",
           options: [],
           exportValue: (row) => row.players.length.toString(),
           widthMode: "percent",
-          widthValue: 10,
+          widthValue: 8,
         },
       },
     ],
-    [],
+    [data],
   )
+
+  if (isError) return <p>Error: {String(error)}</p>
 
   return (
     <div className="space-y-6">
@@ -125,11 +131,16 @@ export default function OpenPlaysList({ organizationId }: { organizationId?: str
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
-              <LandPlot className="h-6 w-6 text-primary" />
+              <HandFist className="h-6 w-6 text-primary" />
               <h1>Open Plays</h1>
             </div>
 
-            <Button className="w-full sm:w-auto">
+            <Button
+              className="w-full sm:w-auto"
+              onClick={() => {
+                setOpenNewOpenPlayDialog(true)
+              }}
+            >
               <Plus className="h-4 w-4 mr-2" />
               New Open Play
             </Button>
@@ -140,20 +151,22 @@ export default function OpenPlaysList({ organizationId }: { organizationId?: str
             columns={columns}
             isLoading={isLoading}
             features={{
-              searchPlaceholder: "Search Open Plays",
+              searchPlaceholder: "Search Open Plays...",
               showSearch: true,
               showExport: true,
-              showSort: true,
-              showFilter: true,
               showViewOptions: true,
               height: "auto",
             }}
             config={{
-              enableAdvancedFilter: true,
+              manualPagination: true,
+              totalCount: totalCount,
+              pageCount: Math.ceil(totalCount / perPage),
             }}
           />
         </CardContent>
       </Card>
+
+      <OpenPlayDialog open={openNewOpenPlayDialog} onOpenChange={setOpenNewOpenPlayDialog} />
     </div>
   )
 }

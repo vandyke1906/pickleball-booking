@@ -5,12 +5,13 @@ model OpenPlay {
 
   startTime DateTime
   endTime   DateTime
+  transitionMinutes Int @default(60)
+  status OpenPlayStatus @default(pending)
 
   players OpenPlayPlayer[] @relation("OpenPlayPlayers")
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
-
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -54,4 +55,10 @@ enum QueueStatus {
   waiting
   playing
   finished
+}
+enum OpenPlayStatus {
+  pending 
+  active
+  completed
+  cancelled
 }

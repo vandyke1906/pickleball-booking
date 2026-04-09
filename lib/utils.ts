@@ -8,6 +8,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export const DEFAULT_PER_PAGE = process.env.DEFAULT_PER_PAGE || "100"
+
 export const DEFAULT_TIMEZONE = "Asia/Manila"
 export const locales = { "en-PH": enUS }
 
@@ -341,4 +343,21 @@ export function toPhilippineTime(date: Date) {
 export const parseLocalDate = (dateString: string) => {
   const [year, month, day] = dateString.split("-").map(Number)
   return new Date(year, month - 1, day) // local midnight
+}
+
+export function formatTimeRange(startTime?: string | Date, endTime?: string | Date): string {
+  if (!startTime || !endTime) return "-"
+
+  const start = new Date(startTime).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  })
+  const end = new Date(endTime).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  })
+
+  return `${start} – ${end}`
 }
