@@ -9,3 +9,12 @@ export const openPlaySchema = z.object({
   courtIds: z.array(z.string()).min(1, "At least one court must be selected"),
 })
 export type OpenPlayPayload = z.infer<typeof openPlaySchema>
+
+export const openPlayPlayerSchema = z.object({
+  openPlayId: z.string().min(1, "Open Play ID is required"),
+  playerName: z.string().min(2, "Player name must be at least 2 characters").max(100),
+  contactNumber: z.string().min(1, "Contact number is required"),
+  emailAddress: z.email({ message: "Invalid email address" }),
+  code: z.string().min(1, "Player code is required"),
+})
+export type OpenPlayPlayerPayload = z.infer<typeof openPlayPlayerSchema>

@@ -158,10 +158,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose }: DialogPr
         }}
       >
         <DialogContent {...preventDialogCloseProps}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="bg-white border border-slate-200 rounded-2xl shadow-xl p-6 sm:p-8 lg:p-10 space-y-8"
-          >
+          <form onSubmit={form.handleSubmit(onSubmit)}>
             <fieldset disabled={mutation.isPending || isLoadingOrgWithCourts} className="space-y-6">
               <DialogHeader>
                 <DialogTitle>Open Play Form</DialogTitle>

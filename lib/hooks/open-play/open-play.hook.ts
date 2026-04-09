@@ -1,4 +1,4 @@
-import { OpenPlay } from "@/.config/prisma/generated/prisma"
+import { Court, OpenPlay, OpenPlayPlayer } from "@/.config/prisma/generated/prisma"
 import { fetcher } from "@/lib/hooks/common.hook"
 import { TData } from "@/lib/type/util.type"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
@@ -28,7 +28,7 @@ export const qKeyOpenPlays = {
 
 export type TOpenPlayData = OpenPlay & { courts: string[]; players: string[] }
 
-type OpenPlayParams = {
+type OpenPlayListParams = {
   organizationId?: string
   page?: string
   perPage?: string
@@ -36,7 +36,18 @@ type OpenPlayParams = {
   sort?: string
 }
 
-export function useOrganizationOpenPlays(params: OpenPlayParams) {
+export type TOpenPlay = OpenPlay & {
+  formatted: {
+    date: string
+    startTime: string
+    endTime: string
+    timeRange: string
+  }
+  courts: Court[]
+  players: OpenPlayPlayer[]
+}
+
+export function useOrganizationOpenPlays(params: OpenPlayListParams) {
   const query = useQuery<TData<TOpenPlayData>>({
     queryKey: qKeyOpenPlays.list(params),
     queryFn: () => {
@@ -60,6 +71,26 @@ export function useOrganizationOpenPlays(params: OpenPlayParams) {
     page: query.data?.page ?? 1,
     perPage: query.data?.perPage ?? 10,
     totalCount: query.data?.totalCount ?? 0,
+    isLoading: query.isPending,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
+  }
+}
+
+export function useOpenPlay(id: string) {
+  const url = `/api/open-plays/${id}`
+
+  const query = useQuery<TOpenPlay>({
+    queryKey: qKeyOpenPlays.detail(id),
+    queryFn: () => fetcher(url),
+    enabled: typeof id === "string" && id.trim().length > 0,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 30, // still 30 minutes is fine
+  })
+
+  return {
+    data: query.data ?? null,
     isLoading: query.isPending,
     isError: query.isError,
     error: query.error,

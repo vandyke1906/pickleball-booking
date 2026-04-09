@@ -59,21 +59,32 @@ export default function BookingList() {
         header: (props) => <DataTableColumnHeader {...props} />,
         cell: ({ row }) => {
           return (
-            <div>
-              <div className="flex flex-col gap-0.5 py-1 leading-tight font-semibold">
-                <span>{row.original.fullName ?? ""}</span>
+            <div className="space-y-0.5">
+              {/* Name */}
+              <div className="flex flex-col gap-0.5 py-1 leading-tight font-semibold text-lg">
+                <span>{row.original.fullName ?? "N/A"}</span>
               </div>
-              <div className="text-primary font-medium">
-                <span>{row.original.contactNumber}</span> | <span>{row.original.emailAddress}</span>
-              </div>
-              <div className="flex gap-2 text-primary font-medium">
+
+              {/* Contact Info */}
+              {(row.original.contactNumber || row.original.emailAddress) && (
+                <div className="text-primary font-medium text-sm flex flex-wrap gap-1">
+                  {row.original.contactNumber && <span>{row.original.contactNumber}</span>}
+                  {row.original.contactNumber && row.original.emailAddress && <span>|</span>}
+                  {row.original.emailAddress && <span>{row.original.emailAddress}</span>}
+                </div>
+              )}
+
+              {/* Booking Info */}
+              <div className="flex flex-wrap gap-2 text-primary font-medium text-sm">
                 <span>{row.original.bookedDate}</span>
                 <span>
-                  {row.original.startTime} - {row.original.endTime}
+                  {row.original.startTime?.toLocaleString()} -{" "}
+                  {row.original.endTime?.toLocaleString()}
                 </span>
               </div>
 
-              <div className="text-primary font-medium">
+              {/* Total Price */}
+              <div className="text-primary font-medium text-sm">
                 <span className="text-muted-foreground">Total Price: </span>
                 <span>{formatFloat(row.original.totalPrice ?? 0)}</span>
               </div>

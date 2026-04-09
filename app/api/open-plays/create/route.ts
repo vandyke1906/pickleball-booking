@@ -20,9 +20,6 @@ export const POST = withRateLimit(async (req: NextRequest) => {
   console.info("[Open Play] UTC Date Equivalent: ", { start, end })
 
   try {
-    const startHour = parseInt(startTime.split(":")[0], 10)
-    // const endHour = startHour + duration
-
     const result = await prisma.$transaction(async (tx) => {
       const conflicts = await tx.openPlay.findMany({
         where: {

@@ -1,6 +1,6 @@
+import { Booking } from "@/.config/prisma/generated/prisma"
 import { fetcher } from "@/lib/hooks/common.hook"
 import { TData } from "@/lib/type/util.type"
-import { Booking } from "@prisma/client"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 
 export type TBookedData = Booking & { bookedDate: string; courts: string[] }

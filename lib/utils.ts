@@ -211,7 +211,7 @@ export const getDurationString = (startDateStr: string, endDateStr?: string) => 
 export function formatToPHTime(isoString?: string, isDateOnly: boolean = false) {
   if (!isoString) return "—"
   const formatter = new Intl.DateTimeFormat("en-PH", {
-    timeZone: "Asia/Manila",
+    timeZone: DEFAULT_TIMEZONE,
     dateStyle: "medium",
     ...(isDateOnly ? {} : { timeStyle: "short" }),
   })
@@ -219,14 +219,16 @@ export function formatToPHTime(isoString?: string, isDateOnly: boolean = false) 
 }
 export function formatToPHDateString(date: Date) {
   return new Intl.DateTimeFormat("en-PH", {
-    timeZone: "Asia/Manila",
-    dateStyle: "short",
+    timeZone: DEFAULT_TIMEZONE,
+    year: "numeric",
+    month: "long", // "short" | "numeric"
+    day: "2-digit",
   }).format(date)
 }
 
 export function formatToPHMinutes(date: Date) {
   const formatter = new Intl.DateTimeFormat("en-PH", {
-    timeZone: "Asia/Manila",
+    timeZone: DEFAULT_TIMEZONE,
     hour: "numeric",
     minute: "numeric",
     hour12: false,

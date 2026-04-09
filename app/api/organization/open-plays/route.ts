@@ -51,6 +51,7 @@ export const GET = withRateLimit(async (request: Request) => {
         id: true,
         startTime: true,
         endTime: true,
+        status: true,
         courts: true,
         players: true,
       },
@@ -65,7 +66,7 @@ export const GET = withRateLimit(async (request: Request) => {
       totalCount,
       data,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching open plays:", error?.message || error)
     return NextResponse.json({ error: "Failed to fetch open plays" }, { status: 500 })
   }

@@ -4,7 +4,7 @@ import { ColumnDef } from "@tanstack/react-table"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 import { useMemo, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { HandFist, LandPlot, Plus } from "lucide-react"
+import { HandFist, Plus } from "lucide-react"
 import { DataTableV3 } from "@/components/data-table/data-table.v3"
 import { useSearchParams } from "next/navigation"
 import { TOpenPlayData, useOrganizationOpenPlays } from "@/lib/hooks/open-play/open-play.hook"
@@ -13,6 +13,8 @@ import { Button } from "@/components/ui/button"
 import OpenPlayDialog from "@/app/(admin)/admin/(component)/open-play-dialog"
 import { useSession } from "next-auth/react"
 import { formatDateString, formatTimeRange } from "@/lib/utils"
+import Link from "next/link"
+import BadgeStatus from "@/components/common/badge-status"
 
 export default function OpenPlaysList() {
   const { data: session } = useSession()
@@ -41,7 +43,14 @@ export default function OpenPlaysList() {
         header: (props) => <DataTableColumnHeader {...props} />,
         cell: ({ row }) => (
           <div className="w-full h-full flex items-center justify-center">
-            {formatDateString(row.original.startTime.toLocaleString("default", { month: "short" }))}
+            <Link
+              href={`/admin/open-plays/${row.original.id}`}
+              className="font-extrabold text-md text-primary"
+            >
+              {formatDateString(
+                row.original.startTime.toLocaleString("default", { month: "short" }),
+              )}
+            </Link>
           </div>
         ),
         enableColumnFilter: false,
@@ -115,6 +124,23 @@ export default function OpenPlaysList() {
           label: "Registered Players",
           options: [],
           exportValue: (row) => row.players.length.toString(),
+          widthMode: "percent",
+          widthValue: 8,
+        },
+      },
+      {
+        accessorKey: "status",
+        enableColumnFilter: false,
+        enableSorting: false,
+        accessorFn: (row) => row.courts.map((c) => c),
+        header: (props) => <DataTableColumnHeader {...props} />,
+        cell: ({ row }) => {
+          return <BadgeStatus status={row.original.status as any} />
+        },
+        meta: {
+          label: "Status",
+          options: [],
+          exportValue: (row) => row.status,
           widthMode: "percent",
           widthValue: 8,
         },
