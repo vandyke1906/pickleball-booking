@@ -248,8 +248,8 @@ export const POST = withRateLimit(async (req: Request) => {
 
     //notification related
     Promise.allSettled([
-      // sendBookingConfirmationEmail({ booking }),
-      // sendAdminBookingNotificationEmail({ adminEmailAddress: organizationEmail, booking }),
+      sendBookingConfirmationEmail({ booking }),
+      sendAdminBookingNotificationEmail({ adminEmailAddress: organizationEmail, booking }),
       createNotificationForOrg(result?.courts?.[0].organizationId, {
         title: "Booking Created",
         message: `Booking ${result.code} was created by ${result.fullName}`,
