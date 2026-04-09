@@ -1,0 +1,53 @@
+model OpenPlay {
+  id   String @id @default(cuid())
+
+  courts Court[] @relation("OpenPlayCourts")
+
+  startTime DateTime
+  endTime   DateTime
+
+  players OpenPlayPlayer[] @relation("OpenPlayPlayers")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([startTime, endTime])
+}
+
+model OpenPlayPlayer {
+  id        String   @id @default(cuid())
+  openPlay  OpenPlay @relation("OpenPlayPlayers", fields: [openPlayId], references: [id], onDelete: Cascade)
+  openPlayId String
+
+  code String
+  playerName      String
+  contactNumber   String?
+  emailAddress    String?
+  registeredAt    DateTime @default(now())
+  lineupQueues    LineupQueue[]
+
+  @@unique([openPlayId, code])
+}
+
+model LineupQueue {
+  id          String        @id @default(cuid())
+  player      OpenPlayPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  playerId    String
+
+  position    Int           
+  status      QueueStatus @default(waiting)
+  scheduledAt DateTime?     
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([position])
+  @@index([playerId])
+}
+
+enum QueueStatus {
+  waiting
+  playing
+  finished
+}

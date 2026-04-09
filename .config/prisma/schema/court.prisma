@@ -2,8 +2,11 @@ model Court {
   id             String       @id @default(cuid())
   name           String
   location       String
+
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
+
+  openPlays OpenPlay[] @relation("OpenPlayCourts")
 
   bookings Booking[] @relation("BookingCourts")
   createdAt    DateTime @default(now())

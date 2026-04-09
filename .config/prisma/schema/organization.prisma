@@ -10,8 +10,11 @@ model Organization {
   tiktokPage    String?
   instagramPage String?
   youtubePage   String?
+
   openingHours OrganizationOpeningHour[]   
-  pricingRules OrganizationPricingRule[] 
+  pricingRules OrganizationPricingRule[]
+  openPlayPricingRule OrganizationOpenPlayPricingRule?
+  
 
   courtLimit Int
   courts     Court[]
@@ -46,4 +49,17 @@ model OrganizationPricingRule {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 }
+
+model OrganizationOpenPlayPricingRule {
+  id             String       @id @default(cuid())
+  organizationId String @unique
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  openPlayMinutes Int @default(60)
+  price          Float
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
 
