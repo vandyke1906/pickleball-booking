@@ -2,9 +2,9 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { HandFist, Plus } from "lucide-react"
+import { CircleCheckBig, HandFist, Plus } from "lucide-react"
 import { DataTableV3 } from "@/components/data-table/data-table.v3"
 import { useSearchParams } from "next/navigation"
 import { TOpenPlayData, useOrganizationOpenPlays } from "@/lib/hooks/open-play/open-play.hook"
@@ -15,6 +15,8 @@ import { useSession } from "next-auth/react"
 import { formatDateString, formatTimeRange } from "@/lib/utils"
 import Link from "next/link"
 import BadgeStatus from "@/components/common/badge-status"
+import ConfirmationDialog from "@/components/common/confirm-dialog"
+import { useActivateOpenPlay } from "@/lib/mutations/open-play/open-play.mutation"
 
 export default function OpenPlaysList() {
   const { data: session } = useSession()
@@ -34,7 +36,26 @@ export default function OpenPlaysList() {
   )
 
   const { data, totalCount, perPage, isLoading, isError, error } = useOrganizationOpenPlays(params)
+  const activateMutation = useActivateOpenPlay()
+
   const [openNewOpenPlayDialog, setOpenNewOpenPlayDialog] = useState(false)
+  const [confirmActivateOpenPlay, setConfirmActivateOpenPlay] = useState<{
+    open: boolean
+    id: string | null
+  }>({ open: false, id: null })
+
+  const handleActivateConfirm = useCallback(() => {
+    if (confirmActivateOpenPlay.id) {
+      activateMutation.mutate(
+        { id: confirmActivateOpenPlay.id },
+        {
+          onSuccess: () => {
+            setConfirmActivateOpenPlay({ open: false, id: null })
+          },
+        },
+      )
+    }
+  }, [confirmActivateOpenPlay.id])
 
   const columns = useMemo<ColumnDef<TOpenPlayData>[]>(
     () => [
@@ -42,7 +63,7 @@ export default function OpenPlaysList() {
         accessorKey: "startTime",
         header: (props) => <DataTableColumnHeader {...props} />,
         cell: ({ row }) => (
-          <div className="w-full h-full flex items-center justify-center">
+          <div className="w-full h-full flex items-center justify-between gap-2">
             <Link
               href={`/admin/open-plays/${row.original.id}`}
               className="font-extrabold text-md text-primary"
@@ -51,6 +72,16 @@ export default function OpenPlaysList() {
                 row.original.startTime.toLocaleString("default", { month: "short" }),
               )}
             </Link>
+
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => {
+                setConfirmActivateOpenPlay({ open: true, id: row.original.id })
+              }}
+            >
+              Activate
+            </Button>
           </div>
         ),
         enableColumnFilter: false,
@@ -131,7 +162,6 @@ export default function OpenPlaysList() {
       {
         accessorKey: "status",
         enableColumnFilter: false,
-        enableSorting: false,
         accessorFn: (row) => row.courts.map((c) => c),
         header: (props) => <DataTableColumnHeader {...props} />,
         cell: ({ row }) => {
@@ -193,6 +223,17 @@ export default function OpenPlaysList() {
       </Card>
 
       <OpenPlayDialog open={openNewOpenPlayDialog} onOpenChange={setOpenNewOpenPlayDialog} />
+
+      <ConfirmationDialog
+        title="Confirm Activation"
+        variant="default"
+        Icon={<CircleCheckBig className="text-green-500" size={20} />}
+        description="Are you sure you want to activate this Open Play?"
+        open={confirmActivateOpenPlay.open}
+        setOpen={(open) => setConfirmActivateOpenPlay((prev) => ({ ...prev, open }))}
+        isLoading={false}
+        onConfirm={handleActivateConfirm}
+      />
     </div>
   )
 }

@@ -17,6 +17,7 @@ model OpenPlay {
   updatedAt DateTime @updatedAt
 
   @@index([startTime, endTime])
+  @@index([startTime, status])
 }
 
 model OpenPlayPlayer {
@@ -57,8 +58,8 @@ enum QueueStatus {
   finished
 }
 enum OpenPlayStatus {
-  pending 
   active
+  pending 
   completed
   cancelled
 }

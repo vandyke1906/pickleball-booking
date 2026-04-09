@@ -90,6 +90,19 @@ async function deleteOpenPlayPlayer(id: string) {
   }
   return res.json()
 }
+
+async function activateOpenPlay(id: string) {
+  const res = await fetch(`/api/open-plays/${id}/activate`, {
+    method: "POST",
+  })
+
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error?.error || "Activation failed")
+  }
+
+  return res.json()
+}
 // endOf API functions
 
 export function useCreateOpenPlay() {
@@ -267,6 +280,48 @@ export function useDeleteOpenPlayPlayer() {
     },
 
     onSettled: (_data, _error, { openPlayId }) => {
+      queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
+    },
+
+    retry: 1,
+  })
+}
+
+export function useActivateOpenPlay() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) => activateOpenPlay(id),
+
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: ["open-play", id] })
+
+      const previousOpenPlay = queryClient.getQueryData(["open-play", id])
+
+      if (previousOpenPlay) {
+        queryClient.setQueryData(["open-play", id], (old: any) => ({
+          ...old,
+          status: "active",
+        }))
+      }
+
+      return { previousOpenPlay }
+    },
+
+    onError: (error, { id }, context) => {
+      if (context?.previousOpenPlay) {
+        queryClient.setQueryData(["open-play", id], context.previousOpenPlay)
+      }
+      toast.error("Activation failed", { description: (error as Error).message })
+    },
+
+    onSuccess: () => {
+      toast.success("Open Play Activated", {
+        description: "The open play status has been updated to active.",
+      })
+    },
+
+    onSettled: (_data, _error, { id }) => {
       queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
     },
 
