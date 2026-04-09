@@ -1,4 +1,3 @@
-import { useQuery, type UseQueryOptions } from "@tanstack/react-query"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { useDataTable } from "@/lib/hooks/use-data-table.v3"
@@ -10,7 +9,8 @@ import { DataTableViewOptions } from "@/components/data-table/data-table-view-op
 import { Input } from "@/components/ui/input"
 
 import type { DataTableV3Config, DataTableV3Features } from "@/lib/data-table/data-table.v3"
-import { useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useDebouncedCallback } from "@/lib/hooks/use-debounced-callback"
 
 interface DataTableV3Props<TData> {
   data?: TData[]
@@ -94,6 +94,18 @@ export function DataTableV3<TData>({
     clearOnDefault: true,
   })
 
+  const [searchInput, setSearchInput] = useState((table.getState().globalFilter as string) ?? "")
+
+  // debounce table update
+  const debouncedSetGlobalFilter = useDebouncedCallback((value: string) => {
+    table.setGlobalFilter(value)
+    table.setPageIndex(0) // reset to first page
+  }, debounceMs)
+
+  useEffect(() => {
+    setSearchInput((table.getState().globalFilter as string) ?? "")
+  }, [table.getState().globalFilter])
+
   return (
     <DataTable
       table={table}
@@ -105,11 +117,22 @@ export function DataTableV3<TData>({
     >
       <div className="flex items-center justify-between gap-2.5 pb-4">
         {features.showSearch && (
+          // <Input
+          //   type="search"
+          //   placeholder={features.searchPlaceholder}
+          //   value={(table.getState().globalFilter as string) ?? ""}
+          //   onChange={(e) => table.setGlobalFilter(e.target.value)}
+          //   className="h-8 w-[180px] lg:w-[280px]"
+          // />
           <Input
             type="search"
             placeholder={features.searchPlaceholder}
-            value={(table.getState().globalFilter as string) ?? ""}
-            onChange={(e) => table.setGlobalFilter(e.target.value)}
+            value={searchInput}
+            onChange={(e) => {
+              const val = e.target.value
+              setSearchInput(val)
+              debouncedSetGlobalFilter(val) //
+            }}
             className="h-8 w-[180px] lg:w-[280px]"
           />
         )}

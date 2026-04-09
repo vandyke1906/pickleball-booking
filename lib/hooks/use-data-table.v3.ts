@@ -32,7 +32,7 @@ import * as React from "react"
 
 import { useDebouncedCallback } from "@/lib/hooks/use-debounced-callback"
 import { getFiltersStateParser, getSortingStateParser } from "@/lib/parsers"
-import type { ExtendedColumnSort, QueryKeys } from "@/lib/types/data-table/data-table.v3"
+import { ExtendedColumnSort, QueryKeys } from "@/lib/data-table/data-table.v3"
 import { filterFns } from "@/lib/filter-fns"
 
 const SEARCH_KEY = "search"
