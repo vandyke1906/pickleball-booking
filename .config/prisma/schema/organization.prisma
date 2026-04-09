@@ -15,9 +15,9 @@ model Organization {
   pricingRules OrganizationPricingRule[]
   openPlayPricingRule OrganizationOpenPlayPricingRule?
   
-
   courtLimit Int
   courts     Court[]
+  openPlays  OpenPlay[]
   users      User[]
 
   createdAt DateTime @default(now())
