@@ -278,13 +278,12 @@ export function buildDateRanges(
   hours: { startHour: number; endHour: number }[],
 ) {
   return hours.map((h) => {
-    // Build ISO string for start
     const startIso = `${dateParam}T${String(h.startHour).padStart(2, "0")}:00:00`
     const start = toDate(startIso, { timeZone: DEFAULT_TIMEZONE })
 
     // Handle end (possibly next day)
     const endHour = h.endHour % 24
-    const endDate = h.endHour > 24 ? addDays(new Date(dateParam), 1) : new Date(dateParam)
+    const endDate = h.endHour >= 24 ? addDays(new Date(dateParam), 1) : new Date(dateParam)
     const endIso = `${format(endDate, "yyyy-MM-dd")}T${String(endHour).padStart(2, "0")}:00:00`
     const end = toDate(endIso, { timeZone: DEFAULT_TIMEZONE })
 
