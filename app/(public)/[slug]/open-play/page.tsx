@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { motion, useAnimation } from "framer-motion"
 
+const announcementRepeats = 2
+const announcementDelay = 2
+
 export default function PickleballOpenPlayQueue() {
   // Your real OpenPlay data
   const openPlay = {
@@ -135,16 +138,28 @@ export default function PickleballOpenPlayQueue() {
     if (!("speechSynthesis" in window)) return
     window.speechSynthesis.cancel()
 
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.rate = 0.95
-    utterance.pitch = 1.05
-    utterance.volume = 0.9
+    let count = 0
 
-    utterance.onstart = () => setIsSpeaking(true)
-    utterance.onend = () => setIsSpeaking(false)
+    const speakOnce = () => {
+      if (count >= announcementRepeats) return
 
-    speechRef.current = utterance
-    window.speechSynthesis.speak(utterance)
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.rate = 0.95
+      utterance.pitch = 1.05
+      utterance.volume = 0.9
+
+      utterance.onstart = () => setIsSpeaking(true)
+      utterance.onend = () => {
+        setIsSpeaking(false)
+        count++
+        if (count < announcementRepeats) setTimeout(speakOnce, announcementDelay * 1000)
+      }
+
+      speechRef.current = utterance
+      window.speechSynthesis.speak(utterance)
+    }
+
+    speakOnce()
   }
 
   const manualAnnounce = () => {
