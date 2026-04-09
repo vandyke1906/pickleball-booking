@@ -11,9 +11,9 @@ export const GET = withRateLimit(async (request: Request) => {
     const perPage =
       parseInt(
         searchParams.get("perPage") ??
-          (typeof DEFAULT_PER_PAGE !== "undefined" ? DEFAULT_PER_PAGE.toString() : "100"),
+          (typeof DEFAULT_PER_PAGE !== "undefined" ? DEFAULT_PER_PAGE.toString() : "50"),
         10,
-      ) || 100
+      ) || 50
     const skip = (page - 1) * perPage
 
     if (!organizationId) throw new Error("Organization required")

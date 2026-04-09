@@ -33,6 +33,7 @@ import {
 import ConfirmationDialog from "@/components/common/confirm-dialog"
 import { X } from "lucide-react"
 import { preventDialogCloseProps } from "@/components/dialog/dialog-helper"
+import { Loading } from "@/components/animated/loading"
 
 export default function OpenPlayPage() {
   const params = useParams()
@@ -70,7 +71,7 @@ export default function OpenPlayPage() {
   }, [openPlayerFormDialog, id])
 
   if (isLoading) {
-    return <div className="p-6 text-muted-foreground">Loading open play...</div>
+    return <Loading text="Loading Open Play..." className="p-6 min-h-[200px]" />
   }
 
   if (isError) {
