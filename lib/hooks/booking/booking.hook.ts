@@ -1,27 +1,7 @@
 import { fetcher } from "@/lib/hooks/common.hook"
+import { TData } from "@/lib/type/util.type"
 import { Booking } from "@prisma/client"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
-
-type Filter = {
-  id: string
-  value: any[]
-  variant: string
-  operator: string
-  filterId?: string
-}
-
-type Sort = {
-  id: string
-  desc: boolean
-}
-
-interface UseBookingsParams {
-  date?: string
-  page?: number
-  perPage?: number
-  filters?: Filter[]
-  sort?: Sort[]
-}
 
 export type TBookedData = Booking & { bookedDate: string; courts: string[] }
 
@@ -31,12 +11,7 @@ export const qKeyBookings = {
 }
 
 export function useBookings(url: string) {
-  const query = useQuery<{
-    page: number
-    perPage: number
-    totalCount: number
-    data: Array<TBookedData>
-  }>({
+  const query = useQuery<TData<TBookedData>>({
     queryKey: qKeyBookings.list(url),
     queryFn: () => fetcher(url),
     placeholderData: keepPreviousData,

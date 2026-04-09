@@ -1,13 +1,7 @@
 "use client"
 
 import * as React from "react"
-import {
-  CalendarDays,
-  GalleryVerticalEnd,
-  LandPlot,
-  LayoutDashboard,
-  SquareTerminal,
-} from "lucide-react"
+import { CalendarDays, HandFist, LandPlot, LayoutDashboard, SquareTerminal } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -44,6 +38,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: SquareTerminal,
         isActive: true,
         items: [
+          {
+            icon: HandFist,
+            title: "Open Plays",
+            url: "/admin/open-plays",
+          },
           {
             icon: CalendarDays,
             title: "Bookings",
