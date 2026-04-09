@@ -59,7 +59,7 @@ import { BookingPolicyDialog } from "@/app/(public)/(components)/booking-policy-
 
 const STORAGE_KEY = "pickl.digos.booking"
 
-const isUnavaibleBooking = true
+const isBookingEnabled = process.env.NEXT_PUBLIC_BOOKING_ENABLED === "true"
 
 export default function BookingPage({ slug }: { slug: string }) {
   const refCode = useRef<HTMLInputElement>(null)
@@ -555,12 +555,7 @@ export default function BookingPage({ slug }: { slug: string }) {
 
               {/* Book Now button */}
               <div className="mt-8 flex flex-col items-center gap-3">
-                {isUnavaibleBooking ? (
-                  <Button disabled variant="outline">
-                    <Ban className="mr-2 h-4 w-4" />
-                    Booking Unavailable
-                  </Button>
-                ) : (
+                {isBookingEnabled ? (
                   <Button
                     type="submit"
                     size="lg"
@@ -590,6 +585,11 @@ export default function BookingPage({ slug }: { slug: string }) {
                       </>
                     )}
                   </Button>
+                ) : (
+                  <Button disabled variant="outline">
+                    <Ban className="mr-2 h-4 w-4" />
+                    Booking Unavailable Right Now
+                  </Button>
                 )}
 
                 {form.watch("courtIds").length === 0 && (
@@ -605,7 +605,7 @@ export default function BookingPage({ slug }: { slug: string }) {
               </div>
 
               {/* payment show */}
-              {canBook ? (
+              {isBookingEnabled && canBook ? (
                 <PaymentQRDialog
                   buttonVariant="secondary"
                   amount={totalPayment}
