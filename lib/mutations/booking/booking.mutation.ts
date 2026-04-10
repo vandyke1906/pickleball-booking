@@ -46,6 +46,9 @@ async function reserveBooking(payload: AdminBookingPayload) {
   formData.append("startTime", parsed.startTime)
   formData.append("duration", parsed.duration.toString())
   formData.append("courtIds", JSON.stringify(parsed.courtIds))
+  formData.append("fullName", parsed.fullName)
+  formData.append("contactNumber", parsed.contactNumber ?? "")
+  formData.append("emailAddress", parsed.emailAddress ?? "")
 
   const response = await fetch("/api/bookings/reservation", {
     method: "POST",
@@ -136,7 +139,7 @@ export function useConfirmBooking() {
       toast.error("Confirm Booking failed", { description: (error as Error).message })
     },
 
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       const status: TStatus | null = data?.status || null
       if (status) {
         switch (status) {

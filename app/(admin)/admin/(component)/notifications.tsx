@@ -132,9 +132,9 @@ export function Notifications() {
       <>
         <Separator />
         <div className="p-2 flex gap-2">
-          <Button asChild variant="ghost" size="sm" className="flex-1 text-xs">
-            <Link href="/notifications">View all</Link>
-          </Button>
+          {/* <Button asChild variant="ghost" size="sm" className="flex-1 text-xs">
+            <Link href="#">View all</Link>
+          </Button> */}
           <Button
             className="flex items-center text-red-500 hover:text-red-600 text-xs"
             variant="ghost"

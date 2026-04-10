@@ -64,6 +64,9 @@ export function ReserveBookingDialog({
       startTime: "",
       duration: 1,
       courtIds: [],
+      fullName: "",
+      contactNumber: "",
+      emailAddress: "",
     },
   })
 
@@ -204,137 +207,196 @@ export function ReserveBookingDialog({
               <DialogDescription>Create a reserve booking.</DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                {/* Date */}
-                <div className="rounded w-full space-y-2 lg:col-span-2">
-                  <Label className="font-semibold text-slate-700">Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left">
-                        <CalendarDays className="mr-3 h-5 w-5 text-primary" />
-                        {dateString
-                          ? format(parseLocalDate(dateString), "MMMM dd, yyyy")
-                          : "Select date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={dateString ? parseLocalDate(dateString) : undefined}
-                        onSelect={(d) => {
-                          if (d) {
-                            const localDate = startOfDay(d)
-                            form.setValue("date", format(localDate, "yyyy-MM-dd"))
-                          }
-                        }}
-                        disabled={(d) => d < startOfDay(new Date())}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  {form.formState.errors.date && (
-                    <p className="text-sm text-red-600">{form.formState.errors.date.message}</p>
-                  )}
-                </div>
-
-                {/* Start Time */}
-                <div className="rounded w-full space-y-2">
-                  <Label className="font-semibold text-slate-700">Start Time</Label>
-                  <Select
-                    value={form.watch("startTime")}
-                    onValueChange={(v) => form.setValue("startTime", v)}
-                  >
-                    <SelectTrigger className="h-12 w-full">
-                      <Clock className="mr-3 h-5 w-5 text-primary" />
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {timeSlots.map((t) => (
-                        <SelectItem key={t.value} value={t.value}>
-                          {t.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {form.formState.errors.startTime && (
-                    <p className="text-sm text-red-600">
-                      {form.formState.errors.startTime.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* Duration */}
-                <div className="rounded w-full space-y-2">
-                  <Label className="font-semibold text-slate-700">Duration</Label>
-                  <Select
-                    value={form.watch("duration").toString()}
-                    onValueChange={(v) => form.setValue("duration", Number(v))}
-                  >
-                    <SelectTrigger className="h-12 w-full" disabled={!startTime}>
-                      <Clock className="mr-3 h-5 w-5 text-primary" />
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: allowedDuration }, (_, i) => i + 1).map((h) => (
-                        <SelectItem key={h} value={h.toString()}>
-                          {h} hour{h > 1 ? "s" : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {!startTime && (
-                    <p className="text-xs text-slate-500 mt-2">
-                      Please select a start time to enable duration selection.
-                    </p>
-                  )}
-                </div>
-
-                {/* Courts */}
-                <div className="lg:col-span-2 space-y-2">
-                  <Label className="font-semibold text-slate-700">Select Courts</Label>
-                  <p className="text-xs text-muted-foreground">
-                    You can book multiple courts at once by checking more than one option.
-                  </p>
-
-                  <div className="border rounded-md p-4 bg-slate-50/60 max-h-48 overflow-y-auto space-y-3">
-                    {(orgWithCourts?.courts || []).map((court: any) => (
-                      <div key={court.id} className="flex items-center space-x-3">
-                        <Checkbox
-                          disabled={!dateString || !startTime}
-                          id={court.id}
-                          checked={form.watch("courtIds").includes(court.id)}
-                          onCheckedChange={() => {
-                            const current = form.getValues("courtIds")
-                            if (current.includes(court.id)) {
-                              form.setValue(
-                                "courtIds",
-                                current.filter((id) => id !== court.id),
-                              )
-                            } else {
-                              form.setValue("courtIds", [...current, court.id])
+            <div className="max-h-[50vh] overflow-y-auto pr-2">
+              <div className="space-y-4 mt-4">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  {/* Date */}
+                  <div className="rounded w-full space-y-2 lg:col-span-2">
+                    <Label className="font-semibold text-slate-700">Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start text-left">
+                          <CalendarDays className="mr-3 h-5 w-5 text-primary" />
+                          {dateString
+                            ? format(parseLocalDate(dateString), "MMMM dd, yyyy")
+                            : "Select date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={dateString ? parseLocalDate(dateString) : undefined}
+                          onSelect={(d) => {
+                            if (d) {
+                              const localDate = startOfDay(d)
+                              form.setValue("date", format(localDate, "yyyy-MM-dd"))
                             }
                           }}
+                          disabled={(d) => d < startOfDay(new Date())}
                         />
-                        <label htmlFor={court.id} className="text-sm cursor-pointer leading-none">
-                          {court.name}
-                        </label>
-                      </div>
-                    ))}
+                      </PopoverContent>
+                    </Popover>
+                    {form.formState.errors.date && (
+                      <p className="text-sm text-red-600">{form.formState.errors.date.message}</p>
+                    )}
                   </div>
-                  {(!dateString || !startTime) && (
-                    <p className="text-xs text-slate-500 mt-2">
-                      Please select a date and time to enable court selection.
+
+                  {/* Start Time */}
+                  <div className="rounded w-full space-y-2">
+                    <Label className="font-semibold text-slate-700">Start Time</Label>
+                    <Select
+                      value={form.watch("startTime")}
+                      onValueChange={(v) => form.setValue("startTime", v)}
+                    >
+                      <SelectTrigger className="h-12 w-full">
+                        <Clock className="mr-3 h-5 w-5 text-primary" />
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {timeSlots.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>
+                            {t.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {form.formState.errors.startTime && (
+                      <p className="text-sm text-red-600">
+                        {form.formState.errors.startTime.message}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Duration */}
+                  <div className="rounded w-full space-y-2">
+                    <Label className="font-semibold text-slate-700">Duration</Label>
+                    <Select
+                      value={form.watch("duration").toString()}
+                      onValueChange={(v) => form.setValue("duration", Number(v))}
+                    >
+                      <SelectTrigger className="h-12 w-full" disabled={!startTime}>
+                        <Clock className="mr-3 h-5 w-5 text-primary" />
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: allowedDuration }, (_, i) => i + 1).map((h) => (
+                          <SelectItem key={h} value={h.toString()}>
+                            {h} hour{h > 1 ? "s" : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {!startTime && (
+                      <p className="text-xs text-slate-500 mt-2">
+                        Please select a start time to enable duration selection.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Courts */}
+                  <div className="lg:col-span-2 space-y-2">
+                    <Label className="font-semibold text-slate-700">Select Courts</Label>
+                    <p className="text-xs text-muted-foreground">
+                      You can book multiple courts at once by checking more than one option.
                     </p>
-                  )}
-                  {form.formState.errors.courtIds && (
-                    <p className="text-sm text-red-600">{form.formState.errors.courtIds.message}</p>
-                  )}
+
+                    <div className="border rounded-md p-4 bg-slate-50/60 max-h-48 overflow-y-auto space-y-3">
+                      {(orgWithCourts?.courts || []).map((court: any) => (
+                        <div key={court.id} className="flex items-center space-x-3">
+                          <Checkbox
+                            disabled={!dateString || !startTime}
+                            id={court.id}
+                            checked={form.watch("courtIds").includes(court.id)}
+                            onCheckedChange={() => {
+                              const current = form.getValues("courtIds")
+                              if (current.includes(court.id)) {
+                                form.setValue(
+                                  "courtIds",
+                                  current.filter((id) => id !== court.id),
+                                )
+                              } else {
+                                form.setValue("courtIds", [...current, court.id])
+                              }
+                            }}
+                          />
+                          <label htmlFor={court.id} className="text-sm cursor-pointer leading-none">
+                            {court.name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                    {(!dateString || !startTime) && (
+                      <p className="text-xs text-slate-500 mt-2">
+                        Please select a date and time to enable court selection.
+                      </p>
+                    )}
+                    {form.formState.errors.courtIds && (
+                      <p className="text-sm text-red-600">
+                        {form.formState.errors.courtIds.message}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* fullName */}
+                  <div className="lg:col-span-2 space-y-2">
+                    <Label htmlFor="fullName" className="font-semibold text-slate-700">
+                      Full Name
+                    </Label>
+                    <Input
+                      id="fullName"
+                      type="text"
+                      placeholder="Enter Name"
+                      required
+                      {...form.register("fullName")}
+                    />
+                    {form.formState.errors.fullName && (
+                      <p className="text-sm text-red-600">
+                        {form.formState.errors.fullName.message}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* contactNumber */}
+                  <div className="space-y-2">
+                    <Label htmlFor="contactNumber" className="font-semibold text-slate-700">
+                      Contact Number
+                    </Label>
+                    <Input
+                      id="contactNumber"
+                      type="text"
+                      placeholder="Enter Contact Number"
+                      {...form.register("contactNumber")}
+                    />
+                    {form.formState.errors.contactNumber && (
+                      <p className="text-sm text-red-600">
+                        {form.formState.errors.contactNumber.message}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* emailAddress */}
+                  <div className="space-y-2">
+                    <Label htmlFor="emailAddress" className="font-semibold text-slate-700">
+                      Email Address
+                    </Label>
+                    <Input
+                      id="emailAddress"
+                      type="email"
+                      placeholder="Enter Email"
+                      {...form.register("emailAddress")}
+                    />
+                    {form.formState.errors.emailAddress && (
+                      <p className="text-sm text-red-600">
+                        {form.formState.errors.emailAddress.message}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-center mb-4">
+            <div className="flex justify-center my-4">
               {form.watch("courtIds").length === 0 && (
                 <p className="text-sm text-slate-500">Select at least one court to continue</p>
               )}
