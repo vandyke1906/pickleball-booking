@@ -67,7 +67,12 @@ export default function PickleballOpenPlayQueue() {
       position: 3,
       scheduledAt: new Date(Date.now() + 1000 * 60 * 34),
       courtNumber: 1,
-      players: ["Player 13", "Player 14", "Player 15", "Player 16"],
+      players: [
+        "Player 13 Name here",
+        "Player 14 Name here",
+        "Player 15 Name here",
+        "Player 16 Name here",
+      ],
     },
     {
       id: "q4",
@@ -207,7 +212,11 @@ export default function PickleballOpenPlayQueue() {
           <div className="hidden sm:block text-right">
             <div className="text-emerald-300/70 text-sm">CURRENT TIME</div>
             <div className="text-4xl md:text-6xl font-bold tabular-nums text-emerald-400">
-              {currentTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {currentTime.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
             </div>
           </div>
 
@@ -257,12 +266,12 @@ export default function PickleballOpenPlayQueue() {
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col justify-between">
-                  <div className="text-2xl font-medium text-white tracking-wide">
+                  <div className="text-2xl lg:text-5xl font-medium text-white tracking-wide uppercase">
                     {game.players.join(", ")}
                   </div>
                   <div className="mt-8">
                     <div className="text-emerald-300/70 text-base">TIME LEFT</div>
-                    <div className="text-5xl font-bold text-emerald-400 tabular-nums tracking-tighter">
+                    <div className="text-2xl lg:text-7xl font-bold text-emerald-400 tabular-nums tracking-tighter">
                       {getCountdown(game.estimatedEndTime)}
                     </div>
                   </div>
@@ -292,10 +301,9 @@ export default function PickleballOpenPlayQueue() {
           <div className="flex-1 bg-zinc-900/80 rounded-3xl border border-emerald-500/30 overflow-hidden flex flex-col backdrop-blur-sm">
             {/* Table Header */}
             <div className="hidden lg:grid grid-cols-12 bg-zinc-800/80 py-4 px-8 text-sm uppercase tracking-widest text-emerald-300 border-b border-emerald-500/20">
-              <div className="col-span-1 text-center">#</div>
-              <div className="col-span-3">SCHEDULED</div>
-              <div className="col-span-5">PLAYERS (2 or 4)</div>
-              <div className="col-span-3 text-right">COUNTDOWN • COURT</div>
+              <div className="col-span-2">SCHEDULED</div>
+              <div className="col-span-8">PLAYERS (2 or 4)</div>
+              <div className="col-span-2 text-right">COUNTDOWN/COURT</div>
             </div>
 
             {/* Rows */}
@@ -307,35 +315,23 @@ export default function PickleballOpenPlayQueue() {
                     item.position === 1 ? "bg-emerald-500/10" : ""
                   }`}
                 >
-                  <div className="lg:col-span-1 flex justify-center lg:justify-start">
-                    <div
-                      className={`w-10 h-10 rounded-2xl flex items-center justify-center text-3xl font-bold flex-shrink-0 ${
-                        item.position === 1
-                          ? "bg-emerald-500 text-black"
-                          : "bg-emerald-500/10 text-emerald-400"
-                      }`}
-                    >
-                      {item.position}
-                    </div>
-                  </div>
-
-                  <div className="lg:col-span-3 font-bold tabular-nums text-xl text-emerald-100">
+                  <div className="lg:col-span-3 font-bold tabular-nums text-2xl lg:text-2xl text-emerald-100">
                     {item.scheduledAt.toLocaleTimeString([], {
                       hour: "numeric",
                       minute: "2-digit",
                     })}
                   </div>
 
-                  <div className="lg:col-span-5 text-xl font-medium text-white leading-relaxed break-words pr-4">
+                  <div className="lg:col-span-5 text-xl lg:text-3xl font-bold text-white leading-relaxed pr-4 uppercase tracking-wide">
                     {item.players.join(", ")}
                   </div>
 
                   <div className="lg:col-span-3 text-right">
-                    <div className="text-4xl font-bold text-emerald-400 tabular-nums tracking-tighter">
+                    <div className="md:text-xl text-3xl font-bold text-emerald-400 tabular-nums tracking-tighter">
                       {getCountdown(item.scheduledAt)}
                     </div>
                     {item.courtNumber && (
-                      <div className="text-lg text-emerald-300/70 mt-1">
+                      <div className="font-bold text-lg lg:text-2xl uppercase text-emerald-300/70 mt-1">
                         Court {item.courtNumber}
                       </div>
                     )}
@@ -365,7 +361,7 @@ const FooterCarousel = ({ queue }: { queue: any[] }) => {
   const controls = useAnimation()
   const [contentWidth, setContentWidth] = useState(0)
 
-  const SPEED = 50 // 50px per second, adjust to your liking
+  const SPEED = 30 // 50px per second, adjust to your liking
 
   // Measure width after first render
   useEffect(() => {
@@ -406,8 +402,10 @@ const FooterCarousel = ({ queue }: { queue: any[] }) => {
             className="flex flex-row items-center bg-emerald-900/30 rounded-xl px-4 py-2 min-w-[250px] space-x-4"
           >
             <div className="text-emerald-400 font-bold text-lg min-w-[50px]">G{item.position}</div>
-            <div className="text-white text-sm truncate">{item.players.join(", ")}</div>
-            <div className="text-emerald-300 text-xs min-w-[80px] text-right">
+            <div className="text-white text-xl font-bold truncate uppercase tracking-wide">
+              {item.players.join(", ")}
+            </div>
+            <div className="text-emerald-300 text-md min-w-[80px] text-right">
               {item.scheduledAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} •
               Court {item.courtNumber || "-"}
             </div>
