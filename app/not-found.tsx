@@ -4,7 +4,6 @@ import Image from "next/image"
 import { motion } from "framer-motion"
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { BokehBackground } from "@/components/animated/background/bokeh-background"
 
 export default function NotFoundPage() {
   return (
