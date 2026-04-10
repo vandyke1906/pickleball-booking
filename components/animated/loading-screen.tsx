@@ -43,7 +43,7 @@ const dots: Variants = {
   }),
 }
 
-export function LoadingScreen({ message = "Loading..." }: LoadingScreenProps) {
+export function LoadingScreen({ message = "" }: LoadingScreenProps) {
   return (
     <motion.div
       className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-xs"
@@ -57,12 +57,6 @@ export function LoadingScreen({ message = "Loading..." }: LoadingScreenProps) {
         initial="hidden"
         animate="show"
       >
-        {/* Skeleton block */}
-        <motion.div className="space-y-2" variants={item}>
-          <Skeleton className="h-8 w-[250px] bg-muted/50" />
-          <Skeleton className="h-8 w-[200px] bg-muted/50" />
-        </motion.div>
-
         {/* Loader */}
         <motion.div className="flex flex-col items-center justify-center space-y-4" variants={item}>
           <div className="flex space-x-2">

@@ -97,8 +97,14 @@ export default function OpenPlayPage() {
     } else {
       createMutation.mutate(values, {
         onSuccess: () => {
+          form.reset({
+            openPlayId: id,
+            playerName: "",
+            contactNumber: "",
+            emailAddress: "",
+            code: "",
+          })
           setOpenPlayerFormDialog(false)
-          form.reset({ openPlayId: id })
         },
       })
     }

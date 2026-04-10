@@ -17,6 +17,7 @@ import Link from "next/link"
 import BadgeStatus from "@/components/common/badge-status"
 import ConfirmationDialog from "@/components/common/confirm-dialog"
 import { useActivateOpenPlay } from "@/lib/mutations/open-play/open-play.mutation"
+import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
 
 export default function OpenPlaysList() {
   const { data: session } = useSession()
@@ -73,15 +74,12 @@ export default function OpenPlaysList() {
               )}
             </Link>
 
-            <Button
-              size="sm"
-              variant="default"
-              onClick={() => {
-                setConfirmActivateOpenPlay({ open: true, id: row.original.id })
-              }}
-            >
-              Activate
-            </Button>
+            <ActionButtons
+              status={row.original.status}
+              onActivate={() => setConfirmActivateOpenPlay({ open: true, id: row.original.id })}
+              // onCancel={() => setConfirmCancelOpenPlay({ open: true, id: row.original.id })}
+              // onComplete={() => setConfirmCompleteOpenPlay({ open: true, id: row.original.id })}
+            />
           </div>
         ),
         enableColumnFilter: false,
@@ -124,7 +122,7 @@ export default function OpenPlaysList() {
         header: (props) => <DataTableColumnHeader {...props} />,
         cell: ({ row }) => {
           return (
-            <div className="grid gap-2">
+            <div className="flex flex-wrap gap-2">
               {(row.original.courts || []).map((court: any) => (
                 <Badge variant="default" key={court.id}>
                   {court.name}
@@ -228,7 +226,7 @@ export default function OpenPlaysList() {
         title="Confirm Activation"
         variant="default"
         Icon={<CircleCheckBig className="text-green-500" size={20} />}
-        description="Are you sure you want to activate this Open Play?"
+        description="Are you sure you want to activate this Open Play? Any currently active Open Play will be marked as completed."
         open={confirmActivateOpenPlay.open}
         setOpen={(open) => setConfirmActivateOpenPlay((prev) => ({ ...prev, open }))}
         isLoading={false}
@@ -236,4 +234,43 @@ export default function OpenPlaysList() {
       />
     </div>
   )
+}
+
+function ActionButtons({
+  status,
+  onActivate,
+  onCancel,
+  onComplete,
+}: {
+  status: OpenPlayStatus
+  onActivate?: () => void
+  onCancel?: () => void
+  onComplete?: () => void
+}) {
+  if (status === OpenPlayStatus.pending)
+    return (
+      <div className="flex gap-2">
+        <Button size="sm" variant="default" onClick={onActivate}>
+          Activate
+        </Button>
+        <Button size="sm" variant="destructive" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    )
+
+  if (status === OpenPlayStatus.active) {
+    return (
+      <div className="flex gap-2">
+        <Button size="sm" variant="success" onClick={onComplete}>
+          Complete
+        </Button>
+        <Button size="sm" variant="destructive" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    )
+  }
+
+  return null
 }

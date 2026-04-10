@@ -12,11 +12,26 @@ export const POST = withRateLimit(
       const { id } = await params
       if (!id) return NextResponse.json({ success: false, message: "Please provide open play id!" })
 
-      const updatedOpenPlay = await prisma.openPlay.update({
-        where: { id },
-        data: { status: OpenPlayStatus.active },
-      })
+      const updatedOpenPlay = await prisma.$transaction(async (tx) => {
+        // Complete any currently active Open Play
+        await tx.openPlay.updateMany({
+          where: {
+            organizationId: session.user.organizationId,
+            status: OpenPlayStatus.active,
+          },
+          data: {
+            status: OpenPlayStatus.completed,
+          },
+        })
 
+        // Activate the selected Open Play
+        return await tx.openPlay.update({
+          where: { id },
+          data: {
+            status: OpenPlayStatus.active,
+          },
+        })
+      })
       return NextResponse.json({
         success: true,
         message: "Open Play activated successfully",

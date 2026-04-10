@@ -24,6 +24,8 @@ export const qKeyOpenPlays = {
   organizationOpenPlays: (organizationId: string) =>
     [...qKeyOpenPlays.all, "organization", "list", organizationId] as const,
   detail: (id: string) => [...qKeyOpenPlays.all, "detail", id] as const,
+  organizationActive: (organizationId: string) =>
+    [...qKeyOpenPlays.all, "active", organizationId] as const,
 } as const
 
 export type TOpenPlayData = OpenPlay & { courts: string[]; players: string[] }
@@ -85,6 +87,26 @@ export function useOpenPlay(id: string) {
     queryKey: qKeyOpenPlays.detail(id),
     queryFn: () => fetcher(url),
     enabled: typeof id === "string" && id.trim().length > 0,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 30, // still 30 minutes is fine
+  })
+
+  return {
+    data: query.data ?? null,
+    isLoading: query.isPending,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
+  }
+}
+
+export function useOrganizationActiveOpenPlay(organizationId: string) {
+  const url = `/api/open-plays/active/${organizationId}`
+
+  const query = useQuery<TOpenPlay>({
+    queryKey: qKeyOpenPlays.organizationActive(organizationId),
+    queryFn: () => fetcher(url),
+    enabled: typeof organizationId === "string" && organizationId.trim().length > 0,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 30, // still 30 minutes is fine
   })

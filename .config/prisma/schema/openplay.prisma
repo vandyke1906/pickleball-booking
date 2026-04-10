@@ -18,6 +18,7 @@ model OpenPlay {
 
   @@index([startTime, endTime])
   @@index([startTime, status])
+  @@index([organizationId, status])
 }
 
 model OpenPlayPlayer {
