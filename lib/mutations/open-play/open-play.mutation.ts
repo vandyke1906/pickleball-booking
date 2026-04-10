@@ -1,5 +1,7 @@
 import { qKeyOpenPlays } from "@/lib/hooks/open-play/open-play.hook"
 import {
+  OpenPlayLineupPayload,
+  openPlayLineupSchema,
   OpenPlayPayload,
   OpenPlayPlayerPayload,
   openPlayPlayerSchema,
@@ -101,6 +103,22 @@ async function activateOpenPlay(id: string) {
     throw new Error(error?.error || "Activation failed")
   }
 
+  return res.json()
+}
+
+async function submitLineupOpenPlay(payload: OpenPlayLineupPayload) {
+  const parsed = openPlayLineupSchema.parse(payload)
+  const formData = new FormData()
+  formData.append("code", parsed.code ?? "")
+  formData.append("openPlayId", parsed.openPlayId ?? "")
+  const res = await fetch(`/api/open-plays/lineups/submit`, {
+    method: "POST",
+    body: formData,
+  })
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error?.error || "Submission failed")
+  }
   return res.json()
 }
 // endOf API functions
@@ -322,6 +340,48 @@ export function useActivateOpenPlay() {
     },
 
     onSettled: (_data, _error, { id }) => {
+      queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
+    },
+
+    retry: 1,
+  })
+}
+
+export function useSubmitLineupOpenPlay() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationKey: ["submit-lineup-open-play"],
+    mutationFn: submitLineupOpenPlay,
+
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["submit-lineup-open-play"] })
+      const previousQuery = queryClient.getQueryData(["submit-lineup-open-play"])
+      return { previousQuery }
+    },
+
+    onError: (error, _values, context) => {
+      if (context?.previousQuery) {
+        queryClient.setQueryData(["submit-lineup-open-play"], context.previousQuery)
+      }
+      if (error instanceof Error && "issues" in error) {
+        const zodErr = error as any
+        toast.error("Validation failed", {
+          description: zodErr.issues.map((e: any) => e.message).join(", "),
+        })
+        return
+      }
+
+      toast.error("Submission failed", { description: (error as Error).message })
+    },
+
+    onSuccess: () => {
+      toast.success("Submission Successful", {
+        description: "Your open play lineup has been submitted.",
+      })
+    },
+
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
     },
 

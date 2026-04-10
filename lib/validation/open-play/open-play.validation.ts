@@ -18,3 +18,9 @@ export const openPlayPlayerSchema = z.object({
   code: z.string().min(1, "Player code is required"),
 })
 export type OpenPlayPlayerPayload = z.infer<typeof openPlayPlayerSchema>
+
+export const openPlayLineupSchema = z.object({
+  openPlayId: z.string().optional(),
+  code: z.string().min(1, "Player code is required"),
+})
+export type OpenPlayLineupPayload = z.infer<typeof openPlayLineupSchema>

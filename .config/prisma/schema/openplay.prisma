@@ -33,6 +33,10 @@ model OpenPlayPlayer {
   registeredAt    DateTime @default(now())
   lineupQueues    LineupQueue[]
 
+  totalPlayTime Int @default(180) // in minutes default 30 minutes
+  startAt   DateTime?
+  endAt     DateTime? 
+
   @@unique([openPlayId, code])
 }
 
@@ -40,8 +44,7 @@ model LineupQueue {
   id          String        @id @default(cuid())
   player      OpenPlayPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
   playerId    String
-
-  position    Int           
+ 
   status      QueueStatus @default(waiting)
   scheduledAt DateTime?     
 
@@ -49,7 +52,6 @@ model LineupQueue {
   updatedAt   DateTime @updatedAt
 
   @@index([status])
-  @@index([position])
   @@index([playerId])
 }
 
