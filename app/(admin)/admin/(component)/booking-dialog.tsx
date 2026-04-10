@@ -51,7 +51,7 @@ export function BookingDialog({ open, onOpenChange, booking, onClose }: BookingD
             <DialogDescription>Review the details of this booking.</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-2">
             <div>
               <p className="text-sm font-medium">Booking Code</p>
               <p className="text-muted-foreground font-bold">{booking.code}</p>
@@ -74,6 +74,10 @@ export function BookingDialog({ open, onOpenChange, booking, onClose }: BookingD
             <div>
               <p className="text-sm font-medium">Status</p>
               <BadgeStatus status={booking.status as TStatus} />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Notes</p>
+              <p className="text-sm text-muted-foreground">{booking.notes}</p>
             </div>
 
             {booking.proofOfPayment && (
@@ -221,7 +225,7 @@ export function BookingDialog({ open, onOpenChange, booking, onClose }: BookingD
           open={openConfirmDialog}
           setOpen={setOpenConfirmDialog}
           isLoading={mutation.isPending || mutationDelete.isPending}
-          onConfirm={async () => {
+          onConfirm={() => {
             const id: string = booking.id
             if (!id) return
             if (isDelete) {

@@ -19,6 +19,7 @@ export type TBookingDetails = {
   id: string
   code: string
   status: string
+  notes: string
   bookedBy: string
   contactNumber: string
   emailAddress: string
@@ -99,6 +100,7 @@ export default function DashboardAdminPage() {
           id: booking.id,
           code: booking.code,
           status: booking.status,
+          notes: booking.notes,
           title: `${booking.fullName ?? ""}`,
           bookedBy: `${booking.fullName ?? ""}`,
           contactNumber: `${booking.contactNumber ?? ""}`,

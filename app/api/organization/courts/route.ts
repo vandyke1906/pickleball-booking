@@ -40,9 +40,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
       },
     })
 
-    if (!organization) {
-      return NextResponse.json([])
-    }
+    if (!organization) return NextResponse.json(null)
 
     const formatted = {
       id: organization.id,

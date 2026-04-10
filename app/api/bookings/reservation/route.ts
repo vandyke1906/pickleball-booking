@@ -19,6 +19,9 @@ export const POST = withRateLimit(async (req: NextRequest) => {
   const startTime = formData.get("startTime") as string
   const duration = Number(formData.get("duration"))
   const courtIds = JSON.parse(formData.get("courtIds") as string)
+  const fullName = formData.get("fullName") as string
+  const contactNumber = formData.get("contactNumber") as string
+  const emailAddress = formData.get("emailAddress") as string
 
   const { start, end } = makeBookingDate(date, startTime, duration)
   console.info("Reservation Details: ", { date, startTime, duration })
@@ -75,11 +78,13 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       const created = await tx.booking.create({
         data: {
           code,
-          fullName: "Admin Reservation",
+          fullName: fullName,
+          contactNumber: contactNumber,
+          emailAddress: emailAddress,
           startTime: start,
           endTime: end,
           status: "reserved",
-          notes: "Admin reservation",
+          notes: "Admin Reservation",
           proofOfPaymentLink: "",
           totalPrice,
           courts: {

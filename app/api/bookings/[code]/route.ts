@@ -11,6 +11,7 @@ export const GET = withRateLimit(
       const booking = await prisma.booking.findUnique({
         where: { code },
         select: {
+          id: true,
           code: true,
           fullName: true,
           emailAddress: true,
@@ -32,6 +33,7 @@ export const GET = withRateLimit(
       if (!booking) return NextResponse.json({ success: false, message: "Booking not found!" })
 
       const data = {
+        id: booking.id,
         code: booking.code,
         fullName: booking.fullName,
         emailAddress: booking.emailAddress,

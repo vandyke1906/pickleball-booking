@@ -1,7 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { CalendarDays, MapPin, Users } from "lucide-react"
+import { MapPin } from "lucide-react"
 import BookingForm from "@/app/(public)/(components)/booking-form"
 import Image from "next/image"
 import BlurInText from "@/components/animated/blur-in-text"
@@ -26,8 +26,6 @@ const item = {
 export function Hero({ slug }: { slug: string }) {
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center px-5 sm:px-8 pt-10 pb-10 sm:pb-4">
-      {/* <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:28px_28px] opacity-50 pointer-events-none" /> */}
-
       <motion.div
         variants={container}
         initial="hidden"
@@ -35,15 +33,6 @@ export function Hero({ slug }: { slug: string }) {
         className="relative z-10 w-full max-w-6xl mx-auto text-center"
       >
         <motion.div variants={item} className="flex flex-col items-center mb-6">
-          {/* <div className="my-4">
-            <Image
-              src="/images/logo.svg"
-              width={400}
-              height={400}
-              alt="PICKL. Digos Logo"
-              className="object-contain"
-            />
-          </div> */}
           <AnimatedSVG paths={logoPaths} viewBox="0 0 1440 514" />
 
           {/* </div> */}
@@ -108,25 +97,6 @@ export function Hero({ slug }: { slug: string }) {
 
         {/* ─── Booking Form ──────────────────────────────────────── */}
         <BookingForm slug={slug} />
-
-        {/* Social proof */}
-        {/* <motion.div
-          variants={item}
-          className="mt-20 sm:mt-2 flex flex-wrap justify-center gap-x-10 gap-y-6 text-sm sm:text-base text-slate-100 font-medium"
-        >
-          <div className="flex items-center gap-2.5">
-            <Users className="h-6 w-6 text-primary" />
-            <span>600+ active players monthly</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <CalendarDays className="h-6 w-6 text-primary" />
-            <span>Book schedule ahead</span>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <MapPin className="h-6 w-6 text-primary" />
-            <span>Accessible Venue</span>
-          </div>
-        </motion.div> */}
       </motion.div>
     </section>
   )

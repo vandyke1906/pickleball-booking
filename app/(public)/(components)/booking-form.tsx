@@ -28,15 +28,12 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { AvailabilityCourt } from "@/app/(public)/(components)/availability-court"
 import {
   calculateDuration,
-  formatDateTime,
   formatFloat,
   formatToPHDateString,
   formatToPHMinutes,
   getEndTime,
   normalizeOpeningHoursClient,
   parseLocalDate,
-  toMinutes,
-  toPhilippineTime,
 } from "@/lib/utils"
 import { useCourtBookings, useOrganizationCourts } from "@/lib/hooks/court/court.hook"
 import { useCreateBooking, useGetBookingByCode } from "@/lib/mutations/booking/booking.mutation"
@@ -56,6 +53,8 @@ import ShinyText from "@/components/animated/shiny-text"
 import { OrganizationInfo } from "@/app/(public)/(components)/organization-info"
 import { PaymentQRDialog } from "@/app/(public)/(components)/payment-qr-code"
 import { BookingPolicyDialog } from "@/app/(public)/(components)/booking-policy-dialog"
+import { notFound } from "next/navigation"
+import { LoadingScreen } from "@/components/animated/loading-screen"
 
 const STORAGE_KEY = "pickl.digos.booking"
 
@@ -65,7 +64,6 @@ export default function BookingPage({ slug }: { slug: string }) {
   const refCode = useRef<HTMLInputElement>(null)
   const scheduleRef = useRef<HTMLDivElement>(null)
   const [bookingDetails, setBookingDetails] = useState(null)
-  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const [openNotFoundDialog, setOpenNotFoundDialog] = useState(false)
   const [showPolicyDialog, setShowPolicyDialog] = useState(false)
@@ -104,7 +102,6 @@ export default function BookingPage({ slug }: { slug: string }) {
 
   const timeSlots = useMemo(() => {
     if (!orgWithCourts) return []
-
     const slots: { value: string; label: string }[] = []
 
     const normalized = normalizeOpeningHoursClient(orgWithCourts.openingHours)
@@ -136,6 +133,7 @@ export default function BookingPage({ slug }: { slug: string }) {
   }, [orgWithCourts, form])
 
   const allowedDuration = useMemo(() => {
+    if (!orgWithCourts) return 0
     const selected = form.getValues("startTime")
     if (!selected || !orgWithCourts) return 0
 
@@ -143,6 +141,7 @@ export default function BookingPage({ slug }: { slug: string }) {
   }, [form, orgWithCourts, form.getValues("startTime")])
 
   const canBook = useMemo(() => {
+    if (!orgWithCourts) return false
     const courtIds = form.watch("courtIds")
     const startTime = form.watch("startTime")
     const duration = form.watch("duration")
@@ -238,12 +237,6 @@ export default function BookingPage({ slug }: { slug: string }) {
 
     setPendingValues(values)
     setShowPolicyDialog(true)
-    // mutation.mutate(values, {
-    //   onSuccess: (data) => {
-    //     form.reset()
-    //     setBookingDetails(data?.result)
-    //   },
-    // })
   }
 
   const handleConfirmBooking = () => {
@@ -297,6 +290,9 @@ export default function BookingPage({ slug }: { slug: string }) {
 
     return basePrice * selectedCourtIds.length
   }, [form.watch("courtIds"), form.watch("duration"), form.watch("startTime"), orgWithCourts])
+
+  if (isLoadingOrgWithCourts) return <LoadingScreen />
+  if (!orgWithCourts) notFound()
 
   return (
     <>
