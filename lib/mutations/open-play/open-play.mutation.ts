@@ -43,6 +43,7 @@ async function createOpenPlayPlayer(payload: OpenPlayPlayerPayload) {
   formData.append("code", parsed.code ?? "")
   formData.append("contactNumber", parsed.contactNumber ?? "")
   formData.append("emailAddress", parsed.emailAddress ?? "")
+  formData.append("totalPlayTime", parsed.totalPlayTime.toString())
 
   try {
     const response = await fetch("/api/open-plays/players/create", {

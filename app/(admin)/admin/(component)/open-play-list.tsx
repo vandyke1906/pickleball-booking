@@ -18,6 +18,7 @@ import BadgeStatus from "@/components/common/badge-status"
 import ConfirmationDialog from "@/components/common/confirm-dialog"
 import { useStatusUpdateOpenPlay } from "@/lib/mutations/open-play/open-play.mutation"
 import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
+import { Spinner } from "@/components/ui/spinner"
 
 const dialogConfig: any = {
   [OpenPlayStatus.active]: {
@@ -103,6 +104,7 @@ export default function OpenPlaysList() {
             </Link>
 
             <ActionButtons
+              isLoading={updateStatusMutation.isPending}
               status={row.original.status}
               onActivate={() =>
                 setConfirmOpenPlay({
@@ -220,7 +222,7 @@ export default function OpenPlaysList() {
         },
       },
     ],
-    [data],
+    [updateStatusMutation],
   )
 
   const current: any = confirmOpenPlay.status ? dialogConfig[confirmOpenPlay.status] : null
@@ -291,11 +293,13 @@ export default function OpenPlaysList() {
 }
 
 function ActionButtons({
+  isLoading = false,
   status,
   onActivate,
   onCancel,
   onComplete,
 }: {
+  isLoading: boolean
   status: OpenPlayStatus
   onActivate?: () => void
   onCancel?: () => void
@@ -304,10 +308,12 @@ function ActionButtons({
   if (status === OpenPlayStatus.pending)
     return (
       <div className="flex gap-2">
-        <Button size="sm" variant="default" onClick={onActivate}>
+        <Button size="sm" disabled={isLoading} variant="default" onClick={onActivate}>
+          {isLoading && <Spinner data-icon="inline-start" />}
           Activate
         </Button>
-        <Button size="sm" variant="destructive" onClick={onCancel}>
+        <Button size="sm" disabled={isLoading} variant="destructive" onClick={onCancel}>
+          {isLoading && <Spinner data-icon="inline-start" />}
           Cancel
         </Button>
       </div>
@@ -316,10 +322,12 @@ function ActionButtons({
   if (status === OpenPlayStatus.active) {
     return (
       <div className="flex gap-2">
-        <Button size="sm" variant="success" onClick={onComplete}>
+        <Button size="sm" disabled={isLoading} variant="success" onClick={onComplete}>
+          {isLoading && <Spinner data-icon="inline-start" />}
           Complete
         </Button>
-        <Button size="sm" variant="destructive" onClick={onCancel}>
+        <Button size="sm" disabled={isLoading} variant="destructive" onClick={onCancel}>
+          {isLoading && <Spinner data-icon="inline-start" />}
           Cancel
         </Button>
       </div>

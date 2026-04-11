@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { useOpenPlay } from "@/lib/hooks/open-play/open-play.hook"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -34,8 +34,15 @@ import ConfirmationDialog from "@/components/common/confirm-dialog"
 import { X } from "lucide-react"
 import { preventDialogCloseProps } from "@/components/dialog/dialog-helper"
 import { Loading } from "@/components/animated/loading"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from "@/components/ui/input-group"
 
 export default function OpenPlayPage() {
+  const router = useRouter()
   const params = useParams()
   const rawParam = params.id ?? ""
   const id = Array.isArray(rawParam) ? rawParam[0] : (rawParam ?? "")
@@ -59,6 +66,7 @@ export default function OpenPlayPage() {
       contactNumber: "",
       emailAddress: "",
       code: "",
+      totalPlayTime: 3 * 60,
     },
   })
 
@@ -75,11 +83,7 @@ export default function OpenPlayPage() {
   }
 
   if (isError) {
-    return (
-      <div className="p-6 text-red-500">
-        Error: {(error as Error)?.message || "Something went wrong"}
-      </div>
-    )
+    router.back()
   }
 
   const onSubmit = (values: OpenPlayPlayerPayload) => {
@@ -103,6 +107,7 @@ export default function OpenPlayPage() {
             contactNumber: "",
             emailAddress: "",
             code: "",
+            totalPlayTime: 3 * 60,
           })
           setOpenPlayerFormDialog(false)
         },
@@ -228,6 +233,36 @@ export default function OpenPlayPage() {
                         {form.formState.errors.code && (
                           <p className="text-sm text-red-600">
                             {form.formState.errors.code.message}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Total Play Time Minutes */}
+                      <div className="rounded w-full space-y-2">
+                        <Label className="font-semibold text-slate-700">
+                          Total Play Time
+                          <span className="text-xs font-normal text-slate-500 block">
+                            Default value is 180 minutes (3 hours)
+                          </span>
+                        </Label>
+                        <InputGroup>
+                          <InputGroupInput
+                            id="totalPlayTime"
+                            type="number"
+                            step={1}
+                            defaultValue={180}
+                            placeholder="Enter duration"
+                            required
+                            {...form.register("totalPlayTime", { valueAsNumber: true })}
+                          />
+
+                          <InputGroupAddon align="inline-end">
+                            <InputGroupText>minutes</InputGroupText>
+                          </InputGroupAddon>
+                        </InputGroup>
+                        {form.formState.errors.totalPlayTime && (
+                          <p className="text-sm text-red-600">
+                            {form.formState.errors.totalPlayTime.message}
                           </p>
                         )}
                       </div>

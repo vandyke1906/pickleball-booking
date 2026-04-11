@@ -16,6 +16,7 @@ export const openPlayPlayerSchema = z.object({
   contactNumber: z.string().min(1, "Contact number is required"),
   emailAddress: z.email({ message: "Invalid email address" }),
   code: z.string().min(1, "Player code is required"),
+  totalPlayTime: z.number().min(1),
 })
 export type OpenPlayPlayerPayload = z.infer<typeof openPlayPlayerSchema>
 

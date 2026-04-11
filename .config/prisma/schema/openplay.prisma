@@ -8,6 +8,7 @@ model OpenPlay {
   transitionMinutes Int @default(60)
   status OpenPlayStatus @default(pending)
 
+  queues LineupQueue[]
   players OpenPlayPlayer[] @relation("OpenPlayPlayers")
 
   organizationId String
@@ -45,8 +46,12 @@ model OpenPlayPlayer {
 
 model LineupQueue {
   id          String        @id @default(cuid())
-  player      OpenPlayPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  
+  openPlayId    String
+  openPlay      OpenPlay @relation(fields: [openPlayId], references: [id], onDelete: Cascade)
+
   playerId    String
+  player      OpenPlayPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
  
   status      QueueStatus @default(waiting)
   scheduledAt DateTime?     

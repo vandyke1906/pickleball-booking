@@ -18,6 +18,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       code: (formData.get("code") as string) || "",
       contactNumber: (formData.get("contactNumber") as string) || "",
       emailAddress: (formData.get("emailAddress") as string) || "",
+      totalPlayTime: Number(formData.get("totalPlayTime")),
     }
 
     // Validate payload with Zod
@@ -37,6 +38,8 @@ export const POST = withRateLimit(async (req: NextRequest) => {
     // Create player
 
     const createdPlayer = await prisma.$transaction(async (tx) => {
+      const openPlay = await tx.openPlay.findUnique({ where: { id: parsed.openPlayId } })
+
       const player = await tx.openPlayPlayer.create({
         data: {
           openPlayId: parsed.openPlayId,
@@ -44,9 +47,9 @@ export const POST = withRateLimit(async (req: NextRequest) => {
           code: parsed.code,
           contactNumber: parsed.contactNumber,
           emailAddress: parsed.emailAddress || null,
+          totalPlayTime: parsed.totalPlayTime || 0,
         },
       })
-      const openPlay = await tx.openPlay.findUnique({ where: { id: parsed.openPlayId } })
 
       //if active open play then lineup directly
       if (openPlay && openPlay.status === OpenPlayStatus.active) await createLineupEntry(tx, player)

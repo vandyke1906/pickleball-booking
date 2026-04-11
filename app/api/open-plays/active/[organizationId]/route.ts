@@ -18,11 +18,14 @@ export const GET = withRateLimit(
           endTime: true,
           transitionMinutes: true,
           status: true,
-          players: {
+          queues: {
             select: {
-              id: true,
-              code: true,
-              playerName: true,
+              player: {
+                select: {
+                  id: true,
+                  playerName: true,
+                },
+              },
             },
           },
           courts: {
@@ -47,9 +50,9 @@ export const GET = withRateLimit(
           id: court.id,
           name: court.name,
         })),
-        players: activeOpenPlay.players.map((p) => ({
-          id: p.id,
-          playerName: p.playerName,
+        queues: activeOpenPlay.queues.map((q) => ({
+          id: q.player.id,
+          playerName: q.player.playerName,
         })),
       }
 

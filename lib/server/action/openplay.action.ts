@@ -6,23 +6,45 @@ import {
   OpenPlayPlayer,
   QueueStatus,
 } from "@/.config/prisma/generated/prisma"
+import { TPrismaTransaction } from "@/lib/type/util.type"
+import { addMinutes, isWithinInterval } from "date-fns"
 
-export async function createLineupEntry(tx: any, openPlayPlayer: OpenPlayPlayer) {
-  return await tx.lineupQueue.create({
+export async function createLineupEntry(tx: TPrismaTransaction, openPlayPlayer: OpenPlayPlayer) {
+  const queue = await tx.lineupQueue.create({
     data: {
+      openPlayId: openPlayPlayer.openPlayId,
       playerId: openPlayPlayer.id,
       status: QueueStatus.waiting,
       scheduledAt: null,
     },
-    include: { player: true },
+    include: { player: true, openPlay: true },
   })
+
+  if (!openPlayPlayer?.startAt && queue?.openPlay?.startTime && queue?.openPlay?.endTime) {
+    const { startAt } = await resolveOpenPlayPlayerSchedule({
+      queueCreatedAt: queue.createdAt,
+      openPlayStartTime: queue.openPlay.startTime,
+      openPlayEndTime: queue.openPlay.endTime,
+      durationMinutes: openPlayPlayer.totalPlayTime,
+    })
+
+    await tx.openPlayPlayer.update({
+      where: { id: openPlayPlayer.id },
+      data: {
+        startAt: startAt,
+        endAt: addMinutes(startAt, openPlayPlayer.totalPlayTime),
+      },
+    })
+  }
+
+  return queue
 }
 
 // Initialize lineup for all registered players of an OpenPlay
 export async function initializeLineup(tx: any, openPlayId: string) {
   const players = await tx.openPlayPlayer.findMany({
     where: { openPlayId },
-    orderBy: { createdAt: "asc" }, // enforce registration order
+    orderBy: { registeredAt: "asc" }, // enforce registration order
   })
 
   if (players.length === 0) return []
@@ -36,8 +58,35 @@ export async function initializeLineup(tx: any, openPlayId: string) {
   return lineups
 }
 
+/**
+ * Resolves the correct startAt and endAt for OpenPlayPlayer
+ */
+export async function resolveOpenPlayPlayerSchedule({
+  queueCreatedAt,
+  openPlayStartTime,
+  openPlayEndTime,
+  durationMinutes,
+}: {
+  queueCreatedAt: Date
+  openPlayStartTime: Date
+  openPlayEndTime: Date
+  durationMinutes: number
+}) {
+  const isWithinOpenPlay = openPlayEndTime
+    ? isWithinInterval(queueCreatedAt, {
+        start: openPlayStartTime,
+        end: openPlayEndTime,
+      })
+    : queueCreatedAt >= openPlayStartTime
+
+  const startAt = isWithinOpenPlay ? queueCreatedAt : openPlayStartTime
+  const endAt = addMinutes(startAt, durationMinutes)
+
+  return { startAt, endAt }
+}
+
 // Check if player still has allowance based on elapsed time
-function canJoinQueue(player: OpenPlayPlayer, currentTime: Date): boolean {
+export async function canJoinQueue(player: OpenPlayPlayer, currentTime: Date): Promise<boolean> {
   if (!player.startAt) return true // first time joining
   const elapsedMinutes = Math.floor((currentTime.getTime() - player.startAt.getTime()) / 60000)
   return elapsedMinutes < player.totalPlayTime
