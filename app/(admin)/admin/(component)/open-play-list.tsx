@@ -4,7 +4,7 @@ import { ColumnDef } from "@tanstack/react-table"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 import { useCallback, useMemo, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { CircleCheckBig, HandFist, Plus } from "lucide-react"
+import { CheckCircle2, CircleCheckBig, HandFist, Plus, XCircle } from "lucide-react"
 import { DataTableV3 } from "@/components/data-table/data-table.v3"
 import { useSearchParams } from "next/navigation"
 import { TOpenPlayData, useOrganizationOpenPlays } from "@/lib/hooks/open-play/open-play.hook"
@@ -16,8 +16,30 @@ import { formatDateString, formatTimeRange } from "@/lib/utils"
 import Link from "next/link"
 import BadgeStatus from "@/components/common/badge-status"
 import ConfirmationDialog from "@/components/common/confirm-dialog"
-import { useActivateOpenPlay } from "@/lib/mutations/open-play/open-play.mutation"
+import { useStatusUpdateOpenPlay } from "@/lib/mutations/open-play/open-play.mutation"
 import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
+
+const dialogConfig: any = {
+  [OpenPlayStatus.active]: {
+    title: "Confirm Activation",
+    variant: "default",
+    description:
+      "Are you sure you want to activate this Open Play? Any currently active Open Play will be marked as completed.",
+    icon: <CircleCheckBig className="text-blue-500" size={20} />,
+  },
+  [OpenPlayStatus.completed]: {
+    title: "Confirm Completion",
+    variant: "confirm",
+    description: "Are you sure you want to complete this Open Play?",
+    icon: <CheckCircle2 className="text-green-500" size={20} />,
+  },
+  [OpenPlayStatus.cancelled]: {
+    title: "Confirm Cancellation",
+    variant: "delete",
+    description: "Are you sure you want to cancel this Open Play?",
+    icon: <XCircle className="text-red-500" size={20} />,
+  },
+} as const
 
 export default function OpenPlaysList() {
   const { data: session } = useSession()
@@ -37,26 +59,32 @@ export default function OpenPlaysList() {
   )
 
   const { data, totalCount, perPage, isLoading, isError, error } = useOrganizationOpenPlays(params)
-  const activateMutation = useActivateOpenPlay()
+  const updateStatusMutation = useStatusUpdateOpenPlay()
 
   const [openNewOpenPlayDialog, setOpenNewOpenPlayDialog] = useState(false)
-  const [confirmActivateOpenPlay, setConfirmActivateOpenPlay] = useState<{
+
+  const [confirmOpenPlay, setConfirmOpenPlay] = useState<{
     open: boolean
     id: string | null
-  }>({ open: false, id: null })
+    status: OpenPlayStatus | null
+  }>({
+    open: false,
+    id: null,
+    status: null,
+  })
 
-  const handleActivateConfirm = useCallback(() => {
-    if (confirmActivateOpenPlay.id) {
-      activateMutation.mutate(
-        { id: confirmActivateOpenPlay.id },
-        {
-          onSuccess: () => {
-            setConfirmActivateOpenPlay({ open: false, id: null })
-          },
+  const handleConfirm = useCallback(() => {
+    if (!confirmOpenPlay.id || !confirmOpenPlay.status) return
+
+    updateStatusMutation.mutate(
+      { id: confirmOpenPlay.id, status: confirmOpenPlay.status },
+      {
+        onSuccess: () => {
+          setConfirmOpenPlay({ open: false, id: null, status: null })
         },
-      )
-    }
-  }, [confirmActivateOpenPlay.id])
+      },
+    )
+  }, [confirmOpenPlay])
 
   const columns = useMemo<ColumnDef<TOpenPlayData>[]>(
     () => [
@@ -76,9 +104,27 @@ export default function OpenPlaysList() {
 
             <ActionButtons
               status={row.original.status}
-              onActivate={() => setConfirmActivateOpenPlay({ open: true, id: row.original.id })}
-              // onCancel={() => setConfirmCancelOpenPlay({ open: true, id: row.original.id })}
-              // onComplete={() => setConfirmCompleteOpenPlay({ open: true, id: row.original.id })}
+              onActivate={() =>
+                setConfirmOpenPlay({
+                  open: true,
+                  id: row.original.id,
+                  status: OpenPlayStatus.active,
+                })
+              }
+              onCancel={() =>
+                setConfirmOpenPlay({
+                  open: true,
+                  id: row.original.id,
+                  status: OpenPlayStatus.cancelled,
+                })
+              }
+              onComplete={() =>
+                setConfirmOpenPlay({
+                  open: true,
+                  id: row.original.id,
+                  status: OpenPlayStatus.completed,
+                })
+              }
             />
           </div>
         ),
@@ -177,6 +223,8 @@ export default function OpenPlaysList() {
     [data],
   )
 
+  const current: any = confirmOpenPlay.status ? dialogConfig[confirmOpenPlay.status] : null
+
   if (isError) return <p>Error: {String(error)}</p>
 
   return (
@@ -223,14 +271,20 @@ export default function OpenPlaysList() {
       <OpenPlayDialog open={openNewOpenPlayDialog} onOpenChange={setOpenNewOpenPlayDialog} />
 
       <ConfirmationDialog
-        title="Confirm Activation"
-        variant="default"
-        Icon={<CircleCheckBig className="text-green-500" size={20} />}
-        description="Are you sure you want to activate this Open Play? Any currently active Open Play will be marked as completed."
-        open={confirmActivateOpenPlay.open}
-        setOpen={(open) => setConfirmActivateOpenPlay((prev) => ({ ...prev, open }))}
+        title={current?.title ?? ""}
+        variant={current?.variant ?? "default"}
+        Icon={current?.icon ?? null}
+        description={current?.description ?? ""}
+        open={confirmOpenPlay.open}
+        setOpen={(open) =>
+          setConfirmOpenPlay((prev) => ({
+            ...prev,
+            open,
+            ...(open === false && { id: null, action: null }),
+          }))
+        }
         isLoading={false}
-        onConfirm={handleActivateConfirm}
+        onConfirm={handleConfirm}
       />
     </div>
   )

@@ -10,25 +10,30 @@ export const POST = withRateLimit(
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     try {
       const { id } = await params
+
+      const formData = await request.formData()
+      const status = formData.get("status") as OpenPlayStatus
       if (!id) return NextResponse.json({ success: false, message: "Please provide open play id!" })
 
       const updatedOpenPlay = await prisma.$transaction(async (tx) => {
-        // Complete any currently active Open Play
-        await tx.openPlay.updateMany({
-          where: {
-            organizationId: session.user.organizationId,
-            status: OpenPlayStatus.active,
-          },
-          data: {
-            status: OpenPlayStatus.completed,
-          },
-        })
+        if (status === OpenPlayStatus.active) {
+          // Complete any currently active Open Play
+          await tx.openPlay.updateMany({
+            where: {
+              organizationId: session.user.organizationId,
+              status: OpenPlayStatus.active,
+            },
+            data: {
+              status: OpenPlayStatus.completed,
+            },
+          })
+        }
 
         // Activate the selected Open Play
         return await tx.openPlay.update({
           where: { id },
           data: {
-            status: OpenPlayStatus.active,
+            status: status,
           },
         })
       })

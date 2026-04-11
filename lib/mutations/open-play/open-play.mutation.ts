@@ -1,3 +1,4 @@
+import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
 import { qKeyOpenPlays } from "@/lib/hooks/open-play/open-play.hook"
 import {
   OpenPlayLineupPayload,
@@ -93,9 +94,12 @@ async function deleteOpenPlayPlayer(id: string) {
   return res.json()
 }
 
-async function activateOpenPlay(id: string) {
-  const res = await fetch(`/api/open-plays/${id}/activate`, {
+async function statusUpdateOpenPlay(id: string, status: OpenPlayStatus) {
+  const formData = new FormData()
+  formData.append("status", status)
+  const res = await fetch(`/api/open-plays/${id}/status-update`, {
     method: "POST",
+    body: formData,
   })
 
   if (!res.ok) {
@@ -305,13 +309,14 @@ export function useDeleteOpenPlayPlayer() {
   })
 }
 
-export function useActivateOpenPlay() {
+export function useStatusUpdateOpenPlay() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id }: { id: string }) => activateOpenPlay(id),
+    mutationFn: ({ id, status = OpenPlayStatus.active }: { id: string; status: OpenPlayStatus }) =>
+      statusUpdateOpenPlay(id, status),
 
-    onMutate: async ({ id }) => {
+    onMutate: async ({ id, status }) => {
       await queryClient.cancelQueries({ queryKey: ["open-play", id] })
 
       const previousOpenPlay = queryClient.getQueryData(["open-play", id])
@@ -319,7 +324,7 @@ export function useActivateOpenPlay() {
       if (previousOpenPlay) {
         queryClient.setQueryData(["open-play", id], (old: any) => ({
           ...old,
-          status: "active",
+          status: status,
         }))
       }
 
@@ -333,9 +338,28 @@ export function useActivateOpenPlay() {
       toast.error("Activation failed", { description: (error as Error).message })
     },
 
-    onSuccess: () => {
-      toast.success("Open Play Activated", {
-        description: "The open play status has been updated to active.",
+    onSuccess: (_data, variables) => {
+      const { status } = variables
+
+      const config: any = {
+        [OpenPlayStatus.active]: {
+          title: "Open Play Activated",
+          description: "The open play status has been updated to active.",
+        },
+        [OpenPlayStatus.completed]: {
+          title: "Open Play Completed",
+          description: "The open play has been marked as completed.",
+        },
+        [OpenPlayStatus.cancelled]: {
+          title: "Open Play Cancelled",
+          description: "The open play has been cancelled.",
+        },
+      } as const
+
+      const current = config[status]
+
+      toast.success(current?.title ?? "Status Updated", {
+        description: current?.description ?? "The open play status has been updated.",
       })
     },
 
