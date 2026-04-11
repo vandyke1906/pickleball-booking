@@ -1,7 +1,15 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { PlayCircle, Users, Volume2, VolumeX, Megaphone } from "lucide-react"
+import {
+  PlayCircle,
+  Users,
+  Volume2,
+  VolumeX,
+  Megaphone,
+  MirrorRectangularIcon,
+  Volleyball,
+} from "lucide-react"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -10,200 +18,27 @@ import { motion, useAnimation } from "framer-motion"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { QueueGroup, useQueueManager } from "@/lib/hooks/queue/use-queue-manager"
+import { useVoice } from "@/lib/hooks/speech/use-voice"
 
 const announcementRepeats = 2
 const announcementDelay = 2
 
 export default function OpenPlayQueue({ openPlay }: { openPlay: any }) {
-  // const [currentGames] = useState([
-  //   {
-  //     courtNumber: 1,
-  //     players: [
-  //       "Player 1 Name here",
-  //       "Player 2 Name here",
-  //       "Player 3 Name here",
-  //       "Player 4 Name here",
-  //     ], // 4 players (2v2)
-  //     startTime: new Date(Date.now() - 1000 * 60 * 22),
-  //     estimatedEndTime: new Date(Date.now() + openPlay.transitionMinutes * 60000),
-  //   },
-  //   {
-  //     courtNumber: 2,
-  //     players: ["Player 5", "Player 6"], // 2 players (1v1)
-  //     startTime: new Date(Date.now() - 1000 * 60 * 18),
-  //     estimatedEndTime: new Date(Date.now() + openPlay.transitionMinutes * 60000),
-  //   },
-  // ])
-
-  // // Waiting Lineup - Minimum 2 players per group, even count (2 or 4)
-  // const [queue] = useState([
-  //   {
-  //     id: "q1",
-  //     position: 1,
-  //     scheduledAt: new Date(Date.now() + 1000 * 60 * 4),
-  //     courtNumber: 1,
-  //     players: ["Player 9", "Player 10"],
-  //   },
-  //   {
-  //     id: "q2",
-  //     position: 2,
-  //     scheduledAt: new Date(Date.now() + 1000 * 60 * 4),
-  //     courtNumber: 2,
-  //     players: ["Player 11", "Player 12"],
-  //   },
-  //   {
-  //     id: "q3",
-  //     position: 3,
-  //     scheduledAt: new Date(Date.now() + 1000 * 60 * 34),
-  //     courtNumber: 1,
-  //     players: [
-  //       "Player 13 Name here",
-  //       "Player 14 Name here",
-  //       "Player 15 Name here",
-  //       "Player 16 Name here",
-  //     ],
-  //   },
-  //   {
-  //     id: "q4",
-  //     position: 4,
-  //     scheduledAt: new Date(Date.now() + 1000 * 60 * 34),
-  //     courtNumber: 2,
-  //     players: ["Player 17", "Player 18"],
-  //   },
-  //   {
-  //     id: "q5",
-  //     position: 5,
-  //     scheduledAt: new Date(Date.now() + 1000 * 60 * 64),
-  //     courtNumber: 1,
-  //     players: ["Player 19", "Player 20"],
-  //   },
-  //   {
-  //     id: "q6",
-  //     position: 6,
-  //     scheduledAt: new Date(Date.now() + 1000 * 60 * 64),
-  //     courtNumber: 2,
-  //     players: ["Player 21", "Player 22", "Player 23", "Player 24"],
-  //   },
-  //   {
-  //     id: "q7",
-  //     position: 7,
-  //     scheduledAt: new Date(Date.now() + 1000 * 60 * 94),
-  //     courtNumber: 1,
-  //     players: ["Player 25", "Player 26"],
-  //   },
-  //   {
-  //     id: "q8",
-  //     position: 8,
-  //     scheduledAt: new Date(Date.now() + 1000 * 60 * 94),
-  //     courtNumber: 2,
-  //     players: ["Player 27", "Player 28"],
-  //   },
-  // ])
-
-  // const [currentTime, setCurrentTime] = useState(new Date())
-  // const [isSpeaking, setIsSpeaking] = useState(false)
-  // const [audioEnabled, setAudioEnabled] = useState(true)
-
-  // const speechRef = useRef<SpeechSynthesisUtterance | null>(null)
-  // const lastAnnouncedRef = useRef<string>("")
-
-  // // Live clock
-  // useEffect(() => {
-  //   const interval = setInterval(() => setCurrentTime(new Date()), 1000)
-  //   return () => clearInterval(interval)
-  // }, [])
-
-  // // Auto announcement
-  // useEffect(() => {
-  //   if (!audioEnabled || queue.length === 0) return
-  //   const next = queue[0]
-  //   const key = `announce-${next.id}`
-
-  //   if (lastAnnouncedRef.current !== key || Date.now() - (window as any).lastAnnounceTime > 40000) {
-  //     const names = next.players.join(" and ")
-  //     const court = next.courtNumber ? `Court ${next.courtNumber}` : "next available court"
-  //     speak(`Attention please. Next group: ${names} on ${court}.`)
-  //     lastAnnouncedRef.current = key
-  //     ;(window as any).lastAnnounceTime = Date.now()
-  //   }
-  // }, [queue, audioEnabled])
-
-  // const speak = (text: string) => {
-  //   if (!("speechSynthesis" in window)) return
-  //   window.speechSynthesis.cancel()
-
-  //   let count = 0
-
-  //   const speakOnce = () => {
-  //     if (count >= announcementRepeats) return
-
-  //     const utterance = new SpeechSynthesisUtterance(text)
-  //     utterance.rate = 0.95
-  //     utterance.pitch = 1.05
-  //     utterance.volume = 0.9
-
-  //     utterance.onstart = () => setIsSpeaking(true)
-  //     utterance.onend = () => {
-  //       setIsSpeaking(false)
-  //       count++
-  //       if (count < announcementRepeats) setTimeout(speakOnce, announcementDelay * 1000)
-  //     }
-
-  //     speechRef.current = utterance
-  //     window.speechSynthesis.speak(utterance)
-  //   }
-
-  //   speakOnce()
-  // }
-
-  // const manualAnnounce = () => {
-  //   if (queue.length === 0) return
-  //   const next = queue[0]
-  //   const names = next.players.join(" and ")
-  //   const court = next.courtNumber ? `Court ${next.courtNumber}` : "next available court"
-  //   speak(`Attention please. Next group: ${names} on ${court}.`)
-  // }
-
-  // const toggleAudio = () => {
-  //   setAudioEnabled((prev) => {
-  //     const next = !prev
-
-  //     if (next === false) {
-  //       window.speechSynthesis.cancel()
-  //       setIsSpeaking(false)
-  //     }
-
-  //     return next
-  //   })
-  // }
-
-  // const getCountdown = (target: Date): string => {
-  //   const diff = target.getTime() - currentTime.getTime()
-  //   if (diff <= 0) return "NOW"
-  //   const min = Math.floor(diff / 60000)
-  //   const sec = Math.floor((diff % 60000) / 1000)
-  //   return `${min}:${sec.toString().padStart(2, "0")}`
-  // }
-
   //#v2
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [audioEnabled, setAudioEnabled] = useState(true)
-
-  const speechRef = useRef<SpeechSynthesisUtterance | null>(null)
   const lastAnnouncedRef = useRef<string>("")
+  const { speak } = useVoice()
 
   const {
     currentGames,
     queue,
-    allPlayers,
     getCountdown,
     addGroupToQueue,
     removeFromQueue,
     moveNextGroupToCourt,
     freeCourts,
   } = useQueueManager(openPlay)
-
-  console.info({ openPlay, currentGames, queue, allPlayers })
 
   // Auto announcement
   useEffect(() => {
@@ -212,61 +47,35 @@ export default function OpenPlayQueue({ openPlay }: { openPlay: any }) {
     const key = `announce-${next.id}`
 
     if (lastAnnouncedRef.current !== key || Date.now() - (window as any).lastAnnounceTime > 40000) {
-      const names = next.players.join(" and ")
+      const names = next.players.map((p) => p.playerName).join(", ")
       const court = next.courtName ? `${next.courtName}` : "next available court"
-      speak(`Attention please. Next group: ${names} on ${court}.`)
+      speakCourtWithPlayers({ names, court })
       lastAnnouncedRef.current = key
       ;(window as any).lastAnnounceTime = Date.now()
     }
   }, [queue, audioEnabled])
 
-  const speak = (text: string) => {
-    if (!("speechSynthesis" in window)) return
-    window.speechSynthesis.cancel()
-
-    let count = 0
-
-    const speakOnce = () => {
-      if (count >= announcementRepeats) return
-
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.rate = 0.95
-      utterance.pitch = 1.05
-      utterance.volume = 0.9
-
-      utterance.onstart = () => setIsSpeaking(true)
-      utterance.onend = () => {
-        setIsSpeaking(false)
-        count++
-        if (count < announcementRepeats) setTimeout(speakOnce, announcementDelay * 1000)
-      }
-
-      speechRef.current = utterance
-      window.speechSynthesis.speak(utterance)
-    }
-
-    speakOnce()
-  }
-
   const manualAnnounce = () => {
     if (queue.length === 0) return
     const next = queue[0]
-    const names = next.players.join(" and ")
+    const names = next.players.map((p) => p.playerName).join(", ")
     const court = next.courtName ? `${next.courtName}` : "next available court"
-    speak(`Attention please. Next group: ${names} on ${court}.`)
+    speakCourtWithPlayers({ names, court })
   }
 
   const toggleAudio = () => {
     setAudioEnabled((prev) => {
       const next = !prev
-
-      if (next === false) {
+      if (!next) {
         window.speechSynthesis.cancel()
         setIsSpeaking(false)
       }
-
       return next
     })
+  }
+
+  const speakCourtWithPlayers = ({ names, court }: { names: string; court: string }) => {
+    speak(`Attention please. Next Player: ${names} on ${court}.`, 1, 2, setIsSpeaking)
   }
 
   return (
@@ -274,16 +83,8 @@ export default function OpenPlayQueue({ openPlay }: { openPlay: any }) {
       {/* NOW PLAYING - 2 Courts */}
       <div className="flex-1 flex flex-col">
         <div className="flex items-center gap-3 mb-5">
-          <button onClick={toggleAudio}>
-            {audioEnabled ? <Volume2 className="w-8 h-8" /> : <VolumeX className="w-8 h-8" />}
-          </button>
-          <Megaphone
-            onClick={manualAnnounce}
-            className="w-8 h-8 text-emerald-500 cursor-pointer hover:text-emerald-400 transition"
-          />
-          <h2 className="text-3xl md:text-4xl font-bold text-white uppercase">
-            {isSpeaking ? "Announcing..." : "Now Playing"}
-          </h2>
+          <Volleyball className="w-8 h-8 text-emerald-500 cursor-pointer hover:text-emerald-400 transition" />
+          <h2 className="text-3xl md:text-4xl font-bold text-white uppercase">Now Playing</h2>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1">
@@ -328,8 +129,20 @@ export default function OpenPlayQueue({ openPlay }: { openPlay: any }) {
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
-            <Users className="w-8 h-8 text-emerald-400" />
-            <h2 className="text-3xl md:text-4xl font-bold text-white">WAITING LINEUP</h2>
+            {/* <h2 className="text-3xl md:text-4xl font-bold text-white">WAITING LINEUP</h2> */}
+            <div className="flex items-center gap-3">
+              <Users className="w-8 h-8 text-emerald-400" />
+              <h2 className="text-3xl md:text-4xl font-bold text-white uppercase">
+                {isSpeaking ? "Announcing..." : "Waiting Lineup"}
+              </h2>
+              {/* <button onClick={toggleAudio}>
+                {audioEnabled ? <Volume2 className="w-8 h-8" /> : <VolumeX className="w-8 h-8" />}
+              </button> */}
+              <Megaphone
+                onClick={manualAnnounce}
+                className="w-8 h-8 text-emerald-500 cursor-pointer hover:text-emerald-400 transition"
+              />
+            </div>
           </div>
           <Badge
             variant="outline"
