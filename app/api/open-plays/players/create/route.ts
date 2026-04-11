@@ -1,5 +1,7 @@
+import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
 import { isServerAuthenticated } from "@/lib/auth/auth.server"
 import { prisma } from "@/lib/prisma"
+import { createLineupEntry } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { openPlayPlayerSchema } from "@/lib/validation/open-play/open-play.validation"
 import { NextRequest, NextResponse } from "next/server"
@@ -33,14 +35,23 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       )
 
     // Create player
-    const createdPlayer = await prisma.openPlayPlayer.create({
-      data: {
-        openPlayId: parsed.openPlayId,
-        playerName: parsed.playerName,
-        code: parsed.code,
-        contactNumber: parsed.contactNumber,
-        emailAddress: parsed.emailAddress || null,
-      },
+
+    const createdPlayer = await prisma.$transaction(async (tx) => {
+      const player = await tx.openPlayPlayer.create({
+        data: {
+          openPlayId: parsed.openPlayId,
+          playerName: parsed.playerName,
+          code: parsed.code,
+          contactNumber: parsed.contactNumber,
+          emailAddress: parsed.emailAddress || null,
+        },
+      })
+      const openPlay = await tx.openPlay.findUnique({ where: { id: parsed.openPlayId } })
+
+      //if active open play then lineup directly
+      if (openPlay && openPlay.status === OpenPlayStatus.active) await createLineupEntry(tx, player)
+
+      return player
     })
 
     return NextResponse.json({ success: true, result: createdPlayer })

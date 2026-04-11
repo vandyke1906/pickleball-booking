@@ -24,7 +24,7 @@ const dialogConfig: any = {
     title: "Confirm Activation",
     variant: "default",
     description:
-      "Are you sure you want to activate this Open Play? Any currently active Open Play will be marked as completed.",
+      "Are you sure you want to activate this Open Play? Any active session will be completed. Registered players will be automatically included in the lineup.",
     icon: <CircleCheckBig className="text-blue-500" size={20} />,
   },
   [OpenPlayStatus.completed]: {

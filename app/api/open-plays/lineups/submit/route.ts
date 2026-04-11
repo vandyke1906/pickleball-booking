@@ -1,5 +1,6 @@
-import { QueueStatus } from "@/.config/prisma/generated/prisma"
+import { OpenPlayStatus, QueueStatus } from "@/.config/prisma/generated/prisma"
 import { prisma } from "@/lib/prisma"
+import { createLineupEntry } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -23,6 +24,9 @@ export const POST = withRateLimit(async (req: NextRequest) => {
         include: { openPlay: true },
       })
 
+      if (openPlayPlayer?.openPlay?.status !== OpenPlayStatus.active)
+        throw new Error("Open play session is not active")
+
       if (!openPlayPlayer) throw new Error("Invalid code or open play session")
 
       // Check session time
@@ -39,17 +43,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       })
 
       if (existing) throw new Error("You are already in the queue")
-
-      // Create queue entry (FIFO via createdAt)
-      return await tx.lineupQueue.create({
-        data: {
-          playerId: openPlayPlayer.id,
-          status: QueueStatus.waiting,
-        },
-        include: {
-          player: true,
-        },
-      })
+      return createLineupEntry(tx, openPlayPlayer)
     })
 
     return NextResponse.json({

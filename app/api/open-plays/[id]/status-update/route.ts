@@ -1,6 +1,7 @@
 import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
 import { isServerAuthenticated } from "@/lib/auth/auth.server"
 import { prisma } from "@/lib/prisma"
+import { initializeLineup } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -27,16 +28,26 @@ export const POST = withRateLimit(
               status: OpenPlayStatus.completed,
             },
           })
+
+          // Clear lineup queues for completed sessions
+          await tx.lineupQueue.deleteMany()
         }
 
         // Activate the selected Open Play
-        return await tx.openPlay.update({
+        const openPlay = await tx.openPlay.update({
           where: { id },
           data: {
             status: status,
           },
         })
+
+        // Initialize lineup for registered players
+        if (status === OpenPlayStatus.active) {
+          await initializeLineup(tx, openPlay.id)
+        }
+        return openPlay
       })
+
       return NextResponse.json({
         success: true,
         message: "Open Play activated successfully",

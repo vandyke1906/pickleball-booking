@@ -37,6 +37,9 @@ model OpenPlayPlayer {
   startAt   DateTime?
   endAt     DateTime? 
 
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   @@unique([openPlayId, code])
 }
 
