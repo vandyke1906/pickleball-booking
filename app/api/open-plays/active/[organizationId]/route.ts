@@ -50,7 +50,7 @@ export const GET = withRateLimit(
           id: court.id,
           name: court.name,
         })),
-        queues: activeOpenPlay.queues.map((q) => ({
+        players: activeOpenPlay.queues.map((q) => ({
           id: q.player.id,
           playerName: q.player.playerName,
         })),

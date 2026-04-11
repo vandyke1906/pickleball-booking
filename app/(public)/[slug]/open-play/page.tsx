@@ -52,8 +52,6 @@ export default function PickleballOpenPlayQueue() {
 
   if (isLoading || isLoadingOrgWithCourts) return <LoadingScreen />
 
-  console.info({ openPlay })
-
   return (
     <div className="min-h-screen bg-[#092021] text-white font-mono flex flex-col h-screen overflow-hidden">
       {/* HEADER */}
@@ -94,7 +92,7 @@ export default function PickleballOpenPlayQueue() {
           No active open play found.
         </div>
       )}
-      {!!openPlay && <OpenPlayQueue data={openPlay} />}
+      {!!openPlay && <OpenPlayQueue openPlay={openPlay} />}
       {/* FOOTER */}
       <footer className="bg-black/80 border-t border-emerald-600 py-4 text-center text-emerald-300/70 text-xl flex-shrink-0">
         Shared {openPlay?.transitionMinutes || ""}-minute transition • 2 or 4 players per group •
