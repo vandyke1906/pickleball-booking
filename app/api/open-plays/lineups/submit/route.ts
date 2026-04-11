@@ -18,16 +18,15 @@ export const POST = withRateLimit(async (req: NextRequest) => {
         where: {
           openPlayId_code: {
             openPlayId,
-            code: code.trim().toUpperCase(),
+            code: code.trim(),
           },
         },
         include: { openPlay: true },
       })
 
+      if (!openPlayPlayer) throw new Error("Invalid code or open play session")
       if (openPlayPlayer?.openPlay?.status !== OpenPlayStatus.active)
         throw new Error("Open play session is not active")
-
-      if (!openPlayPlayer) throw new Error("Invalid code or open play session")
 
       // Check session time
       const now = new Date()
