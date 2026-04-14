@@ -31,7 +31,7 @@ import {
   useUpdateOpenPlayPlayer,
 } from "@/lib/mutations/open-play/open-play.mutation"
 import ConfirmationDialog from "@/components/common/confirm-dialog"
-import { X } from "lucide-react"
+import { Pencil, Trash2, X } from "lucide-react"
 import { preventDialogCloseProps } from "@/components/dialog/dialog-helper"
 import { Loading } from "@/components/animated/loading"
 import {
@@ -40,6 +40,9 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "@/components/ui/input-group"
+import { ButtonGroup } from "@/components/ui/button-group"
+import OpenPlayDialog from "@/app/(admin)/admin/(component)/open-play-dialog"
+import { format } from "date-fns"
 
 export default function OpenPlayPage() {
   const router = useRouter()
@@ -49,9 +52,12 @@ export default function OpenPlayPage() {
 
   const { data: openPlay, isLoading, isError, error } = useOpenPlay(id)
 
+  console.info({ openPlay })
+
+  const [openEditOpenPlayDialog, setOpenEditOpenPlayDialog] = useState(false)
   const [openPlayerFormDialog, setOpenPlayerFormDialog] = useState(false)
   const [editingPlayer, setEditingPlayer] = useState<any>(null)
-  const [confirmDeleteDialogOpen, setConfirmDeleteDialogOpen] = useState(false)
+  const [confirmDeletePlayerDialogOpen, setConfirmDeletePlayerDialogOpen] = useState(false)
   const [playerToDelete, setPlayerToDelete] = useState<any>(null)
 
   const createMutation = useCreateOpenPlayPlayer()
@@ -123,7 +129,7 @@ export default function OpenPlayPage() {
 
   const onDeletePlayer = (player: any) => {
     setPlayerToDelete(player)
-    setConfirmDeleteDialogOpen(true)
+    setConfirmDeletePlayerDialogOpen(true)
   }
 
   const handleDeletePlayer = () => {
@@ -132,7 +138,7 @@ export default function OpenPlayPage() {
       { id: playerToDelete.id, openPlayId: id },
       {
         onSuccess: () => {
-          setConfirmDeleteDialogOpen(false)
+          setConfirmDeletePlayerDialogOpen(false)
           setPlayerToDelete(null)
         },
       },
@@ -148,142 +154,28 @@ export default function OpenPlayPage() {
               <span className="font-semibold text-lg">Open Play Details</span>
               <BadgeStatus status={openPlay?.status as any} />
             </div>
-
-            {/* Register Button */}
-            <Dialog open={openPlayerFormDialog} onOpenChange={setOpenPlayerFormDialog}>
-              <DialogTrigger asChild>
-                <Button size="sm">+ Register Player</Button>
-              </DialogTrigger>
-
-              <DialogContent className="w-full sm:max-w-md" {...preventDialogCloseProps}>
-                <form
-                  onSubmit={form.handleSubmit(onSubmit)}
-                  key={editingPlayer?.id || "new-player"}
-                >
-                  <fieldset
-                    disabled={createMutation.isPending || updateMutation.isPending}
-                    className="space-y-6"
-                  >
-                    <DialogHeader>
-                      <DialogTitle>{editingPlayer ? "Edit Player" : "Register Player"}</DialogTitle>
-                      <DialogDescription>
-                        {editingPlayer
-                          ? "Update player details for this open play session."
-                          : "Add a player to this open play session."}
-                      </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-4">
-                      {/* Full Name */}
-                      <div className="space-y-2">
-                        <Label>Full Name</Label>
-                        <Input placeholder="Enter player name" {...form.register("playerName")} />
-                        {form.formState.errors.playerName && (
-                          <p className="text-sm text-red-600">
-                            {form.formState.errors.playerName.message}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Contact Number */}
-                      <div className="space-y-2">
-                        <Label>Contact Number</Label>
-                        <Input
-                          placeholder="e.g. 09123456789"
-                          {...form.register("contactNumber")}
-                          onBlur={(e) => {
-                            const value = e.target.value.trim()
-                            form.setValue("contactNumber", value)
-                            const currentCode = form.getValues("code")
-                            if (!currentCode) form.setValue("code", value)
-                          }}
-                        />
-                        {form.formState.errors.contactNumber && (
-                          <p className="text-sm text-red-600">
-                            {form.formState.errors.contactNumber.message}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Email */}
-                      <div className="space-y-2">
-                        <Label>Email Address</Label>
-                        <Input
-                          type="email"
-                          placeholder="Enter email (optional)"
-                          {...form.register("emailAddress")}
-                        />
-                        {form.formState.errors.emailAddress && (
-                          <p className="text-sm text-red-600">
-                            {form.formState.errors.emailAddress.message}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Player Code */}
-                      <div className="space-y-2">
-                        <Label>Player Code</Label>
-                        <Input
-                          placeholder="Auto-generated or custom code"
-                          {...form.register("code")}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Defaults to contact number. You can override this.
-                        </p>
-                        {form.formState.errors.code && (
-                          <p className="text-sm text-red-600">
-                            {form.formState.errors.code.message}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Total Play Time Minutes */}
-                      <div className="rounded w-full space-y-2">
-                        <Label className="font-semibold text-slate-700">
-                          Total Play Time
-                          <span className="text-xs font-normal text-slate-500 block">
-                            Default value is 180 minutes (3 hours)
-                          </span>
-                        </Label>
-                        <InputGroup>
-                          <InputGroupInput
-                            id="totalPlayTime"
-                            type="number"
-                            step={1}
-                            defaultValue={180}
-                            placeholder="Enter duration"
-                            required
-                            {...form.register("totalPlayTime", { valueAsNumber: true })}
-                          />
-
-                          <InputGroupAddon align="inline-end">
-                            <InputGroupText>minutes</InputGroupText>
-                          </InputGroupAddon>
-                        </InputGroup>
-                        {form.formState.errors.totalPlayTime && (
-                          <p className="text-sm text-red-600">
-                            {form.formState.errors.totalPlayTime.message}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <DialogFooter>
-                      <Button
-                        type="submit"
-                        disabled={createMutation.isPending || updateMutation.isPending}
-                      >
-                        {createMutation.isPending || updateMutation.isPending
-                          ? "Submitting..."
-                          : editingPlayer
-                            ? "Update Player"
-                            : "Register Player"}
-                      </Button>
-                    </DialogFooter>
-                  </fieldset>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <ButtonGroup aria-label="Button group">
+              <Button
+                className="w-full sm:w-auto"
+                variant="outline"
+                onClick={() => {
+                  setOpenEditOpenPlayDialog(true)
+                }}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+              <Button
+                className="w-full sm:w-auto"
+                variant="destructive"
+                onClick={() => {
+                  // setOpenEditOpenPlayDialog(true)
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+            </ButtonGroup>
           </CardTitle>
         </CardHeader>
 
@@ -325,9 +217,148 @@ export default function OpenPlayPage() {
 
           {/* Players */}
           <div className="space-y-2">
-            <p className="text-sm text-muted-foreground font-semibold">
-              Players ({openPlay?.players?.length || 0})
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <p className="text-sm text-muted-foreground font-semibold">
+                Players ({openPlay?.players?.length || 0})
+              </p>
+              {/* Register Button */}
+              <Dialog open={openPlayerFormDialog} onOpenChange={setOpenPlayerFormDialog}>
+                <DialogTrigger asChild>
+                  <Button size="sm">+ Register Player</Button>
+                </DialogTrigger>
+
+                <DialogContent className="w-full sm:max-w-md" {...preventDialogCloseProps}>
+                  <form
+                    onSubmit={form.handleSubmit(onSubmit)}
+                    key={editingPlayer?.id || "new-player"}
+                  >
+                    <fieldset
+                      disabled={createMutation.isPending || updateMutation.isPending}
+                      className="space-y-6"
+                    >
+                      <DialogHeader>
+                        <DialogTitle>
+                          {editingPlayer ? "Edit Player" : "Register Player"}
+                        </DialogTitle>
+                        <DialogDescription>
+                          {editingPlayer
+                            ? "Update player details for this open play session."
+                            : "Add a player to this open play session."}
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <div className="space-y-4">
+                        {/* Full Name */}
+                        <div className="space-y-2">
+                          <Label>Full Name</Label>
+                          <Input placeholder="Enter player name" {...form.register("playerName")} />
+                          {form.formState.errors.playerName && (
+                            <p className="text-sm text-red-600">
+                              {form.formState.errors.playerName.message}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Contact Number */}
+                        <div className="space-y-2">
+                          <Label>Contact Number</Label>
+                          <Input
+                            placeholder="e.g. 09123456789"
+                            {...form.register("contactNumber")}
+                            onBlur={(e) => {
+                              const value = e.target.value.trim()
+                              form.setValue("contactNumber", value)
+                              const currentCode = form.getValues("code")
+                              if (!currentCode) form.setValue("code", value)
+                            }}
+                          />
+                          {form.formState.errors.contactNumber && (
+                            <p className="text-sm text-red-600">
+                              {form.formState.errors.contactNumber.message}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Email */}
+                        <div className="space-y-2">
+                          <Label>Email Address</Label>
+                          <Input
+                            type="email"
+                            placeholder="Enter email (optional)"
+                            {...form.register("emailAddress")}
+                          />
+                          {form.formState.errors.emailAddress && (
+                            <p className="text-sm text-red-600">
+                              {form.formState.errors.emailAddress.message}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Player Code */}
+                        <div className="space-y-2">
+                          <Label>Player Code</Label>
+                          <Input
+                            placeholder="Auto-generated or custom code"
+                            {...form.register("code")}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Defaults to contact number. You can override this.
+                          </p>
+                          {form.formState.errors.code && (
+                            <p className="text-sm text-red-600">
+                              {form.formState.errors.code.message}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Total Play Time Minutes */}
+                        <div className="rounded w-full space-y-2">
+                          <Label className="font-semibold text-slate-700">
+                            Total Play Time
+                            <span className="text-xs font-normal text-slate-500 block">
+                              Default value is 180 minutes (3 hours)
+                            </span>
+                          </Label>
+                          <InputGroup>
+                            <InputGroupInput
+                              id="totalPlayTime"
+                              type="number"
+                              step={1}
+                              defaultValue={180}
+                              placeholder="Enter duration"
+                              required
+                              {...form.register("totalPlayTime", { valueAsNumber: true })}
+                            />
+
+                            <InputGroupAddon align="inline-end">
+                              <InputGroupText>minutes</InputGroupText>
+                            </InputGroupAddon>
+                          </InputGroup>
+                          {form.formState.errors.totalPlayTime && (
+                            <p className="text-sm text-red-600">
+                              {form.formState.errors.totalPlayTime.message}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <DialogFooter>
+                        <Button
+                          type="submit"
+                          disabled={createMutation.isPending || updateMutation.isPending}
+                        >
+                          {createMutation.isPending || updateMutation.isPending
+                            ? "Submitting..."
+                            : editingPlayer
+                              ? "Update Player"
+                              : "Register Player"}
+                        </Button>
+                      </DialogFooter>
+                    </fieldset>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
 
             {openPlay?.players?.length ? (
               <div className="space-y-2">
@@ -372,10 +403,25 @@ export default function OpenPlayPage() {
           variant="delete"
           Icon={<X className="text-red-500" size={20} />}
           description={`Are you sure you want to delete player "${playerToDelete.playerName}"?`}
-          open={confirmDeleteDialogOpen}
-          setOpen={setConfirmDeleteDialogOpen}
+          open={confirmDeletePlayerDialogOpen}
+          setOpen={setConfirmDeletePlayerDialogOpen}
           isLoading={deleteMutation.isPending}
           onConfirm={handleDeletePlayer}
+        />
+      )}
+
+      {!!openPlay && (
+        <OpenPlayDialog
+          initialData={{
+            id: openPlay.id,
+            date: format(openPlay?.startTime, "yyyy-MM-dd"),
+            startTime: openPlay?.formatted?.format24?.startTime,
+            duration: openPlay?.formatted?.duration,
+            transitionMinutes: openPlay?.transitionMinutes,
+            courtIds: openPlay.courts.map((c) => c.id),
+          }}
+          open={openEditOpenPlayDialog}
+          onOpenChange={setOpenEditOpenPlayDialog}
         />
       )}
     </div>

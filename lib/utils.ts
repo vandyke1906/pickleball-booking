@@ -58,9 +58,13 @@ export function formatISODateString(isoString: string) {
  * @param timeZone  - Optional override (defaults to Asia/Manila)
  * @returns A formatted string like "6:00 AM"
  */
-export function formatTimeOnly(isoString: string, timeZone: string = DEFAULT_TIMEZONE) {
+export function formatTimeOnly(
+  isoString: string,
+  formatStr: string = "hh:mm a",
+  timeZone: string = DEFAULT_TIMEZONE,
+) {
   const zoned = toZonedTime(new Date(isoString), timeZone)
-  return format(zoned, "hh:mm a")
+  return format(zoned, formatStr ?? "hh:mm a")
 }
 
 export function formatFloat(amount: number | string) {

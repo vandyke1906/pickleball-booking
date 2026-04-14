@@ -44,6 +44,11 @@ export type TOpenPlay = OpenPlay & {
     startTime: string
     endTime: string
     timeRange: string
+    duration: number
+    format24: {
+      startTime: string
+      endTime: string
+    }
   }
   courts: Court[]
   players: OpenPlayPlayer[]

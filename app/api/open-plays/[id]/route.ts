@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { formatTimeOnly, formatToPHDateString } from "@/lib/utils"
+import { differenceInHours } from "date-fns"
 
 export const GET = withRateLimit(
   async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
@@ -36,7 +37,12 @@ export const GET = withRateLimit(
           date: formatToPHDateString(start),
           startTime: formatTimeOnly(start.toISOString()),
           endTime: formatTimeOnly(end.toISOString()),
+          format24: {
+            startTime: formatTimeOnly(start.toISOString(), "HH:mm"),
+            endTime: formatTimeOnly(end.toISOString(), "HH:mm"),
+          },
           timeRange: `${formatTimeOnly(start.toISOString())} - ${formatTimeOnly(end.toISOString())}`,
+          duration: differenceInHours(end, start),
         },
       }
       console.info(data)

@@ -2,6 +2,7 @@ import { dateOnlySchema } from "@/lib/validation/util.validation"
 import z from "zod"
 
 export const openPlaySchema = z.object({
+  id: z.string().optional(),
   date: dateOnlySchema(true),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, "Start time must be HH:mm"),
   duration: z.number().min(1).max(16),

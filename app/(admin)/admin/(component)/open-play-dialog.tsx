@@ -37,10 +37,13 @@ interface DialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onClose?: () => void
+  initialData?: OpenPlayPayload
 }
 
-export default function OpenPlayDialog({ open, onOpenChange, onClose }: DialogProps) {
+export default function OpenPlayDialog({ open, onOpenChange, onClose, initialData }: DialogProps) {
   const { data: session } = useSession()
+
+  console.info({ initialData })
 
   const { data: orgWithCourts, isLoading: isLoadingOrgWithCourts } = useOrganizationCourts({
     slug: session?.user?.organization?.slug || "no_org",
@@ -51,17 +54,20 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose }: DialogPr
   const form = useForm<OpenPlayPayload>({
     resolver: zodResolver(openPlaySchema),
     defaultValues: {
-      date: "",
-      startTime: "",
-      duration: 1,
-      transitionMinutes: 0,
-      courtIds: [],
+      id: initialData?.id || "",
+      date: initialData?.date || "",
+      startTime: initialData?.startTime || "",
+      duration: initialData?.duration || 1,
+      transitionMinutes: initialData?.transitionMinutes || 0,
+      courtIds: initialData?.courtIds || [],
     },
   })
 
   const dateString = form.watch("date")
   const startTime = form.watch("startTime")
   const duration = form.watch("duration")
+
+  console.info({ dateString })
 
   const timeSlots = useMemo(() => {
     if (!orgWithCourts) return []
