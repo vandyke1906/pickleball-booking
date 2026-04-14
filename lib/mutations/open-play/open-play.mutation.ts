@@ -263,6 +263,7 @@ export function useUpdateOpenPlayPlayer() {
 
     onSettled: (_data, _error) => {
       queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
+      // queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.organizationActive(_data.), exact: false })
     },
 
     retry: 1,

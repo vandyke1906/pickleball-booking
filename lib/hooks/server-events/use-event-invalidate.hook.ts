@@ -4,13 +4,14 @@ import { QueryClient } from "@tanstack/react-query"
 import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { qKeyCourts } from "@/lib/hooks/court/court.hook"
 import Pusher from "pusher-js"
+import { qKeyOpenPlays } from "@/lib/hooks/open-play/open-play.hook"
 
 let isSubscribed = false
 
 export function setupEventInvalidations(queryClient: QueryClient) {
   if (isSubscribed) return
   isSubscribed = true
-  
+
   // Initialize Pusher client
   const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
     cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
@@ -28,4 +29,7 @@ export function setupEventInvalidations(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: qKeyCourts.all, exact: false })
   })
 
+  channel.bind(BroadcastEventTypes.OPENPLAY_UPDATED, (data: any) => {
+    queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
+  })
 }

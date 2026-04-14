@@ -20,9 +20,6 @@ import { Separator } from "@/components/ui/separator"
 import { QueueGroup, useQueueManager } from "@/lib/hooks/queue/use-queue-manager"
 import { useVoice } from "@/lib/hooks/speech/use-voice"
 
-const announcementRepeats = 2
-const announcementDelay = 2
-
 export default function OpenPlayQueue({ openPlay }: { openPlay: any }) {
   //#v2
   const [isSpeaking, setIsSpeaking] = useState(false)

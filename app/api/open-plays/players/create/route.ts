@@ -1,6 +1,8 @@
 import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
 import { isServerAuthenticated } from "@/lib/auth/auth.server"
+import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
+import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { createLineupEntry } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { openPlayPlayerSchema } from "@/lib/validation/open-play/open-play.validation"
@@ -52,7 +54,15 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       })
 
       //if active open play then lineup directly
-      if (openPlay && openPlay.status === OpenPlayStatus.active) await createLineupEntry(tx, player)
+      if (openPlay && openPlay.status === OpenPlayStatus.active) {
+        await createLineupEntry(tx, player)
+
+        //update ui of all clients on openplay
+        EventBroadcast({
+          type: BroadcastEventTypes.OPENPLAY_UPDATED,
+          data: player,
+        })
+      }
 
       return player
     })

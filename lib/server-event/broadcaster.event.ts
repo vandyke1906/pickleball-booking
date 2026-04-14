@@ -18,8 +18,7 @@ export async function EventBroadcast<T>(event: TBroadcastEvent<T>): Promise<void
   if (count === 0) console.warn("[Event] No active subscribers – event dropped")
 
   await redisPublisher.publish("events", JSON.stringify(safeEvent))
-  // Also push to Pusher channel
-  await pusher.trigger("booking-channel", safeEvent.type, safeEvent.data)
+  await pusher.trigger("booking-channel", safeEvent.type, safeEvent.data) // Also push to Pusher channel
 }
 
 export async function EventSubscribe(

@@ -44,6 +44,8 @@ export default function PickleballOpenPlayQueue() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [openLineupDialog, setOpenLineupDialog] = useState(false)
 
+  console.info({ openPlay })
+
   // Live clock
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 1000)

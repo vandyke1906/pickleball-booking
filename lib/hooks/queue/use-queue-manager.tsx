@@ -11,7 +11,7 @@ export type OpenPlayData = {
   transitionMinutes: number
   status: string
   courts: Court[]
-  players: Player[] // ← This is the initial pool
+  players: Player[]
 }
 
 export type QueueGroup = {

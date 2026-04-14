@@ -1,5 +1,8 @@
+import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
 import { isServerAuthenticated } from "@/lib/auth/auth.server"
+import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
+import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { openPlayPlayerSchema } from "@/lib/validation/open-play/open-play.validation"
 import { NextRequest, NextResponse } from "next/server"
@@ -68,7 +71,17 @@ export const PUT = withRateLimit(
           contactNumber: parsed.contactNumber,
           emailAddress: parsed.emailAddress || null,
         },
+        include: { openPlay: true },
       })
+
+      //if active open play then lineup directly
+      if (updated && updated.openPlay.status === OpenPlayStatus.active) {
+        //update ui of all clients on openplay
+        EventBroadcast({
+          type: BroadcastEventTypes.OPENPLAY_UPDATED,
+          data: updated,
+        })
+      }
 
       return NextResponse.json({ success: true, result: updated })
     } catch (err: any) {
