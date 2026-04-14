@@ -59,7 +59,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
 
         //update ui of all clients on openplay
         EventBroadcast({
-          type: BroadcastEventTypes.OPENPLAY_UPDATED,
+          type: BroadcastEventTypes.OPENPLAY_NEW_PLAYER,
           data: player,
         })
       }

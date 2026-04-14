@@ -34,8 +34,11 @@ export type CurrentGame = {
 export function useQueueManager(openPlay: OpenPlayData) {
   const [currentGames, setCurrentGames] = useState<CurrentGame[]>([])
   const [queue, setQueue] = useState<QueueGroup[]>([])
-  const [playingPlayers, setPlayingPlayers] = useState<Set<string>>(new Set()) // Track who is currently playing
+  const [playingPlayers, setPlayingPlayers] = useState<Set<string>>(new Set())
   const [currentTime, setCurrentTime] = useState(new Date())
+
+  const GAME_DURATION_MINUTES = 20
+  const TRANSITION_MS = openPlay.transitionMinutes * 60 * 1000
 
   // Live clock
   useEffect(() => {
@@ -43,7 +46,6 @@ export function useQueueManager(openPlay: OpenPlayData) {
     return () => clearInterval(interval)
   }, [])
 
-  // Available players = initial players minus those currently playing
   const availablePlayers = useMemo(() => {
     return openPlay.players.filter((p) => !playingPlayers.has(p.id))
   }, [openPlay.players, playingPlayers])
@@ -60,16 +62,16 @@ export function useQueueManager(openPlay: OpenPlayData) {
     setCurrentGames(initialGames)
   }, [openPlay.courts])
 
-  // Auto-create queue from available players (groups of 4)
-  useEffect(() => {
-    if (availablePlayers.length < 4 || queue.length > 0) return
+  // ==================== SMART QUEUE BUILDER (New + Removed Players) ====================
+  const buildQueueFromPlayers = useCallback((players: Player[]): QueueGroup[] => {
+    if (players.length === 0) return []
 
-    const shuffled = [...availablePlayers].sort(() => Math.random() - 0.5)
     const groups: QueueGroup[] = []
+    const playersCopy = [...players] // preserve original order from openPlay.players
 
-    for (let i = 0; i < shuffled.length; i += 4) {
-      const groupPlayers = shuffled.slice(i, i + 4)
-      if (groupPlayers.length === 4) {
+    for (let i = 0; i < playersCopy.length; i += 4) {
+      const groupPlayers = playersCopy.slice(i, i + 4)
+      if (groupPlayers.length > 0) {
         groups.push({
           id: `grp-${Date.now()}-${i}`,
           players: groupPlayers,
@@ -78,26 +80,52 @@ export function useQueueManager(openPlay: OpenPlayData) {
         })
       }
     }
+    return groups
+  }, [])
 
-    setQueue(groups)
-  }, [availablePlayers, queue.length])
+  // Auto-build or rebuild queue when availablePlayers change
+  // This handles BOTH: New players joining AND players being removed
+  useEffect(() => {
+    if (availablePlayers.length === 0) {
+      setQueue([])
+      return
+    }
 
-  // Auto rotation: When game ends → move next group to court + update playing players
+    // If queue is empty → build fresh queue (normal case)
+    if (queue.length === 0) {
+      const newQueue = buildQueueFromPlayers(availablePlayers)
+      setQueue(newQueue)
+      return
+    }
+
+    // If queue already exists → check if we need to rebuild (player removed or order changed)
+    // We rebuild only if the number of available players doesn't match expected remaining
+    const totalPlayersInQueue = queue.reduce((sum, g) => sum + g.players.length, 0)
+
+    if (totalPlayersInQueue !== availablePlayers.length) {
+      // Player was removed (or added while games are running) → rebuild cleanly
+      const newQueue = buildQueueFromPlayers(availablePlayers)
+      setQueue(newQueue)
+    }
+    // Else: no change needed (players still match)
+  }, [availablePlayers, queue.length, buildQueueFromPlayers])
+
+  // ==================== REFINED AUTO-ROTATION ====================
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date()
 
       setCurrentGames((prevCurrent) => {
-        const finished = prevCurrent.filter((g) => g.estimatedEndTime <= now)
-        const stillPlaying = prevCurrent.filter((g) => g.estimatedEndTime > now)
+        if (queue.length === 0) return prevCurrent
 
-        if (finished.length === 0 || queue.length === 0) return prevCurrent
+        const finishedGames = prevCurrent.filter((g) => g.estimatedEndTime <= now)
+        if (finishedGames.length === 0) return prevCurrent
 
-        let updatedCurrent = [...stillPlaying]
+        let updatedCurrent = prevCurrent.filter((g) => g.estimatedEndTime > now)
         let updatedQueue = [...queue]
         let newlyPlaying = new Set(playingPlayers)
 
-        finished.forEach((finishedGame) => {
+        finishedGames.forEach((finishedGame) => {
           if (updatedQueue.length > 0) {
             const nextGroup = updatedQueue.shift()!
 
@@ -106,12 +134,12 @@ export function useQueueManager(openPlay: OpenPlayData) {
               courtName: finishedGame.courtName,
               players: nextGroup.players,
               startTime: now,
-              estimatedEndTime: new Date(now.getTime() + 20 * 60 * 1000),
+              estimatedEndTime: new Date(
+                now.getTime() + GAME_DURATION_MINUTES * 60 * 1000 + TRANSITION_MS,
+              ),
             }
 
             updatedCurrent.push(newGame)
-
-            // Add these players to playing set
             nextGroup.players.forEach((p) => newlyPlaying.add(p.id))
           }
         })
@@ -121,10 +149,10 @@ export function useQueueManager(openPlay: OpenPlayData) {
 
         return updatedCurrent
       })
-    }, 3000)
+    }, 5000)
 
     return () => clearInterval(interval)
-  }, [queue, playingPlayers])
+  }, [queue, playingPlayers, TRANSITION_MS])
 
   const getCountdown = useCallback(
     (target: Date): string => {
@@ -140,16 +168,15 @@ export function useQueueManager(openPlay: OpenPlayData) {
   // Manual controls
   const addGroupToQueue = useCallback(
     (selectedPlayers: Player[]) => {
-      if (selectedPlayers.length !== 4) {
-        alert("Group must have exactly 4 players.")
-        return
-      }
+      if (selectedPlayers.length === 0) return
+
       const newGroup: QueueGroup = {
         id: `grp-${Date.now()}`,
         players: [...selectedPlayers],
         scheduledAt: new Date(Date.now() + (queue.length + 1) * 8 * 60 * 1000),
         position: queue.length + 1,
       }
+
       setQueue((prev) => [...prev, newGroup])
     },
     [queue.length],
@@ -162,7 +189,6 @@ export function useQueueManager(openPlay: OpenPlayData) {
   const moveNextGroupToCourt = useCallback(
     (targetCourtId?: string) => {
       if (queue.length === 0) return
-
       const nextGroup = queue[0]
 
       setCurrentGames((prev) => {
@@ -181,13 +207,14 @@ export function useQueueManager(openPlay: OpenPlayData) {
           courtName: prev[courtIndex].courtName,
           players: nextGroup.players,
           startTime: new Date(),
-          estimatedEndTime: new Date(Date.now() + 20 * 60 * 1000),
+          estimatedEndTime: new Date(
+            Date.now() + GAME_DURATION_MINUTES * 60 * 1000 + TRANSITION_MS,
+          ),
         }
 
         const updated = [...prev]
         updated[courtIndex] = newGame
 
-        // Update playing players
         const newPlaying = new Set(playingPlayers)
         nextGroup.players.forEach((p) => newPlaying.add(p.id))
 
@@ -197,18 +224,25 @@ export function useQueueManager(openPlay: OpenPlayData) {
         return updated
       })
     },
-    [queue, playingPlayers],
+    [queue, playingPlayers, TRANSITION_MS],
   )
+
+  const clearQueue = useCallback(() => setQueue([]), [])
+  const rebuildQueue = useCallback(() => setQueue([]), [])
 
   return {
     currentGames,
     queue,
-    availablePlayers, // ← Use this instead of openPlay.players for UI
+    availablePlayers,
     getCountdown,
     addGroupToQueue,
     removeFromQueue,
     moveNextGroupToCourt,
     freeCourts: currentGames.filter((g) => g.estimatedEndTime <= currentTime),
     nextGroup: queue[0] || null,
+    gameDurationMinutes: GAME_DURATION_MINUTES,
+    transitionMinutes: openPlay.transitionMinutes,
+    clearQueue,
+    rebuildQueue,
   }
 }

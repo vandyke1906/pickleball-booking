@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import {
   PlayCircle,
   Users,
@@ -19,6 +19,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { QueueGroup, useQueueManager } from "@/lib/hooks/queue/use-queue-manager"
 import { useVoice } from "@/lib/hooks/speech/use-voice"
+import { EventBusKeys, useEventListener } from "@/lib/client/event-bus"
 
 export default function OpenPlayQueue({ openPlay }: { openPlay: any }) {
   //#v2
@@ -35,7 +36,21 @@ export default function OpenPlayQueue({ openPlay }: { openPlay: any }) {
     removeFromQueue,
     moveNextGroupToCourt,
     freeCourts,
+    rebuildQueue,
   } = useQueueManager(openPlay)
+
+  const handleRebuildQueue = useCallback(
+    (data: { openPlayId: string; playerId?: string }) => {
+      if (data.openPlayId !== openPlay.id) return
+
+      rebuildQueue()
+      console.info(`[OpenPlayQueue] New player joined ${openPlay.id}. Queue rebuilt.`)
+    },
+    [openPlay.id, rebuildQueue],
+  )
+
+  // Subscribe to the clean event
+  useEventListener(EventBusKeys.OPENPLAY_PLAYER_ADD, handleRebuildQueue)
 
   // Auto announcement
   useEffect(() => {

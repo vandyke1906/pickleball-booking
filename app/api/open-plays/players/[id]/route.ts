@@ -78,7 +78,7 @@ export const PUT = withRateLimit(
       if (updated && updated.openPlay.status === OpenPlayStatus.active) {
         //update ui of all clients on openplay
         EventBroadcast({
-          type: BroadcastEventTypes.OPENPLAY_UPDATED,
+          type: BroadcastEventTypes.OPENPLAY_UPDATE_PLAYER,
           data: updated,
         })
       }
@@ -110,6 +110,19 @@ export const DELETE = withRateLimit(
       const { id } = await params
       if (!id) return NextResponse.json({ error: "Player id is required" }, { status: 400 })
 
+      const openPlayer = await prisma.openPlayPlayer.findUnique({
+        where: { id },
+        include: { openPlay: true },
+      })
+      if (!openPlayer) return NextResponse.json({ error: "Player not found" }, { status: 400 })
+      //if active open play then lineup directly
+      if (openPlayer.openPlay.status === OpenPlayStatus.active) {
+        //update ui of all clients on openplay
+        EventBroadcast({
+          type: BroadcastEventTypes.OPENPLAY_REMOVE_PLAYER,
+          data: openPlayer,
+        })
+      }
       await prisma.openPlayPlayer.delete({ where: { id } })
       return NextResponse.json({ success: true, message: "Player deleted successfully" })
     } catch (err: any) {
