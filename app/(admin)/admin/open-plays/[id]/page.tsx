@@ -29,6 +29,7 @@ import {
   useCreateOpenPlayPlayer,
   useDeleteOpenPlay,
   useDeleteOpenPlayPlayer,
+  useStartActiveOpenPlay,
   useStatusUpdateOpenPlay,
   useUpdateOpenPlayPlayer,
 } from "@/lib/mutations/open-play/open-play.mutation"
@@ -38,6 +39,7 @@ import {
   BadgeCheck,
   CheckIcon,
   ChevronDownIcon,
+  Clock,
   Pencil,
   Trash2,
   TrashIcon,
@@ -101,8 +103,10 @@ export default function OpenPlayPage() {
   const [editingPlayer, setEditingPlayer] = useState<any>(null)
   const [confirmDeletePlayerDialogOpen, setConfirmDeletePlayerDialogOpen] = useState(false)
   const [playerToDelete, setPlayerToDelete] = useState<any>(null)
+  const [confirmStartNow, setConfirmStartNow] = useState(false)
 
   const updateStatusMutation = useStatusUpdateOpenPlay()
+  const startActiveOpenPlayMutation = useStartActiveOpenPlay()
   const deleteOpenPlayMutation = useDeleteOpenPlay()
 
   const createMutation = useCreateOpenPlayPlayer()
@@ -224,6 +228,20 @@ export default function OpenPlayPage() {
     )
   }
 
+  const handleStartOpenPlayNow = () => {
+    console.info({ openPlay })
+    if (!openPlay?.id || !openPlay.isActive) return
+
+    startActiveOpenPlayMutation.mutate(
+      { id: openPlay.id },
+      {
+        onSuccess: () => {
+          setConfirmStartNow(false)
+        },
+      },
+    )
+  }
+
   const initialOpenPlayData = openPlay
     ? {
         id: openPlay.id,
@@ -242,7 +260,8 @@ export default function OpenPlayPage() {
     deleteOpenPlayMutation.isPending ||
     createMutation.isPending ||
     updateMutation.isPending ||
-    deleteMutation.isPending
+    deleteMutation.isPending ||
+    startActiveOpenPlayMutation.isPending
 
   return (
     <div className="p-6 w-full">
@@ -296,7 +315,23 @@ export default function OpenPlayPage() {
                         Activate
                       </DropdownMenuItem>
                     )}
-                    {openPlay?.status === OpenPlayStatus.active && (
+                    {!openPlay?.startedAt && openPlay?.status === OpenPlayStatus.active && (
+                      <DropdownMenuItem
+                        className="text-[var(--primary)]"
+                        disabled={updateStatusMutation.isPending}
+                        onClick={() => {
+                          setConfirmStartNow(true)
+                        }}
+                      >
+                        {updateStatusMutation.isPending ? (
+                          <Spinner data-icon="inline-start" />
+                        ) : (
+                          <Clock className="text-[var(--primary)]" />
+                        )}
+                        Start Now
+                      </DropdownMenuItem>
+                    )}
+                    {!!openPlay?.startedAt && openPlay?.status === OpenPlayStatus.active && (
                       <DropdownMenuItem
                         className="text-[var(--primary)]"
                         disabled={updateStatusMutation.isPending}
@@ -636,6 +671,20 @@ export default function OpenPlayPage() {
         isLoading={false}
         onConfirm={handleConfirmUpdateStatus}
       />
+
+      {/* Confirm to start active openplay */}
+      {openPlay && (
+        <ConfirmationDialog
+          title="Start Now"
+          variant="confirm"
+          Icon={<Clock className="text-green-700" size={20} />}
+          description={`Are you sure you want to start timer of current Open Play?`}
+          open={confirmStartNow}
+          setOpen={setConfirmStartNow}
+          isLoading={startActiveOpenPlayMutation.isPending}
+          onConfirm={handleStartOpenPlayNow}
+        />
+      )}
     </div>
   )
 }

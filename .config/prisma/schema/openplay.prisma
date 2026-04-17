@@ -4,7 +4,7 @@ model OpenPlay {
   courts Court[] @relation("OpenPlayCourts")
 
   isActive Boolean @default(false)
-  isStarted Boolean @default(false)
+  startedAt DateTime?
   isCompleted Boolean @default(false)
   startTime DateTime
   endTime   DateTime

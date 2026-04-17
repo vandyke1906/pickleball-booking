@@ -137,6 +137,19 @@ async function submitLineupOpenPlay(payload: OpenPlayLineupPayload) {
   }
   return res.json()
 }
+
+async function startActiveOpenPlay(id: string) {
+  const formData = new FormData()
+  formData.append("status", status)
+  const res = await fetch(`/api/open-plays/${id}/start`, { method: "POST" })
+
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error?.error || "Start active Open Play failed")
+  }
+
+  return res.json()
+}
 // endOf API functions
 
 export function useCreateOrUpdateOpenPlay() {
@@ -463,6 +476,47 @@ export function useSubmitLineupOpenPlay() {
     },
 
     onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
+    },
+
+    retry: 1,
+  })
+}
+
+export function useStartActiveOpenPlay() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) => startActiveOpenPlay(id),
+
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: ["open-play-start", id] })
+      const previousOpenPlay = queryClient.getQueryData(["open-play-start", id])
+
+      if (previousOpenPlay) {
+        queryClient.setQueryData(["open-play-start", id], (old: any) => ({
+          ...old,
+          status: status,
+        }))
+      }
+
+      return { previousOpenPlay }
+    },
+
+    onError: (error, { id }, context) => {
+      if (context?.previousOpenPlay) {
+        queryClient.setQueryData(["open-play-start", id], context.previousOpenPlay)
+      }
+      toast.error("Starting Open Play failed", { description: (error as Error).message })
+    },
+
+    onSuccess: () => {
+      toast.success("Open Play Started", {
+        description: "The open play has been started.",
+      })
+    },
+
+    onSettled: (_data, _error) => {
       queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
     },
 
