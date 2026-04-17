@@ -64,7 +64,6 @@ export function useOrganizationOpenPlays(params: OpenPlayListParams) {
       if (params.perPage) url.searchParams.set("perPage", params.perPage)
       if (params.filters) url.searchParams.set("filters", params.filters)
       if (params.sort) url.searchParams.set("sort", params.sort)
-      console.info(url.toString())
       return fetcher(url.toString())
     },
     enabled: !!params.organizationId,

@@ -2,9 +2,9 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
-import { useCallback, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { CheckCircle2, CircleCheckBig, HandFist, Plus, XCircle } from "lucide-react"
+import { Eye, HandFist, Plus } from "lucide-react"
 import { DataTableV3 } from "@/components/data-table/data-table.v3"
 import { useSearchParams } from "next/navigation"
 import { TOpenPlayData, useOrganizationOpenPlays } from "@/lib/hooks/open-play/open-play.hook"
@@ -15,32 +15,7 @@ import { useSession } from "next-auth/react"
 import { formatDateString, formatTimeRange } from "@/lib/utils"
 import Link from "next/link"
 import BadgeStatus from "@/components/common/badge-status"
-import ConfirmationDialog from "@/components/common/confirm-dialog"
-import { useStatusUpdateOpenPlay } from "@/lib/mutations/open-play/open-play.mutation"
-import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
-import { Spinner } from "@/components/ui/spinner"
-
-const dialogConfig: any = {
-  [OpenPlayStatus.active]: {
-    title: "Confirm Activation",
-    variant: "default",
-    description:
-      "Are you sure you want to activate this Open Play? Any active session will be completed. Registered players will be automatically included in the lineup.",
-    icon: <CircleCheckBig className="text-blue-500" size={20} />,
-  },
-  [OpenPlayStatus.completed]: {
-    title: "Confirm Completion",
-    variant: "confirm",
-    description: "Are you sure you want to complete this Open Play?",
-    icon: <CheckCircle2 className="text-green-500" size={20} />,
-  },
-  [OpenPlayStatus.cancelled]: {
-    title: "Confirm Cancellation",
-    variant: "delete",
-    description: "Are you sure you want to cancel this Open Play?",
-    icon: <XCircle className="text-red-500" size={20} />,
-  },
-} as const
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 export default function OpenPlaysList() {
   const { data: session } = useSession()
@@ -60,32 +35,8 @@ export default function OpenPlaysList() {
   )
 
   const { data, totalCount, perPage, isLoading, isError, error } = useOrganizationOpenPlays(params)
-  const updateStatusMutation = useStatusUpdateOpenPlay()
 
   const [openNewOpenPlayDialog, setOpenNewOpenPlayDialog] = useState(false)
-
-  const [confirmOpenPlay, setConfirmOpenPlay] = useState<{
-    open: boolean
-    id: string | null
-    status: OpenPlayStatus | null
-  }>({
-    open: false,
-    id: null,
-    status: null,
-  })
-
-  const handleConfirm = useCallback(() => {
-    if (!confirmOpenPlay.id || !confirmOpenPlay.status) return
-
-    updateStatusMutation.mutate(
-      { id: confirmOpenPlay.id, status: confirmOpenPlay.status },
-      {
-        onSuccess: () => {
-          setConfirmOpenPlay({ open: false, id: null, status: null })
-        },
-      },
-    )
-  }, [confirmOpenPlay])
 
   const columns = useMemo<ColumnDef<TOpenPlayData>[]>(
     () => [
@@ -102,32 +53,6 @@ export default function OpenPlaysList() {
                 row.original.startTime.toLocaleString("default", { month: "short" }),
               )}
             </Link>
-
-            <ActionButtons
-              isLoading={updateStatusMutation.isPending}
-              status={row.original.status}
-              onActivate={() =>
-                setConfirmOpenPlay({
-                  open: true,
-                  id: row.original.id,
-                  status: OpenPlayStatus.active,
-                })
-              }
-              onCancel={() =>
-                setConfirmOpenPlay({
-                  open: true,
-                  id: row.original.id,
-                  status: OpenPlayStatus.cancelled,
-                })
-              }
-              onComplete={() =>
-                setConfirmOpenPlay({
-                  open: true,
-                  id: row.original.id,
-                  status: OpenPlayStatus.completed,
-                })
-              }
-            />
           </div>
         ),
         enableColumnFilter: false,
@@ -222,10 +147,8 @@ export default function OpenPlaysList() {
         },
       },
     ],
-    [updateStatusMutation],
+    [],
   )
-
-  const current: any = confirmOpenPlay.status ? dialogConfig[confirmOpenPlay.status] : null
 
   if (isError) return <p>Error: {String(error)}</p>
 
@@ -254,6 +177,20 @@ export default function OpenPlaysList() {
             data={data ?? []}
             columns={columns}
             isLoading={isLoading}
+            actionsRenderer={(row) => {
+              return (
+                <div className="flex items-center justify-center gap-1.5">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link href={`/admin/open-plays/${row.id}`} className="font-extrabold text-md">
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent>View Details</TooltipContent>
+                  </Tooltip>
+                </div>
+              )
+            }}
             features={{
               searchPlaceholder: "Search Open Plays...",
               showSearch: true,
@@ -271,68 +208,6 @@ export default function OpenPlaysList() {
       </Card>
 
       <OpenPlayDialog open={openNewOpenPlayDialog} onOpenChange={setOpenNewOpenPlayDialog} />
-
-      <ConfirmationDialog
-        title={current?.title ?? ""}
-        variant={current?.variant ?? "default"}
-        Icon={current?.icon ?? null}
-        description={current?.description ?? ""}
-        open={confirmOpenPlay.open}
-        setOpen={(open) =>
-          setConfirmOpenPlay((prev) => ({
-            ...prev,
-            open,
-            ...(open === false && { id: null, action: null }),
-          }))
-        }
-        isLoading={false}
-        onConfirm={handleConfirm}
-      />
     </div>
   )
-}
-
-function ActionButtons({
-  isLoading = false,
-  status,
-  onActivate,
-  onCancel,
-  onComplete,
-}: {
-  isLoading: boolean
-  status: OpenPlayStatus
-  onActivate?: () => void
-  onCancel?: () => void
-  onComplete?: () => void
-}) {
-  if (status === OpenPlayStatus.pending)
-    return (
-      <div className="flex gap-2">
-        <Button size="sm" disabled={isLoading} variant="default" onClick={onActivate}>
-          {isLoading && <Spinner data-icon="inline-start" />}
-          Activate
-        </Button>
-        <Button size="sm" disabled={isLoading} variant="destructive" onClick={onCancel}>
-          {isLoading && <Spinner data-icon="inline-start" />}
-          Cancel
-        </Button>
-      </div>
-    )
-
-  if (status === OpenPlayStatus.active) {
-    return (
-      <div className="flex gap-2">
-        <Button size="sm" disabled={isLoading} variant="success" onClick={onComplete}>
-          {isLoading && <Spinner data-icon="inline-start" />}
-          Complete
-        </Button>
-        <Button size="sm" disabled={isLoading} variant="destructive" onClick={onCancel}>
-          {isLoading && <Spinner data-icon="inline-start" />}
-          Cancel
-        </Button>
-      </div>
-    )
-  }
-
-  return null
 }

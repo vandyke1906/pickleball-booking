@@ -25,6 +25,7 @@ export const POST = withRateLimit(
               status: OpenPlayStatus.active,
             },
             data: {
+              isActive: false,
               status: OpenPlayStatus.completed,
             },
           })
@@ -37,6 +38,7 @@ export const POST = withRateLimit(
         const openPlay = await tx.openPlay.update({
           where: { id },
           data: {
+            isActive: status === OpenPlayStatus.active,
             status: status,
           },
         })

@@ -12,17 +12,19 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
 // API functions
-async function createOpenPlay(payload: OpenPlayPayload) {
+async function createOrUpdateOpenPlay(payload: OpenPlayPayload) {
   const parsed = openPlaySchema.parse(payload)
 
   const formData = new FormData()
+  formData.append("id", parsed.id ?? "")
   formData.append("date", parsed.date ?? "")
   formData.append("startTime", parsed.startTime)
   formData.append("duration", parsed.duration.toString())
   formData.append("transitionMinutes", parsed.transitionMinutes.toString())
+  formData.append("playerSwitchMinutes", parsed.playerSwitchMinutes.toString())
   formData.append("courtIds", JSON.stringify(parsed.courtIds))
 
-  const response = await fetch("/api/open-plays/create", {
+  const response = await fetch("/api/open-plays", {
     method: "POST",
     body: formData,
   })
@@ -33,6 +35,15 @@ async function createOpenPlay(payload: OpenPlayPayload) {
   }
 
   return response.json()
+}
+
+async function deleteOpenPlay(id: string) {
+  const res = await fetch(`/api/open-plays/${id}`, { method: "DELETE" })
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error?.error || "Delete failed")
+  }
+  return res.json()
 }
 
 async function createOpenPlayPlayer(payload: OpenPlayPlayerPayload) {
@@ -128,12 +139,12 @@ async function submitLineupOpenPlay(payload: OpenPlayLineupPayload) {
 }
 // endOf API functions
 
-export function useCreateOpenPlay() {
+export function useCreateOrUpdateOpenPlay() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationKey: ["create-open-play"],
-    mutationFn: createOpenPlay,
+    mutationKey: ["create-or-update-open-play"],
+    mutationFn: createOrUpdateOpenPlay,
 
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["open-plays"] })
@@ -162,7 +173,51 @@ export function useCreateOpenPlay() {
       })
     },
 
-    onSettled: () => {
+    onSettled: (data) => {
+      console.info({ data })
+      queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
+      if (data?.result?.id)
+        queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.detail(data?.result?.id) })
+    },
+
+    retry: 1,
+  })
+}
+
+export function useDeleteOpenPlay() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) => deleteOpenPlay(id),
+
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: ["open-play", id] })
+      const previousOpenPlay = queryClient.getQueryData(["open-play", id])
+
+      if (previousOpenPlay) {
+        queryClient.setQueryData(["open-play", id], (old: any) => ({
+          ...old,
+          players: (old.players || []).filter((p: any) => p.id !== id),
+        }))
+      }
+
+      return { previousOpenPlay }
+    },
+
+    onError: (error, { id }, context) => {
+      if (context?.previousOpenPlay) {
+        queryClient.setQueryData(["open-play", id], context.previousOpenPlay)
+      }
+      toast.error("Delete failed", { description: (error as Error).message })
+    },
+
+    onSuccess: () => {
+      toast.success("Openplay deleted", {
+        description: "Openplay has been deleted.",
+      })
+    },
+
+    onSettled: (_data, _error) => {
       queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
     },
 

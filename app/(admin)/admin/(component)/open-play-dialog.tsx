@@ -31,7 +31,7 @@ import { useOrganizationCourts } from "@/lib/hooks/court/court.hook"
 import { useSession } from "next-auth/react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
-import { useCreateOpenPlay } from "@/lib/mutations/open-play/open-play.mutation"
+import { useCreateOrUpdateOpenPlay } from "@/lib/mutations/open-play/open-play.mutation"
 
 interface DialogProps {
   open: boolean
@@ -43,13 +43,11 @@ interface DialogProps {
 export default function OpenPlayDialog({ open, onOpenChange, onClose, initialData }: DialogProps) {
   const { data: session } = useSession()
 
-  console.info({ initialData })
-
   const { data: orgWithCourts, isLoading: isLoadingOrgWithCourts } = useOrganizationCourts({
     slug: session?.user?.organization?.slug || "no_org",
   })
 
-  const mutation = useCreateOpenPlay()
+  const mutation = useCreateOrUpdateOpenPlay()
 
   const form = useForm<OpenPlayPayload>({
     resolver: zodResolver(openPlaySchema),
@@ -59,6 +57,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
       startTime: initialData?.startTime || "",
       duration: initialData?.duration || 1,
       transitionMinutes: initialData?.transitionMinutes || 0,
+      playerSwitchMinutes: initialData?.playerSwitchMinutes || 0,
       courtIds: initialData?.courtIds || [],
     },
   })
@@ -66,8 +65,6 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
   const dateString = form.watch("date")
   const startTime = form.watch("startTime")
   const duration = form.watch("duration")
-
-  console.info({ dateString })
 
   const timeSlots = useMemo(() => {
     if (!orgWithCourts) return []
@@ -137,7 +134,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
   }, [dateString, startTime, duration])
 
   useEffect(() => {
-    if (orgWithCourts?.openPlayRule)
+    if (!initialData && orgWithCourts?.openPlayRule)
       form.setValue("transitionMinutes", orgWithCourts.openPlayRule.transitionMinutes, {
         shouldDirty: false,
       })
@@ -173,7 +170,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
               <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   {/* Date */}
-                  <div className="rounded w-full space-y-2">
+                  <div className="lg:col-span-2 rounded w-full space-y-2">
                     <Label className="font-semibold text-slate-700">Date</Label>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -217,6 +214,26 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
                     {form.formState.errors.transitionMinutes && (
                       <p className="text-sm text-red-600">
                         {form.formState.errors.transitionMinutes.message}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Player Switch Minutes */}
+                  <div className="rounded w-full space-y-2">
+                    <Label className="font-semibold text-slate-700">
+                      Switch Preparation Minutes
+                    </Label>
+                    <Input
+                      id="playerSwitchMinutes"
+                      type="number"
+                      step={5}
+                      placeholder="Enter Player Switch Minutes"
+                      required
+                      {...form.register("playerSwitchMinutes", { valueAsNumber: true })}
+                    />
+                    {form.formState.errors.playerSwitchMinutes && (
+                      <p className="text-sm text-red-600">
+                        {form.formState.errors.playerSwitchMinutes.message}
                       </p>
                     )}
                   </div>
@@ -328,7 +345,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
                       Please wait...
                     </>
                   ) : (
-                    "Create Open Play"
+                    <>{initialData?.id ? "Update" : "Create"} Open Play</>
                   )}
                 </Button>
               </DialogFooter>

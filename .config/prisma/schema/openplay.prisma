@@ -3,9 +3,14 @@ model OpenPlay {
 
   courts Court[] @relation("OpenPlayCourts")
 
+  isActive Boolean @default(false)
+  isStarted Boolean @default(false)
+  isCompleted Boolean @default(false)
   startTime DateTime
   endTime   DateTime
   transitionMinutes Int @default(60)
+  playerSwitchMinutes Int @default(5)
+  announcementMinutesBeforeTransition Int @default(5) 
   status OpenPlayStatus @default(pending)
 
   queues LineupQueue[]
@@ -17,6 +22,7 @@ model OpenPlay {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([isActive])
   @@index([startTime, endTime])
   @@index([startTime, status])
   @@index([organizationId, status])

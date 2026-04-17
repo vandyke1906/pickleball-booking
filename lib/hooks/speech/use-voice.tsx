@@ -11,7 +11,6 @@ export const useVoice = () => {
     const loadVoices = () => {
       const available = window.speechSynthesis.getVoices()
       setVoices(available)
-      console.info({ available })
       const voice =
         available.find((v) => v.lang.toLowerCase().includes("fil-ph")) ||
         available.find((v) => v.lang.toLowerCase().includes("en-ph")) ||

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useOpenPlay } from "@/lib/hooks/open-play/open-play.hook"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,11 +27,22 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Label } from "@/components/ui/label"
 import {
   useCreateOpenPlayPlayer,
+  useDeleteOpenPlay,
   useDeleteOpenPlayPlayer,
+  useStatusUpdateOpenPlay,
   useUpdateOpenPlayPlayer,
 } from "@/lib/mutations/open-play/open-play.mutation"
 import ConfirmationDialog from "@/components/common/confirm-dialog"
-import { Pencil, Trash2, X } from "lucide-react"
+import {
+  AlertTriangleIcon,
+  BadgeCheck,
+  CheckIcon,
+  ChevronDownIcon,
+  Pencil,
+  Trash2,
+  TrashIcon,
+  X,
+} from "lucide-react"
 import { preventDialogCloseProps } from "@/components/dialog/dialog-helper"
 import { Loading } from "@/components/animated/loading"
 import {
@@ -43,6 +54,38 @@ import {
 import { ButtonGroup } from "@/components/ui/button-group"
 import OpenPlayDialog from "@/app/(admin)/admin/(component)/open-play-dialog"
 import { format } from "date-fns"
+import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Spinner } from "@/components/ui/spinner"
+
+const dialogConfig: any = {
+  [OpenPlayStatus.active]: {
+    title: "Confirm Activation",
+    variant: "default",
+    description:
+      "Are you sure you want to activate this Open Play? Any active session will be completed. Registered players will be automatically included in the lineup.",
+    icon: <BadgeCheck className="text-blue-500" size={20} />,
+  },
+  [OpenPlayStatus.completed]: {
+    title: "Confirm Completion",
+    variant: "confirm",
+    description: "Are you sure you want to complete this Open Play?",
+    icon: <CheckIcon className="text-green-500" size={20} />,
+  },
+  [OpenPlayStatus.cancelled]: {
+    title: "Confirm Cancellation",
+    variant: "delete",
+    description: "Are you sure you want to cancel this Open Play?",
+    icon: <AlertTriangleIcon className="text-red-500" size={20} />,
+  },
+} as const
 
 export default function OpenPlayPage() {
   const router = useRouter()
@@ -52,13 +95,15 @@ export default function OpenPlayPage() {
 
   const { data: openPlay, isLoading, isError, error } = useOpenPlay(id)
 
-  console.info({ openPlay })
-
   const [openEditOpenPlayDialog, setOpenEditOpenPlayDialog] = useState(false)
+  const [confirmDeleteOpenPlayDialogOpen, setConfirmDeleteOpenPlayDialogOpen] = useState(false)
   const [openPlayerFormDialog, setOpenPlayerFormDialog] = useState(false)
   const [editingPlayer, setEditingPlayer] = useState<any>(null)
   const [confirmDeletePlayerDialogOpen, setConfirmDeletePlayerDialogOpen] = useState(false)
   const [playerToDelete, setPlayerToDelete] = useState<any>(null)
+
+  const updateStatusMutation = useStatusUpdateOpenPlay()
+  const deleteOpenPlayMutation = useDeleteOpenPlay()
 
   const createMutation = useCreateOpenPlayPlayer()
   const updateMutation = useUpdateOpenPlayPlayer()
@@ -74,6 +119,14 @@ export default function OpenPlayPage() {
       code: "",
       totalPlayTime: 3 * 60,
     },
+  })
+
+  const [confirmOpenPlay, setConfirmOpenPlay] = useState<{
+    open: boolean
+    status: OpenPlayStatus | null
+  }>({
+    open: false,
+    status: null,
   })
 
   // Reset form whenever dialog closes or editingPlayer changes
@@ -121,6 +174,19 @@ export default function OpenPlayPage() {
     }
   }
 
+  const handleDeleteOpenPlay = () => {
+    if (!openPlay) return
+    deleteOpenPlayMutation.mutate(
+      { id: openPlay.id },
+      {
+        onSuccess: () => {
+          setConfirmDeleteOpenPlayDialogOpen(false)
+          router.push("/admin/open-plays")
+        },
+      },
+    )
+  }
+
   const onEditPlayer = (player: any) => {
     setEditingPlayer(player)
     form.reset({ ...player, openPlayId: id })
@@ -145,36 +211,150 @@ export default function OpenPlayPage() {
     )
   }
 
+  const handleConfirmUpdateStatus = () => {
+    if (!openPlay?.id || !confirmOpenPlay.status) return
+
+    updateStatusMutation.mutate(
+      { id: openPlay.id, status: confirmOpenPlay.status },
+      {
+        onSuccess: () => {
+          setConfirmOpenPlay({ open: false, status: null })
+        },
+      },
+    )
+  }
+
+  const initialOpenPlayData = openPlay
+    ? {
+        id: openPlay.id,
+        date: format(openPlay?.startTime, "yyyy-MM-dd"),
+        startTime: openPlay?.formatted?.format24?.startTime,
+        duration: openPlay?.formatted?.duration,
+        transitionMinutes: openPlay?.transitionMinutes,
+        playerSwitchMinutes: openPlay?.playerSwitchMinutes,
+        courtIds: openPlay.courts.map((c) => c.id),
+      }
+    : undefined
+
+  const current: any = confirmOpenPlay.status ? dialogConfig[confirmOpenPlay.status] : null
+  const isPendingMutations =
+    updateStatusMutation.isPending ||
+    deleteOpenPlayMutation.isPending ||
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    deleteMutation.isPending
+
   return (
     <div className="p-6 w-full">
       <Card className="w-full shadow-md rounded-2xl">
         <CardHeader>
           <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <span className="font-semibold text-lg">Open Play Details</span>
               <BadgeStatus status={openPlay?.status as any} />
             </div>
-            <ButtonGroup aria-label="Button group">
+            <ButtonGroup>
               <Button
+                disabled={isPendingMutations}
                 className="w-full sm:w-auto"
                 variant="outline"
                 onClick={() => {
                   setOpenEditOpenPlayDialog(true)
                 }}
               >
-                <Pencil className="h-4 w-4 mr-2" />
+                {isPendingMutations ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <Pencil className="h-4 w-4 mr-2" />
+                )}
                 Edit
               </Button>
-              <Button
-                className="w-full sm:w-auto"
-                variant="destructive"
-                onClick={() => {
-                  // setOpenEditOpenPlayDialog(true)
-                }}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="pl-2!">
+                    <ChevronDownIcon />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuGroup>
+                    {openPlay?.status === OpenPlayStatus.pending && (
+                      <DropdownMenuItem
+                        className="text-[var(--primary)]"
+                        disabled={updateStatusMutation.isPending}
+                        onClick={() => {
+                          setConfirmOpenPlay({
+                            open: true,
+                            status: OpenPlayStatus.active,
+                          })
+                        }}
+                      >
+                        {updateStatusMutation.isPending ? (
+                          <Spinner data-icon="inline-start" />
+                        ) : (
+                          <BadgeCheck className="text-[var(--primary)]" />
+                        )}
+                        Activate
+                      </DropdownMenuItem>
+                    )}
+                    {openPlay?.status === OpenPlayStatus.active && (
+                      <DropdownMenuItem
+                        className="text-[var(--primary)]"
+                        disabled={updateStatusMutation.isPending}
+                        onClick={() => {
+                          setConfirmOpenPlay({
+                            open: true,
+                            status: OpenPlayStatus.completed,
+                          })
+                        }}
+                      >
+                        {updateStatusMutation.isPending ? (
+                          <Spinner data-icon="inline-start" />
+                        ) : (
+                          <CheckIcon className="text-[var(--primary)]" />
+                        )}
+                        Complete
+                      </DropdownMenuItem>
+                    )}
+                    {(openPlay?.status === OpenPlayStatus.active ||
+                      openPlay?.status === OpenPlayStatus.pending) && (
+                      <DropdownMenuItem
+                        variant="destructive"
+                        disabled={updateStatusMutation.isPending}
+                        onClick={() => {
+                          setConfirmOpenPlay({
+                            open: true,
+                            status: OpenPlayStatus.cancelled,
+                          })
+                        }}
+                      >
+                        {updateStatusMutation.isPending ? (
+                          <Spinner data-icon="inline-start" />
+                        ) : (
+                          <AlertTriangleIcon />
+                        )}
+                        Cancel
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuGroup>
+                  {openPlay?.status !== OpenPlayStatus.active && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          disabled={deleteOpenPlayMutation.isPending}
+                          onClick={() => {
+                            setConfirmDeleteOpenPlayDialogOpen(true)
+                          }}
+                        >
+                          <TrashIcon />
+                          Delete Openplay
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </ButtonGroup>
           </CardTitle>
         </CardHeader>
@@ -193,6 +373,12 @@ export default function OpenPlayPage() {
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Transition Time</span>
             <span className="font-medium">{openPlay?.transitionMinutes} minutes</span>
+          </div>
+
+          {/*  Switch Preparation Minutes */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground"> Switch Preparation Time</span>
+            <span className="font-medium">{openPlay?.playerSwitchMinutes} minutes</span>
           </div>
 
           <Separator />
@@ -396,7 +582,21 @@ export default function OpenPlayPage() {
         </CardContent>
       </Card>
 
-      {/* Confirmation Dialog */}
+      {/* Delete Openplay Confirmation Dialog */}
+      {openPlay && (
+        <ConfirmationDialog
+          title="Confirm Delete"
+          variant="delete"
+          Icon={<X className="text-red-500" size={20} />}
+          description={`Are you sure you want to Openplay?`}
+          open={confirmDeleteOpenPlayDialogOpen}
+          setOpen={setConfirmDeleteOpenPlayDialogOpen}
+          isLoading={deleteOpenPlayMutation.isPending}
+          onConfirm={handleDeleteOpenPlay}
+        />
+      )}
+
+      {/* Delete Player Confirmation Dialog */}
       {playerToDelete && (
         <ConfirmationDialog
           title="Confirm Delete"
@@ -410,20 +610,32 @@ export default function OpenPlayPage() {
         />
       )}
 
-      {!!openPlay && (
+      {/* Edit Openplay */}
+      {!!openPlay && initialOpenPlayData && (
         <OpenPlayDialog
-          initialData={{
-            id: openPlay.id,
-            date: format(openPlay?.startTime, "yyyy-MM-dd"),
-            startTime: openPlay?.formatted?.format24?.startTime,
-            duration: openPlay?.formatted?.duration,
-            transitionMinutes: openPlay?.transitionMinutes,
-            courtIds: openPlay.courts.map((c) => c.id),
-          }}
+          initialData={initialOpenPlayData}
           open={openEditOpenPlayDialog}
           onOpenChange={setOpenEditOpenPlayDialog}
         />
       )}
+
+      {/* Edit Openplay status */}
+      <ConfirmationDialog
+        title={current?.title ?? ""}
+        variant={current?.variant ?? "default"}
+        Icon={current?.icon ?? null}
+        description={current?.description ?? ""}
+        open={confirmOpenPlay.open}
+        setOpen={(open) =>
+          setConfirmOpenPlay((prev) => ({
+            ...prev,
+            open,
+            ...(open === false && { id: null, action: null }),
+          }))
+        }
+        isLoading={false}
+        onConfirm={handleConfirmUpdateStatus}
+      />
     </div>
   )
 }
