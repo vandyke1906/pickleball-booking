@@ -262,6 +262,7 @@ export default function OpenPlayPage() {
     updateMutation.isPending ||
     deleteMutation.isPending ||
     startActiveOpenPlayMutation.isPending
+  const isOpenPlayActive = openPlay?.isActive && openPlay.status === OpenPlayStatus.active
 
   return (
     <div className="p-6 w-full">
@@ -274,10 +275,11 @@ export default function OpenPlayPage() {
             </div>
             <ButtonGroup>
               <Button
-                disabled={isPendingMutations}
+                // disabled={isPendingMutations || isOpenPlayActive}
                 className="w-full sm:w-auto"
                 variant="outline"
                 onClick={() => {
+                  // if (isPendingMutations || isOpenPlayActive) return
                   setOpenEditOpenPlayDialog(true)
                 }}
               >
@@ -403,6 +405,14 @@ export default function OpenPlayPage() {
           </div>
 
           <Separator />
+
+          {/* Started At */}
+          {openPlay?.formatted?.startedAt && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Started Time</span>
+              <span className="font-medium">{openPlay?.formatted?.startedAt}</span>
+            </div>
+          )}
 
           {/* Transition */}
           <div className="flex items-center justify-between text-sm">

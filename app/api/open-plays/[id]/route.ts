@@ -38,6 +38,7 @@ export const GET = withRateLimit(
 
       const start = new Date(openPlay.startTime)
       const end = new Date(openPlay.endTime)
+      const startedAt = openPlay.startedAt ? new Date(openPlay.startedAt) : null
 
       const data = {
         ...openPlay,
@@ -48,7 +49,7 @@ export const GET = withRateLimit(
           status: openPlay.status,
           courts: openPlay.courts,
           isActive: openPlay.isActive,
-          startedAt: openPlay.startedAt,
+          startedAt: startedAt ? formatTimeOnly(startedAt.toISOString()) : null,
           date: formatToPHDateString(start),
           startTime: formatTimeOnly(start.toISOString()),
           endTime: formatTimeOnly(end.toISOString()),

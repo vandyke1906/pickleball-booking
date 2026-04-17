@@ -28,7 +28,7 @@ export const GET = withRateLimit(
           createdAt: true,
           updatedAt: true,
           status: true,
-          queues: { select: { playerId: true, player: true } },
+          queues: { select: { id: true, playerId: true, player: true } },
           courts: {
             select: {
               id: true,
@@ -56,7 +56,8 @@ export const GET = withRateLimit(
         createdAt: activeOpenPlay.createdAt,
         updatedAt: activeOpenPlay.updatedAt,
         queuePlayers: activeOpenPlay.queues.map((q) => ({
-          id: q.playerId,
+          id: q.id,
+          playerId: q.playerId,
           playerName: q.player.playerName,
         })),
         courts: activeOpenPlay.courts.map((c) => ({ id: c.id, name: c.name })),

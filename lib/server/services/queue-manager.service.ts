@@ -31,10 +31,7 @@ export class QueueManager {
     const PREPARATION = openPlay.playerSwitchMinutes
     const SLOT_DURATION = GAME + PREPARATION
 
-    const startTime = new Date(openPlay.startTime)
-    const minutesSinceStart = (now.getTime() - startTime.getTime()) / 60000
-    const currentSlot = Math.max(0, Math.floor(minutesSinceStart / SLOT_DURATION))
-
+    const startTime = new Date(openPlay.startedAt)
     const players = openPlay.queuePlayers
     const courts = openPlay.courts
 
@@ -42,25 +39,14 @@ export class QueueManager {
     const courtsCount = courts.length
 
     const currentGames: TCurrentGame[] = []
-    const scheduledPlayers = new Set<string>()
+    const queue: TQueueGroup[] = []
 
-    // Assign groups to courts
+    // First slot: assign first groups to courts
     for (let i = 0; i < courtsCount; i++) {
-      let group: TQueuePlayer[] | undefined
+      const group = groups[i]
+      if (!group) break
 
-      // find the next unscheduled group
-      for (let gi = currentSlot * courtsCount + i; gi < groups.length; gi++) {
-        const candidate = groups[gi]
-        if (candidate.every((p) => !scheduledPlayers.has(p.id))) {
-          group = candidate
-          break
-        }
-      }
-
-      if (!group) continue // no available group left
-
-      const slotStartMinutes = currentSlot * SLOT_DURATION
-      const gameStartTime = new Date(startTime.getTime() + slotStartMinutes * 60000)
+      const gameStartTime = startTime
       const gameEndTime = new Date(gameStartTime.getTime() + GAME * 60000)
       const slotEndTime = new Date(gameStartTime.getTime() + SLOT_DURATION * 60000)
       const isPreparing = now > gameEndTime && now < slotEndTime
@@ -73,28 +59,20 @@ export class QueueManager {
         estimatedEndTime: gameEndTime,
         isPreparing,
       })
-
-      // mark players as scheduled
-      group.forEach((p) => scheduledPlayers.add(p.id))
     }
 
-    // Build queue with remaining unscheduled groups
-    const queue: TQueueGroup[] = groups
-      .filter((group) => group.every((p) => !scheduledPlayers.has(p.id)))
-      .map((groupPlayers, idx) => {
-        const scheduledAt = new Date(
-          startTime.getTime() + (currentSlot + 1 + idx) * SLOT_DURATION * 60000,
-        )
-        groupPlayers.forEach((p) => scheduledPlayers.add(p.id))
-        return {
-          id: `grp-${currentSlot + 1 + idx}`,
-          players: groupPlayers,
-          scheduledAt,
-          position: idx + 1,
-        }
+    // Remaining groups go into queue sequentially
+    for (let gi = courtsCount; gi < groups.length; gi++) {
+      const scheduledAt = new Date(startTime.getTime() + gi * SLOT_DURATION * 60000)
+      queue.push({
+        id: `grp-${gi}`,
+        players: groups[gi],
+        scheduledAt,
+        position: gi - courtsCount + 1,
       })
+    }
 
-    const nextTransition = new Date(startTime.getTime() + (currentSlot + 1) * SLOT_DURATION * 60000)
+    const nextTransition = new Date(startTime.getTime() + SLOT_DURATION * 60000)
 
     return {
       currentGames,

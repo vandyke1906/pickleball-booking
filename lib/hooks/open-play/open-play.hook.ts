@@ -43,6 +43,7 @@ type OpenPlayListParams = {
 export type TOpenPlay = OpenPlay & {
   formatted: {
     date: string
+    startedAt?: string
     startTime: string
     endTime: string
     timeRange: string

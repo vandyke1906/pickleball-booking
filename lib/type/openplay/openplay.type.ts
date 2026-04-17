@@ -1,6 +1,6 @@
 import { OpenPlay } from "@/.config/prisma/generated/prisma"
 
-export type TQueuePlayer = { id: string; playerName: string }
+export type TQueuePlayer = { id: string; playerId: string; playerName: string }
 export type TQueueCourt = { id: string; name: string }
 
 export type TQueueOpenPlay = OpenPlay & {

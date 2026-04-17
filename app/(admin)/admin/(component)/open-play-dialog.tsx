@@ -206,7 +206,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
                     <Input
                       id="transitionMinutes"
                       type="number"
-                      step={5}
+                      step={1}
                       placeholder="Enter Transition Minutes"
                       required
                       {...form.register("transitionMinutes", { valueAsNumber: true })}
@@ -226,7 +226,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
                     <Input
                       id="playerSwitchMinutes"
                       type="number"
-                      step={5}
+                      step={1}
                       placeholder="Enter Player Switch Minutes"
                       required
                       {...form.register("playerSwitchMinutes", { valueAsNumber: true })}
