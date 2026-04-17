@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import BadgeStatus, { TStatus } from "@/components/common/badge-status"
-import { formatDateTime, formatFloat, formatISODateString, formatToPHTime } from "@/lib/utils"
+import { formatFloat, formatToPHDateTime } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { TBookingDetails } from "@/app/(admin)/admin/(component)/dashboard-admin-page"
 
@@ -76,12 +76,12 @@ export function BookingDetailsDialog({ open, onOpenChange, booking }: BookingDia
 
             <div>
               <p className="text-sm font-medium">Start</p>
-              <p className="text-sm text-muted-foreground">{formatToPHTime(booking.start)}</p>
+              <p className="text-sm text-muted-foreground">{formatToPHDateTime(booking.start)}</p>
             </div>
 
             <div>
               <p className="text-sm font-medium">End</p>
-              <p className="text-sm text-muted-foreground">{formatToPHTime(booking.end)}</p>
+              <p className="text-sm text-muted-foreground">{formatToPHDateTime(booking.end)}</p>
             </div>
 
             <div>
