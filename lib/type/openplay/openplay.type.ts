@@ -10,6 +10,8 @@ export type TQueueOpenPlay = OpenPlay & {
 
 export type TQueueGroup = {
   id: string
+  courtId: string
+  courtName: string
   players: TQueuePlayer[]
   scheduledAt: Date
   position: number

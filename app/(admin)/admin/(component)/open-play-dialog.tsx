@@ -57,7 +57,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
       startTime: initialData?.startTime || "",
       duration: initialData?.duration || 1,
       transitionMinutes: initialData?.transitionMinutes || 0,
-      playerSwitchMinutes: initialData?.playerSwitchMinutes || 0,
+      preparationSeconds: initialData?.preparationSeconds || 0,
       courtIds: initialData?.courtIds || [],
     },
   })
@@ -221,19 +221,19 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
                   {/* Player Switch Minutes */}
                   <div className="rounded w-full space-y-2">
                     <Label className="font-semibold text-slate-700">
-                      Switch Preparation Minutes
+                      Switch Preparation Seconds
                     </Label>
                     <Input
-                      id="playerSwitchMinutes"
+                      id="preparationSeconds"
                       type="number"
                       step={1}
-                      placeholder="Enter Player Switch Minutes"
+                      placeholder="Enter Player Preparation Minutes"
                       required
-                      {...form.register("playerSwitchMinutes", { valueAsNumber: true })}
+                      {...form.register("preparationSeconds", { valueAsNumber: true })}
                     />
-                    {form.formState.errors.playerSwitchMinutes && (
+                    {form.formState.errors.preparationSeconds && (
                       <p className="text-sm text-red-600">
-                        {form.formState.errors.playerSwitchMinutes.message}
+                        {form.formState.errors.preparationSeconds.message}
                       </p>
                     )}
                   </div>

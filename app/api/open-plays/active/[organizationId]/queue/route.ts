@@ -23,7 +23,7 @@ export const GET = withRateLimit(
           startedAt: true,
           transitionMinutes: true,
           announcementMinutesBeforeTransition: true,
-          playerSwitchMinutes: true,
+          preparationSeconds: true,
           organizationId: true,
           createdAt: true,
           updatedAt: true,
@@ -49,7 +49,7 @@ export const GET = withRateLimit(
         startTime: activeOpenPlay.startTime,
         endTime: activeOpenPlay.endTime,
         transitionMinutes: activeOpenPlay.transitionMinutes,
-        playerSwitchMinutes: activeOpenPlay.playerSwitchMinutes,
+        preparationSeconds: activeOpenPlay.preparationSeconds,
         announcementMinutesBeforeTransition: activeOpenPlay.announcementMinutesBeforeTransition,
         status: activeOpenPlay.status,
         organizationId: activeOpenPlay.organizationId,
@@ -64,8 +64,21 @@ export const GET = withRateLimit(
       }
 
       const manager = new QueueManager(data)
-      const result = manager.compute(new Date())
-      console.info({ result })
+      const result = manager.compute({
+        now: new Date(),
+        completedPlayerIds: new Set(["p1", "p2"]), // optional: players already finished
+        onGroupDone: (game) => {
+          console.log(`Group finished on court ${game.courtName}`)
+          // 🔔 remove group from DB
+          // e.g. prisma.game.delete({ where: { id: game.id } })
+        },
+        onPlayerDone: (player) => {
+          console.log(`Player ${player.playerName} finished`)
+          // 🔔 remove player from DB
+          // e.g. prisma.player.update({ where: { id: player.id }, data: { status: "done" } })
+        },
+      })
+      console.info(JSON.stringify(result.completedGames, null, 2))
       return NextResponse.json(result)
     } catch (error: any) {
       console.error("Error getting open play:", error?.message || error)

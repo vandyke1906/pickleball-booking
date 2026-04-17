@@ -22,7 +22,7 @@ export const GET = withRateLimit(
           startedAt: true,
           transitionMinutes: true,
           announcementMinutesBeforeTransition: true,
-          playerSwitchMinutes: true,
+          preparationSeconds: true,
           status: true,
           players: true,
           courts: {
@@ -44,7 +44,7 @@ export const GET = withRateLimit(
         ...openPlay,
         formatted: {
           id: openPlay.id,
-          playerSwitchMinutes: openPlay.playerSwitchMinutes,
+          preparationSeconds: openPlay.preparationSeconds,
           announcementMinutesBeforeTransition: openPlay.announcementMinutesBeforeTransition,
           status: openPlay.status,
           courts: openPlay.courts,

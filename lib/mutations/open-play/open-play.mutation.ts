@@ -21,7 +21,7 @@ async function createOrUpdateOpenPlay(payload: OpenPlayPayload) {
   formData.append("startTime", parsed.startTime)
   formData.append("duration", parsed.duration.toString())
   formData.append("transitionMinutes", parsed.transitionMinutes.toString())
-  formData.append("playerSwitchMinutes", parsed.playerSwitchMinutes.toString())
+  formData.append("preparationSeconds", parsed.preparationSeconds.toString())
   formData.append("courtIds", JSON.stringify(parsed.courtIds))
 
   const response = await fetch("/api/open-plays", {

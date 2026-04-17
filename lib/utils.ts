@@ -59,7 +59,7 @@ export function formatISODateString(isoString: string) {
  * @returns A formatted string like "6:00 AM"
  */
 export function formatTimeOnly(
-  isoString: string,
+  isoString: string | Date,
   formatStr: string = "hh:mm a",
   timeZone: string = DEFAULT_TIMEZONE,
 ) {
@@ -366,4 +366,31 @@ export function formatTimeRange(startTime?: string | Date, endTime?: string | Da
   })
 
   return `${start} – ${end}`
+}
+
+export function formatCountdown(ms: number) {
+  const totalSec = Math.floor(ms / 1000)
+  const min = Math.floor(totalSec / 60)
+  const sec = totalSec % 60
+
+  return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`
+}
+
+export function timeText(
+  value: string | number | Date,
+  options?: {
+    hour12?: boolean
+    showSeconds?: boolean
+  },
+) {
+  const { hour12 = true, showSeconds = true } = options || {}
+
+  const date = new Date(value)
+
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: showSeconds ? "2-digit" : undefined,
+    hour12,
+  })
 }

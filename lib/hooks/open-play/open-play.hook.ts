@@ -58,6 +58,7 @@ export type TOpenPlay = OpenPlay & {
 }
 
 export type TQueueResponse = {
+  openPlay: Partial<OpenPlay> & { courts: Court[]; players: OpenPlayPlayer[] }
   currentGames: TCurrentGame[]
   queue: TQueueGroup[]
   nextTransition: Date | null

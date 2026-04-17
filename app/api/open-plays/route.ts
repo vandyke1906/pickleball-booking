@@ -15,7 +15,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
   const startTime = formData.get("startTime") as string
   const duration = Number(formData.get("duration"))
   const transitionMinutes = Number(formData.get("transitionMinutes"))
-  const playerSwitchMinutes = Number(formData.get("playerSwitchMinutes"))
+  const preparationSeconds = Number(formData.get("preparationSeconds"))
   const courtIds = JSON.parse(formData.get("courtIds") as string)
 
   const { start, end } = makeBookingDate(date, startTime, duration)
@@ -44,7 +44,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
             startTime: start,
             endTime: end,
             transitionMinutes,
-            playerSwitchMinutes,
+            preparationSeconds,
             courts: {
               set: [],
               connect: courtIds.map((cid: string) => ({ id: cid })),
@@ -60,7 +60,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
             startTime: start,
             endTime: end,
             transitionMinutes: transitionMinutes,
-            playerSwitchMinutes: playerSwitchMinutes,
+            preparationSeconds: preparationSeconds,
             courts: {
               connect: courtIds.map((id: string) => ({ id })),
             },

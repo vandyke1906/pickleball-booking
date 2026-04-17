@@ -9,7 +9,7 @@ model OpenPlay {
   startTime DateTime
   endTime   DateTime
   transitionMinutes Int @default(60)
-  playerSwitchMinutes Int @default(5)
+  preparationSeconds Int @default(20)
   announcementMinutesBeforeTransition Int @default(5) 
   status OpenPlayStatus @default(pending)
 

@@ -249,7 +249,7 @@ export default function OpenPlayPage() {
         startTime: openPlay?.formatted?.format24?.startTime,
         duration: openPlay?.formatted?.duration,
         transitionMinutes: openPlay?.transitionMinutes,
-        playerSwitchMinutes: openPlay?.playerSwitchMinutes,
+        preparationSeconds: openPlay?.preparationSeconds,
         courtIds: openPlay.courts.map((c) => c.id),
       }
     : undefined
@@ -423,7 +423,7 @@ export default function OpenPlayPage() {
           {/*  Switch Preparation Minutes */}
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground"> Switch Preparation Time</span>
-            <span className="font-medium">{openPlay?.playerSwitchMinutes} minutes</span>
+            <span className="font-medium">{openPlay?.preparationSeconds} seconds</span>
           </div>
 
           <Separator />
