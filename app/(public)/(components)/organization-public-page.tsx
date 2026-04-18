@@ -2,7 +2,6 @@
 
 import { Features } from "@/app/(public)/(components)/features"
 import { Hero } from "@/app/(public)/(components)/hero"
-import FBMessengerChat from "@/app/(public)/(components)/fb-messenger-chat"
 import { useParams } from "next/navigation"
 import { Footer } from "@/app/(public)/(components)/footer"
 import { useEffect } from "react"
@@ -21,7 +20,6 @@ export default function OrganizationPublicPage() {
       <Hero slug={slug} />
       <Features />
       <Footer />
-      <FBMessengerChat />
     </div>
   )
 }
