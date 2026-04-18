@@ -451,8 +451,7 @@ export default function PickleballOpenPlayQueue() {
 
       {/* FOOTER */}
       <footer className="bg-black/80 border-t border-emerald-600 py-4 px-6 text-center text-emerald-300/70 text-lg flex-shrink-0">
-        {openPlay?.transitionMinutes}-minute transition • Max 4 players per court • 2 or 4 players
-        per group
+        {openPlay?.transitionMinutes}-minute transition • Max 4 players per court
       </footer>
 
       {/* SUBMIT LINEUP BUTTON */}
