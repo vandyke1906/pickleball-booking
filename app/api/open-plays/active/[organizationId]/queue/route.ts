@@ -79,26 +79,18 @@ export const GET = withRateLimit(
           console.info(JSON.stringify(game, null, 2))
           const playerIds = game.players.map((p) => p.playerId)
           //RONIE DELETE done groups
-          deleteQueuedPlayers(playerIds)
-            .then((result) => {
-              console.info("Deleted queued players:", result.count)
-            })
-            .catch((error) => {
-              console.error("Error deleting queued players:", error)
-            })
+          // deleteQueuedPlayers(playerIds)
+          //   .then((result) => {
+          //     console.info("Deleted queued players:", result.count)
+          //   })
+          //   .catch((error) => {
+          //     console.error("Error deleting queued players:", error)
+          //   })
         },
         onPlayerDone: (player) => {
           // console.log(`Player ${player.playerName} finished`))
         },
       })
-
-      console.info("test")
-      //update ui of all clients on openplay
-      // EventBroadcast({
-      //   type: BroadcastEventTypes.OPENPLAY_UPDATED,
-      //   data: data,
-      // })
-
       return NextResponse.json(result)
     } catch (error: any) {
       console.error("Error getting open play:", error?.message || error)
