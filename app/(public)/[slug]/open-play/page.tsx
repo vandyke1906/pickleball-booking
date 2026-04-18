@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useParams } from "next/navigation"
 import { LoadingScreen } from "@/components/animated/loading-screen"
 import { formatCountdown, formatDate, formatTimeRange, timeText } from "@/lib/utils"
 import { motion } from "framer-motion"
-import { Send, Clock, Users } from "lucide-react"
+import { Send, Clock, Users, Megaphone } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -75,11 +75,36 @@ export default function PickleballOpenPlayQueue() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [openLineupDialog, setOpenLineupDialog] = useState(false)
   const [audioEnabled, setAudioEnabled] = useState(true)
-  const [isSpeaking, setIsSpeaking] = useState(false)
   const [prepRemaining, setPrepRemaining] = useState(0)
 
+  const isSpeakingRef = useRef(false)
+  const speechQueueRef = useRef<string[]>([])
+  const prevDiffRef = useRef<number>(Infinity)
+
+  const processQueue = () => {
+    if (isSpeakingRef.current) return
+    if (speechQueueRef.current.length === 0) return
+
+    const text = speechQueueRef.current.shift()
+    if (!text) return
+
+    isSpeakingRef.current = true
+
+    speak(text, 1, 2, (speaking: boolean) => {
+      if (!speaking) {
+        isSpeakingRef.current = false
+        processQueue()
+      }
+    })
+  }
+
+  const enqueueSpeak = (text: string) => {
+    speechQueueRef.current.push(text)
+    processQueue()
+  }
+
   const readySoonAnnouncedRef = useRef(false)
-  const startWarningAnnouncedRef = useRef<string | boolean | null>(false)
+  const startWarningAnnouncedRef = useRef<Set<string>>(new Set())
   const lastAnnouncedRef = useRef<string | null>(null)
 
   // =====================
@@ -90,11 +115,9 @@ export default function PickleballOpenPlayQueue() {
   const currentGames = openPlayData?.currentGames ?? []
   const nextTransition = openPlayData?.nextTransition ?? null
 
-  // const nextGroup = queue.length > 0 ? queue[0] : null
-  // const assignedCourt = openPlay?.courts?.[0]?.name ?? "next available court"
-  console.info({ queue }) //TODO
   const nextGroups = queue.filter(
-    (q) => nextTransition && q.scheduledAt.getTime() === new Date(nextTransition).getTime(),
+    (q) =>
+      nextTransition && new Date(q.scheduledAt).getTime() === new Date(nextTransition).getTime(),
   )
 
   // =====================
@@ -147,15 +170,19 @@ export default function PickleballOpenPlayQueue() {
 
     // Find all groups scheduled at the upcoming transition
     const upcomingGroups = queue.filter(
-      (q) => q.scheduledAt.getTime() === new Date(nextTransition).getTime(),
+      (q) => new Date(q.scheduledAt).getTime() === new Date(nextTransition).getTime(),
     )
 
-    upcomingGroups.forEach((group) => {
-      const names = group.players.map((p: any) => p.playerName).join(", ") || "all players"
+    if (!upcomingGroups.length) return
 
-      speak(`Attention please. Next players: ${names} on ${group.courtName}.`, 1, 2, setIsSpeaking)
-    })
+    const groupedMessage = upcomingGroups
+      .map((group) => {
+        const names = group.players.map((p: any) => p.playerName).join(", ") || "all players"
+        return `${names} on ${group.courtName}`
+      })
+      .join(". ")
 
+    enqueueSpeak(`Attention please. Next players: ${groupedMessage}.`)
     lastAnnouncedRef.current = transitionKey
     ;(window as any).lastAnnounceTime = now
   }, [queue, nextTransition, audioEnabled])
@@ -164,7 +191,8 @@ export default function PickleballOpenPlayQueue() {
   // READY SOON (fixed)
   // =====================
   useEffect(() => {
-    if (!audioEnabled || !nextGroups.length || !openPlay?.preparationSeconds) return
+    if (!audioEnabled || !nextGroups.length || !openPlay?.preparationSeconds || !prepRemaining)
+      return
 
     // Convert preparationSeconds → ms
     const PREPARATION_MS = openPlay.preparationSeconds * 1000
@@ -177,21 +205,25 @@ export default function PickleballOpenPlayQueue() {
 
     if (readySoonAnnouncedRef.current) return
 
+    //Guard: skip if current time is already past the scheduled start
+    const now = Date.now()
+    const scheduledTime = new Date(nextGroups[0].scheduledAt).getTime()
+    if (now >= scheduledTime) return
+
     // Compute remaining time in minutes + seconds
-    const totalSeconds = Math.max(0, Math.floor(prepRemaining / 1000))
+    const totalSeconds = Math.floor(prepRemaining / 1000)
     const mins = Math.floor(totalSeconds / 60)
     const secs = totalSeconds % 60
 
-    let timeMessage = ""
-    if (mins > 0) {
-      timeMessage += `${mins} minute${mins !== 1 ? "s" : ""}`
-    }
+    let msg = ""
+    if (mins > 0) msg += `${mins} minute${mins !== 1 ? "s" : ""}`
     if (secs > 0) {
-      if (timeMessage) timeMessage += " and "
-      timeMessage += `${secs} second${secs !== 1 ? "s" : ""}`
+      if (msg) msg += " and "
+      msg += `${secs} second${secs !== 1 ? "s" : ""}`
     }
 
-    speak(`Ready in ${timeMessage}. Please prepare.`, 1, 2, setIsSpeaking)
+    if (!msg) msg = "less than a second" // ✅ fallback if msg is empty
+    enqueueSpeak(`Ready in ${msg}. Please prepare.`)
 
     readySoonAnnouncedRef.current = true
   }, [openPlay, nextGroups, prepRemaining, audioEnabled])
@@ -206,60 +238,70 @@ export default function PickleballOpenPlayQueue() {
     const warningMs = openPlay.announcementMinutesBeforeTransition * 60_000
     const diff = new Date(nextTransition).getTime() - Date.now()
 
+    // Reset if we're still outside the window
     if (diff > warningMs) {
-      startWarningAnnouncedRef.current = null
+      startWarningAnnouncedRef.current.clear()
+      prevDiffRef.current = diff
       return
     }
 
-    nextGroups.forEach((group) => {
-      // Unique key per group + transition
-      const key = `warn-${group.id}-${new Date(nextTransition).toISOString()}`
-      if (startWarningAnnouncedRef.current === key) return
+    // Only trigger when crossing into the window
+    if (prevDiffRef.current > warningMs && diff <= warningMs) {
+      nextGroups.forEach((group) => {
+        const key = `warn-${group.id}-${new Date(nextTransition).toISOString()}`
+        if (startWarningAnnouncedRef.current.has(key)) return
 
-      const totalSeconds = Math.max(0, Math.floor(diff / 1000))
-      const minsRemaining = Math.floor(totalSeconds / 60)
-      const secsRemaining = totalSeconds % 60
-      const names = group.players.map((p: any) => p.playerName).join(", ") || "all players"
+        const names = group.players.map((p: any) => p.playerName).join(", ") || "all players"
+        const groupedNames = `${names} on ${group.courtName}`
 
-      let timeMessage = ""
-      if (minsRemaining > 0) {
-        timeMessage += `${minsRemaining} minute${minsRemaining !== 1 ? "s" : ""}`
-      }
-      if (secsRemaining > 0) {
-        if (timeMessage) timeMessage += " and "
-        timeMessage += `${secsRemaining} second${secsRemaining !== 1 ? "s" : ""}`
-      }
+        const scheduledTime = new Date(group.scheduledAt).getTime()
+        const now = Date.now()
+        if (now >= scheduledTime + 20000) return
+        enqueueSpeak(
+          `Attention please. Next game at ${timeText(
+            group.scheduledAt,
+          )}. Players: ${groupedNames}. Please prepare and proceed after the current game.`,
+        )
 
-      speak(
-        `Attention please. Next game on ${group.courtName} starts in ${timeMessage}. ${names} please proceed after the previous game ends.`,
-        1,
-        2,
-        setIsSpeaking,
-      )
+        startWarningAnnouncedRef.current.add(key)
+      })
+    }
 
-      startWarningAnnouncedRef.current = key
-    })
+    prevDiffRef.current = diff
   }, [nextTransition, audioEnabled, nextGroups, openPlay])
 
   // =====================
-  // AUDIO CONTROL
+  // MANUAL ANNOUNCEMENT (nextGroups)
   // =====================
-  const toggleAudio = () => {
-    setAudioEnabled((prev) => {
-      const next = !prev
-      if (!next) {
-        window.speechSynthesis.cancel()
-        setIsSpeaking(false)
-      }
-      return next
+  const handleManualAnnouncement = useCallback(() => {
+    console.info({ audioEnabled, queue })
+    if (!audioEnabled || !queue || queue.length === 0) return
+
+    // Find the earliest upcoming scheduled time
+    const soonestTime = Math.min(...queue.map((q) => new Date(q.scheduledAt).getTime()))
+    const now = Date.now()
+
+    // ✅ Skip if already past scheduled start
+    if (now >= soonestTime) return
+
+    // Get all groups scheduled at that earliest time (multi-court support)
+    const upcomingGroups = queue.filter((q) => new Date(q.scheduledAt).getTime() === soonestTime)
+
+    upcomingGroups.forEach((group) => {
+      const names = group.players.map((p: any) => p.playerName).join(", ") || "all players"
+      const groupedNames = `${names} on ${group.courtName}`
+
+      enqueueSpeak(
+        `Attention please. Next game at ${timeText(
+          group.scheduledAt,
+        )}. Players: ${groupedNames}. Please proceed after the current game.`,
+      )
     })
-  }
+  }, [audioEnabled, queue])
 
   if (isLoading || isLoadingOrgWithCourts) return <div>Loading queue...</div>
 
   if (!openPlayData) return <LoadingScreen />
-
-  console.info({ nextTransition })
 
   return (
     <div className="min-h-screen bg-[#092021] text-white font-mono flex flex-col h-screen overflow-hidden">
@@ -274,7 +316,7 @@ export default function PickleballOpenPlayQueue() {
               OPEN PLAY QUEUE
             </h1>
             <p className="text-emerald-400 text-base md:text-xl">
-              {openPlay?.courts.length} Courts • {openPlay?.transitionMinutes} min transitions •{" "}
+              {openPlay?.courts.length} Courts • {openPlay?.transitionMinutes} minutes transitions •{" "}
               {formatDate(openPlay?.startTime)} •{" "}
               {formatTimeRange(openPlay?.startTime, openPlay?.endTime)}
             </p>
@@ -297,6 +339,10 @@ export default function PickleballOpenPlayQueue() {
           <div className="flex items-center gap-3 text-emerald-400 mb-2">
             <Clock className="w-6 h-6" />
             <span className="uppercase tracking-widest text-sm font-semibold">Next Transition</span>
+            <Megaphone
+              onClick={handleManualAnnouncement}
+              className="w-8 h-8 text-emerald-500 cursor-pointer hover:text-emerald-400 transition"
+            />
           </div>
 
           <div className="text-5xl font-bold tabular-nums text-white">

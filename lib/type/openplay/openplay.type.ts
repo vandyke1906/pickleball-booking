@@ -14,6 +14,7 @@ export type TQueueGroup = {
   courtName: string
   players: TQueuePlayer[]
   scheduledAt: Date
+  estimatedEndTime: Date
   position: number
 }
 
