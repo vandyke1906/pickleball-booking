@@ -39,9 +39,18 @@ export function useBookings(url: string) {
   }>({
     queryKey: qKeyBookings.list(url),
     queryFn: () => fetcher(url),
+
+    // optional: keep previous page data
     placeholderData: keepPreviousData,
-    staleTime: 1000 * 60 * 10,
-    gcTime: 1000 * 60 * 30,
+
+    // CACHE CONTROL
+    staleTime: Infinity, // never becomes stale
+    gcTime: 1000 * 60 * 60 * 2, // keep cache for 2 hours
+
+    // PREVENT AUTO REFETCH
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   })
 
   return {
