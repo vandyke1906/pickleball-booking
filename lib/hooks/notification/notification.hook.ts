@@ -1,6 +1,6 @@
 import { fetcher } from "@/lib/hooks/common.hook"
 import { getUserTodayAndUnreadNotifications } from "@/lib/server/action/notification.action"
-import { useQuery } from "@tanstack/react-query"
+import { keepPreviousData, useQuery } from "@tanstack/react-query"
 
 export type TNotification = Notification
 
@@ -24,6 +24,18 @@ export function useNotifications(options?: { enabled?: boolean; includes: String
     queryKey: notificationKeys.list(includesKey),
     queryFn: () => fetcher(url),
     enabled,
+
+    // optional: keep previous page data
+    placeholderData: keepPreviousData,
+
+    // CACHE CONTROL
+    staleTime: Infinity, // never becomes stale
+    gcTime: 1000 * 60 * 60 * 24, // keep cache for 24 hours
+
+    // PREVENT AUTO REFETCH
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   })
 
   return {
