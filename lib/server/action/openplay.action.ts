@@ -16,8 +16,6 @@ export async function createLineupEntry(tx: TPrismaTransaction, openPlayPlayer: 
     include: { player: true, openPlay: true },
   })
 
-  console.info({ queue })
-
   if (!openPlayPlayer?.startAt && queue?.openPlay?.startTime && queue?.openPlay?.endTime) {
     const { startAt } = await resolveOpenPlayPlayerSchedule({
       queueCreatedAt: queue.createdAt,

@@ -35,7 +35,7 @@ export const GET = withRateLimit(
             orderBy: {
               createdAt: "asc",
             },
-            select: { id: true, playerId: true, player: true, scheduledAt: true },
+            select: { id: true, playerId: true, player: true, scheduledAt: true, endedAt: true },
           },
           courts: {
             select: {
@@ -68,6 +68,7 @@ export const GET = withRateLimit(
           playerId: q.playerId,
           playerName: q.player.playerName,
           scheduledAt: q.scheduledAt,
+          gameEndTime: q.endedAt,
         })),
         courts: activeOpenPlay.courts.map((c) => ({ id: c.id, name: c.name })),
       }
@@ -79,13 +80,13 @@ export const GET = withRateLimit(
           console.info(JSON.stringify(game, null, 2))
           const playerIds = game.players.map((p) => p.playerId)
           //RONIE DELETE done groups
-          // deleteQueuedPlayers(playerIds)
-          //   .then((result) => {
-          //     console.info("Deleted queued players:", result.count)
-          //   })
-          //   .catch((error) => {
-          //     console.error("Error deleting queued players:", error)
-          //   })
+          deleteQueuedPlayers(playerIds)
+            .then((result) => {
+              console.info("Deleted queued players:", result.count)
+            })
+            .catch((error) => {
+              console.error("Error deleting queued players:", error)
+            })
         },
         onPlayerDone: (player) => {
           // console.log(`Player ${player.playerName} finished`))
