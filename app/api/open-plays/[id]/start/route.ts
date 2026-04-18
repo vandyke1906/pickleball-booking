@@ -1,6 +1,8 @@
 import { OpenPlayStatus, QueueStatus } from "@/.config/prisma/generated/prisma"
 import { isServerAuthenticated } from "@/lib/auth/auth.server"
+import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
+import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { QueueManager } from "@/lib/server/services/queue-manager.service"
 import { TQueueOpenPlay } from "@/lib/type/openplay/openplay.type"
@@ -74,7 +76,6 @@ export const POST = withRateLimit(
         }
 
         const groups = new QueueManager(data).initialize()
-        console.info({ groups })
         for (const group of groups) {
           for (const player of group.players) {
             await tx.lineupQueue.upsert({
@@ -91,6 +92,12 @@ export const POST = withRateLimit(
             })
           }
         }
+
+        //update ui of all clients on openplay
+        EventBroadcast({
+          type: BroadcastEventTypes.OPENPLAY_UPDATED,
+          data: openPlay,
+        })
 
         return openPlay
       })

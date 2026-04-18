@@ -58,10 +58,12 @@ export type TOpenPlay = OpenPlay & {
 }
 
 export type TQueueResponse = {
+  isStarted: boolean
   openPlay: Partial<OpenPlay> & { courts: Court[]; players: OpenPlayPlayer[] }
   currentGames: TCurrentGame[]
   queue: TQueueGroup[]
   nextTransition: Date | null
+  waitingPlayers: OpenPlayPlayer[]
 }
 
 export function useOrganizationOpenPlays(params: OpenPlayListParams) {

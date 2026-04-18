@@ -1,6 +1,8 @@
 import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
 import { isServerAuthenticated } from "@/lib/auth/auth.server"
+import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
+import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { initializeLineup } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { NextRequest, NextResponse } from "next/server"
@@ -47,6 +49,12 @@ export const POST = withRateLimit(
         if (status === OpenPlayStatus.active) {
           console.info("Initializing lineup for registered players...")
           await initializeLineup(tx, openPlay.id)
+
+          //update ui of all clients on openplay
+          EventBroadcast({
+            type: BroadcastEventTypes.OPENPLAY_UPDATED,
+            data: openPlay,
+          })
         }
         return openPlay
       })

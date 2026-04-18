@@ -29,6 +29,9 @@ import { useOrganizationCourts } from "@/lib/hooks/court/court.hook"
 import { useActiveOpenPlayQueue } from "@/lib/hooks/open-play/open-play.hook"
 import { useVoice } from "@/lib/hooks/speech/use-voice"
 import { Badge } from "@/components/ui/badge"
+import { EventBusKeys, useEventListener } from "@/lib/client/event-bus"
+
+const GUARD_MS = 4000
 
 type OpenPlayData = {
   openPlay: {
@@ -74,6 +77,9 @@ export default function PickleballOpenPlayQueue() {
     refetch: refetchOpenPlayData,
   } = useActiveOpenPlayQueue(orgId)
 
+  //Event Listener
+  useEventListener(EventBusKeys.OPENPLAY_UPDATED, () => refetchOpenPlayData())
+
   // =====================
   // STATE (ALWAYS STABLE)
   // =====================
@@ -115,54 +121,50 @@ export default function PickleballOpenPlayQueue() {
   // =====================
   // SAFE DATA NORMALIZATION (IMPORTANT FIX)
   // =====================
+  const isStarted = openPlayData?.isStarted
   const openPlay = openPlayData?.openPlay ?? null
   const queue = openPlayData?.queue ?? []
   const currentGames = openPlayData?.currentGames ?? []
   const nextTransition = openPlayData?.nextTransition ?? null
+  const waitingPlayers = openPlayData?.waitingPlayers ?? []
 
   const nextGroups = queue.filter(
     (q) =>
       nextTransition && new Date(q.scheduledAt).getTime() === new Date(nextTransition).getTime(),
   )
 
-  // =====================
-  // LIVE CLOCK
-  // =====================
-  useEffect(() => {
-    if (!openPlayData) return
-    const interval = setInterval(() => setCurrentTime(new Date()), 1000)
-    return () => clearInterval(interval)
-  }, [])
+  console.info({ openPlayData, queue })
 
   // =====================
-  // COUNTDOWN
+  // LIVE CLOCK + COUNTDOWN (combined)
   // =====================
   useEffect(() => {
-    if (!nextTransition || !openPlayData) return
+    if (!nextTransition) return
 
-    const update = () => {
-      const diff = new Date(nextTransition).getTime() - Date.now()
+    const tick = () => {
+      const now = new Date()
+      setCurrentTime(now)
+
+      const diff = new Date(nextTransition).getTime() - now.getTime()
       setPrepRemaining(diff > 0 ? diff : 0)
+
+      if (diff <= 0) {
+        refetchOpenPlayData()
+      }
     }
 
-    update()
-    const interval = setInterval(update, 1000)
+    tick() // run immediately
+    const interval = setInterval(tick, 1000)
 
     return () => clearInterval(interval)
-  }, [nextTransition])
-
-  const formatCountdown = (ms: number) => {
-    const sec = Math.floor(ms / 1000)
-    const m = Math.floor(sec / 60)
-    const s = sec % 60
-    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-  }
+  }, [nextTransition, refetchOpenPlayData])
 
   // =====================
   // AUTO ANNOUNCE NEXT GROUPS (multi-court)
   // =====================
   useEffect(() => {
-    if (!audioEnabled || !queue || queue.length === 0 || !openPlayData) return
+    console.info({ audioEnabled, queue, nextTransition })
+    if (!audioEnabled || !queue || queue.length === 0) return
     if (!nextTransition) return
 
     const now = Date.now()
@@ -171,13 +173,18 @@ export default function PickleballOpenPlayQueue() {
     // Normalize nextTransition to string key
     const transitionKey = new Date(nextTransition).toISOString()
 
+    console.info({ lastAnnouncedRef, transitionKey, time: now - last < GUARD_MS })
+
     // Only announce once per transition slot, throttle to avoid repeats
-    if (lastAnnouncedRef.current === transitionKey && now - last < 40000) return
+    if (lastAnnouncedRef.current === transitionKey && now - last < GUARD_MS) return
 
     // Find all groups scheduled at the upcoming transition
-    const upcomingGroups = queue.filter(
-      (q) => new Date(q.scheduledAt).getTime() === new Date(nextTransition).getTime(),
-    )
+    const upcomingGroups = queue.filter((q) => {
+      const t = new Date(q.scheduledAt).getTime()
+      const nt = new Date(nextTransition).getTime()
+      return Math.abs(t - nt) <= GUARD_MS
+    })
+    console.info({ upcomingGroups })
 
     if (!upcomingGroups.length) return
 
@@ -197,13 +204,7 @@ export default function PickleballOpenPlayQueue() {
   // READY SOON (fixed)
   // =====================
   useEffect(() => {
-    if (
-      !audioEnabled ||
-      !nextGroups.length ||
-      !openPlay?.preparationSeconds ||
-      !prepRemaining ||
-      !openPlayData
-    )
+    if (!audioEnabled || !nextGroups.length || !openPlay?.preparationSeconds || !prepRemaining)
       return
 
     // Convert preparationSeconds → ms
@@ -244,7 +245,7 @@ export default function PickleballOpenPlayQueue() {
   // START WARNING (using nextGroups)
   // =====================
   useEffect(() => {
-    if (!audioEnabled || !openPlay?.announcementMinutesBeforeTransition || !openPlayData) return
+    if (!audioEnabled || !openPlay?.announcementMinutesBeforeTransition) return
     if (!nextTransition || !nextGroups || nextGroups.length === 0) return
 
     const warningMs = openPlay.announcementMinutesBeforeTransition * 60_000
@@ -268,11 +269,11 @@ export default function PickleballOpenPlayQueue() {
 
         const scheduledTime = new Date(group.scheduledAt).getTime()
         const now = Date.now()
-        if (now >= scheduledTime + 20000) return
+        if (now >= scheduledTime) return
         enqueueSpeak(
           `Attention please. Next game at ${timeText(
             group.scheduledAt,
-          )}. Players: ${groupedNames}. Please prepare and proceed after the current game.`,
+          )}. Players: ${groupedNames}. Please prepare for the next game.`,
         )
 
         startWarningAnnouncedRef.current.add(key)
@@ -311,7 +312,6 @@ export default function PickleballOpenPlayQueue() {
     })
   }, [audioEnabled, queue])
 
-  console.info({ isLoading, isLoadingOrgWithCourts })
   if (isLoading || isLoadingOrgWithCourts) return <LoadingScreen message="Loading Queue" />
   if (!openPlayData) return <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
 
@@ -328,8 +328,8 @@ export default function PickleballOpenPlayQueue() {
               OPEN PLAY QUEUE
             </h1>
             <p className="text-emerald-400 text-base md:text-xl">
-              {openPlay?.courts.length} Courts • {openPlay?.transitionMinutes} minutes transitions •{" "}
-              {formatDate(openPlay?.startTime)} •{" "}
+              {openPlay?.courts.length} Courts • {openPlay?.transitionMinutes} minutes playing time
+              • {formatDate(openPlay?.startTime)} •{" "}
               {formatTimeRange(openPlay?.startTime, openPlay?.endTime)}
             </p>
           </div>
@@ -381,98 +381,122 @@ export default function PickleballOpenPlayQueue() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* CURRENT GAMES - smaller column */}
-          <div className="lg:col-span-1">
-            <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
-              <Users className="w-5 h-5 text-emerald-400" />
-              CURRENT GAMES
-            </h2>
-
-            <div className="space-y-4">
-              {currentGames.map((game) => (
+        {!isStarted ? (
+          waitingPlayers.length === 0 ? (
+            <div className="text-center py-10 text-emerald-300/60">No players waiting</div>
+          ) : (
+            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
+              {waitingPlayers.map((player, idx) => (
                 <div
-                  key={game.courtId}
-                  className="bg-black/70 border border-emerald-600/30 rounded-xl p-4"
+                  key={player.id}
+                  className="bg-black/60 border border-emerald-600/30 rounded-xl p-4 flex items-center gap-3"
                 >
-                  <div className="flex justify-between mb-2">
-                    <div>
-                      <div className="text-emerald-400 font-semibold">{game.courtName}</div>
-                      <div className="text-xs text-emerald-300/60">{timeText(game.startTime)}</div>
-                    </div>
-                    <div className="text-xs text-emerald-400 font-mono">
-                      ~{timeText(game.estimatedEndTime)}
-                    </div>
+                  <div className="w-8 h-8 rounded-full bg-emerald-500 text-black flex items-center justify-center font-bold text-sm">
+                    {idx + 1}
                   </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    {game.players.map((player) => (
-                      <div
-                        key={player.id}
-                        className="bg-emerald-900/40 px-2 py-1 rounded text-sm text-center text-white border border-emerald-600/40"
-                      >
-                        {player.playerName}
-                      </div>
-                    ))}
+                  <div className="bg-emerald-900/50 px-4 py-2 rounded-lg text-lg md:text-2xl font-bold text-white border border-emerald-500/60 shadow-sm flex-1">
+                    {player.playerName}
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          )
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* CURRENT GAMES - smaller column */}
+            <div className="lg:col-span-1">
+              <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
+                <Users className="w-5 h-5 text-emerald-400" />
+                CURRENT GAMES
+              </h2>
 
-          {/* WAITING QUEUE - larger column */}
-          <div className="lg:col-span-2">
-            <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
-              <span>WAITING QUEUE</span>
-              <span className="text-emerald-400 text-sm">({queue.length})</span>
-            </h2>
-
-            {queue.length === 0 ? (
-              <div className="text-center py-10 text-emerald-300/60">No groups waiting</div>
-            ) : (
-              <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
-                {queue.map((group) => (
+              <div className="space-y-4">
+                {currentGames.map((game) => (
                   <div
-                    key={group.id}
-                    className="bg-black/60 border border-emerald-600/30 rounded-xl p-4 flex justify-between items-center gap-3"
+                    key={game.courtId}
+                    className="bg-black/70 border border-emerald-600/30 rounded-xl p-4"
                   >
-                    <div className="flex items-center gap-3 min-w-[120px]">
-                      <div className="w-8 h-8 rounded-full bg-emerald-500 text-black flex items-center justify-center font-bold text-sm">
-                        {group.position}
-                      </div>
+                    <div className="flex justify-between mb-2">
                       <div>
-                        <div className="text-white text-xs font-semibold">
-                          Group {group.position} <Badge>{group.courtName}</Badge>
+                        <div className="text-emerald-400 font-semibold">{game.courtName}</div>
+                        <div className="text-xs text-emerald-300/60">
+                          {timeText(game.startTime)}
                         </div>
-                        <div className="text-lg text-emerald-300/60">
-                          {timeText(group.scheduledAt)}
-                        </div>
+                      </div>
+                      <div className="text-xs text-emerald-400 font-mono">
+                        ~{timeText(game.estimatedEndTime)}
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-3 flex-1">
-                      <div className="flex flex-wrap gap-3 flex-1">
-                        {group.players.map((player) => (
-                          <div
-                            key={player.id}
-                            className="bg-emerald-900/50 px-4 py-2 rounded-lg text-lg md:text-2xl font-bold text-white border border-emerald-500/60 shadow-sm"
-                          >
-                            {player.playerName}
-                          </div>
-                        ))}
-                      </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {game.players.map((player) => (
+                        <div
+                          key={player.id}
+                          className="bg-emerald-900/40 px-2 py-1 rounded text-sm text-center text-white border border-emerald-600/40"
+                        >
+                          {player.playerName}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
               </div>
-            )}
+            </div>
+
+            {/* WAITING QUEUE - larger column */}
+            <div className="lg:col-span-2">
+              <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
+                <span>WAITING QUEUE</span>
+                <span className="text-emerald-400 text-sm">({queue.length})</span>
+              </h2>
+
+              {queue.length === 0 ? (
+                <div className="text-center py-10 text-emerald-300/60">No groups waiting</div>
+              ) : (
+                <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
+                  {queue.map((group) => (
+                    <div
+                      key={group.id}
+                      className="bg-black/60 border border-emerald-600/30 rounded-xl p-4 flex justify-between items-center gap-3"
+                    >
+                      <div className="flex items-center gap-3 min-w-[120px]">
+                        <div className="w-8 h-8 rounded-full bg-emerald-500 text-black flex items-center justify-center font-bold text-sm">
+                          {group.position}
+                        </div>
+                        <div>
+                          <div className="text-white text-xs font-semibold">
+                            Group {group.position} <Badge>{group.courtName}</Badge>
+                          </div>
+                          <div className="text-lg text-emerald-300/60">
+                            {timeText(group.scheduledAt)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-3 flex-1">
+                        <div className="flex flex-wrap gap-3 flex-1">
+                          {group.players.map((player) => (
+                            <div
+                              key={player.id}
+                              className="bg-emerald-900/50 px-4 py-2 rounded-lg text-lg md:text-2xl font-bold text-white border border-emerald-500/60 shadow-sm"
+                            >
+                              {player.playerName}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* FOOTER */}
       <footer className="bg-black/80 border-t border-emerald-600 py-4 px-6 text-center text-emerald-300/70 text-lg flex-shrink-0">
-        {openPlay?.transitionMinutes}-minute transition • Max 4 players per court
+        {openPlay?.transitionMinutes}-minute playing time • Max 4 players per court
       </footer>
 
       {/* SUBMIT LINEUP BUTTON */}

@@ -17,11 +17,11 @@ export class QueueManager {
   }
 
   /**
-   * Compute schedule and optionally trigger callback when a group finishes.
+   * Compute schedule and optionally trigger callbacks when groups finish or start.
    * @param options Object containing parameters
    *   - now: Current time (default: new Date())
-   *   - onGroupDone: Callback invoked when a group is completed
-   *   - onPlayerDone: Callback invoked when a queue player is completed
+   *   - onGroupDone: Callback invoked when a group is completed or promoted
+   *   - onPlayerDone: Callback invoked when a queue player is completed or promoted
    *   - completedPlayerIds: list of completed players
    */
   public compute(
@@ -39,7 +39,14 @@ export class QueueManager {
     const completedPlayerIds = options.completedPlayerIds ?? new Set<string>()
 
     if (!openPlay.startedAt) {
-      return { currentGames: [], queue: [], completedGames: [], nextTransition: null }
+      return {
+        isStarted: !!openPlay.startedAt,
+        currentGames: [],
+        queue: [],
+        completedGames: [],
+        nextTransition: null,
+        waitingPlayers: openPlay.queuePlayers.filter((p) => !completedPlayerIds.has(p.id)),
+      }
     }
 
     // Normalize units to milliseconds
@@ -59,9 +66,8 @@ export class QueueManager {
     const completedGames: TCurrentGame[] = []
 
     // Helper to classify a group into completed/current/queue
-    // Annotate players with scheduledAt
-    const annotatePlayers = (players: TQueuePlayer[], scheduledAt: Date): TQueuePlayer[] =>
-      players.map((p) => ({ ...p, scheduledAt }))
+    const annotatePlayers = (players: TQueuePlayer[], fallbackScheduledAt: Date): TQueuePlayer[] =>
+      players.map((p) => ({ ...p, scheduledAt: p.scheduledAt ?? fallbackScheduledAt }))
 
     const classifyGroup = (
       courtId: string,
@@ -153,7 +159,6 @@ export class QueueManager {
       }
     }
 
-    // Promotion: if no current games but completed exist, check next slot
     if (currentGames.length === 0 && completedGames.length > 0 && queue.length > 0) {
       const nextSlotTime = queue[0].scheduledAt
       const nextSlotEnd = new Date(nextSlotTime.getTime() + SLOT_DURATION_MS)
@@ -163,16 +168,22 @@ export class QueueManager {
 
         for (const q of queue) {
           if (q.scheduledAt.getTime() === nextSlotTime.getTime()) {
-            promoted.push({
+            const game: TCurrentGame = {
               courtId: q.courtId,
               courtName: q.courtName,
               players: annotatePlayers(q.players, q.scheduledAt),
               startTime: q.scheduledAt,
               estimatedEndTime: new Date(q.scheduledAt.getTime() + GAME_MS),
               isPreparing:
-                now.getTime() > q.estimatedEndTime.getTime() &&
+                now.getTime() > new Date(q.scheduledAt.getTime() + GAME_MS).getTime() &&
                 now.getTime() < nextSlotEnd.getTime(),
-            })
+            }
+
+            promoted.push(game)
+
+            // Trigger start callbacks (not done)
+            // if (options.onGroupStart) options.onGroupStart(game)
+            // if (options.onPlayerStart) game.players.forEach((p) => options.onPlayerStart!(p))
           }
         }
 
@@ -200,6 +211,7 @@ export class QueueManager {
     }
 
     return {
+      isStarted: !!openPlay.startedAt,
       openPlay,
       currentGames,
       queue,

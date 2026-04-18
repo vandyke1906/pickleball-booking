@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react"
 
 export const EventBusKeys = {
-  OPENPLAY_PLAYER_ADD: "openplay:player-add",
+  OPENPLAY_UPDATED: "openplay:updated",
 }
 
 type EventMap = {
-  [EventBusKeys.OPENPLAY_PLAYER_ADD]: { openPlayId: string; data?: any }
+  [EventBusKeys.OPENPLAY_UPDATED]: { openPlayId: string; data?: any }
 }
 
 type EventHandler<T = any> = (data: T) => void

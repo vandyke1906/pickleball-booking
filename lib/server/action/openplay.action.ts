@@ -90,17 +90,14 @@ export async function canJoinQueue(player: OpenPlayPlayer, currentTime: Date): P
   return elapsedMinutes < player.totalPlayTime
 }
 
-export async function deleteQueuedPlayers(queueIds: string[] = []) {
-  if (!queueIds.length) {
-    return { count: 0 }
-  }
-
+export async function deleteQueuedPlayers(playerIds: string[] = []) {
+  if (!playerIds.length) return { count: 0 }
   try {
     return await prisma.$transaction(async (tx) => {
       const result = await tx.lineupQueue.deleteMany({
         where: {
-          id: {
-            in: queueIds,
+          playerId: {
+            in: playerIds,
           },
         },
       })

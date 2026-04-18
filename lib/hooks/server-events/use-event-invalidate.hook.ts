@@ -30,18 +30,17 @@ export function setupEventInvalidations(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: qKeyCourts.all, exact: false })
   })
 
-  channel.bind(BroadcastEventTypes.OPENPLAY_NEW_PLAYER, (data: any) => {
-    queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
-  })
+  // channel.bind(BroadcastEventTypes.OPENPLAY_NEW_PLAYER, (data: any) => {
+  //   queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
+  // })
 
-  channel.bind(BroadcastEventTypes.OPENPLAY_UPDATE_PLAYER, (data: any) => {
-    queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
-  })
+  // channel.bind(BroadcastEventTypes.OPENPLAY_UPDATE_PLAYER, (data: any) => {
+  //   queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
+  // })
 
-  channel.bind(BroadcastEventTypes.OPENPLAY_REMOVE_PLAYER, (data: any) => {
+  channel.bind(BroadcastEventTypes.OPENPLAY_UPDATED, (data: any) => {
     queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
-    //call addGroupToQueue here &  Emit clean domain event
-    eventBus.emit(EventBusKeys.OPENPLAY_PLAYER_ADD, {
+    eventBus.emit(EventBusKeys.OPENPLAY_UPDATED, {
       openPlayId: data?.openPlayId || data?.id || "",
       data,
     })

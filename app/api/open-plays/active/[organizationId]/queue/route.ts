@@ -1,5 +1,7 @@
 import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
+import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
+import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { deleteQueuedPlayers } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { QueueManager } from "@/lib/server/services/queue-manager.service"
@@ -29,7 +31,12 @@ export const GET = withRateLimit(
           createdAt: true,
           updatedAt: true,
           status: true,
-          queues: { select: { id: true, playerId: true, player: true, scheduledAt: true } },
+          queues: {
+            orderBy: {
+              createdAt: "asc",
+            },
+            select: { id: true, playerId: true, player: true, scheduledAt: true },
+          },
           courts: {
             select: {
               id: true,
@@ -64,26 +71,34 @@ export const GET = withRateLimit(
         })),
         courts: activeOpenPlay.courts.map((c) => ({ id: c.id, name: c.name })),
       }
-
       const manager = new QueueManager(data)
       const result = manager.compute({
         now: new Date(),
         onGroupDone: (game) => {
           console.log(`Group finished on court ${game.courtName}`)
-          const playerQueuedIds = game.players.map((p) => p.id)
+          console.info(JSON.stringify(game, null, 2))
+          const playerIds = game.players.map((p) => p.playerId)
           //RONIE DELETE done groups
-          // deleteQueuedPlayers(playerQueuedIds)
-          //   .then((result) => {
-          //     console.info("Deleted queued players:", result.count)
-          //   })
-          //   .catch((error) => {
-          //     console.error("Error deleting queued players:", error)
-          //   })
+          deleteQueuedPlayers(playerIds)
+            .then((result) => {
+              console.info("Deleted queued players:", result.count)
+            })
+            .catch((error) => {
+              console.error("Error deleting queued players:", error)
+            })
         },
         onPlayerDone: (player) => {
           // console.log(`Player ${player.playerName} finished`))
         },
       })
+
+      console.info("test")
+      //update ui of all clients on openplay
+      // EventBroadcast({
+      //   type: BroadcastEventTypes.OPENPLAY_UPDATED,
+      //   data: data,
+      // })
+
       return NextResponse.json(result)
     } catch (error: any) {
       console.error("Error getting open play:", error?.message || error)
