@@ -6,7 +6,7 @@ import {
 } from "@/.config/prisma/generated/prisma"
 import { fetcher } from "@/lib/hooks/common.hook"
 import { Booking, Court } from "@prisma/client"
-import { useQuery } from "@tanstack/react-query"
+import { keepPreviousData, useQuery } from "@tanstack/react-query"
 
 type TBookingWithStringTime = Omit<Booking, "startTime" | "endTime"> & {
   startTime: string
@@ -41,6 +41,15 @@ export function useCourts({ organizationId }: { organizationId?: string } = {}) 
   const query = useQuery<Array<Court>>({
     queryKey: qKeyCourts.list(organizationId),
     queryFn: () => fetcher(url),
+
+    // CACHE CONTROL
+    staleTime: Infinity, // never becomes stale
+    gcTime: 1000 * 60 * 60 * 24, // keep cache for 24 hours
+
+    // PREVENT AUTO REFETCH
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   })
 
   return {
@@ -66,8 +75,18 @@ export function useOrganizationCourts({ slug }: { slug: string }) {
     queryKey: qKeyCourts.organizationCourts(slug),
     queryFn: () => fetcher(url),
     enabled: typeof slug === "string" && slug.trim().length > 0,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 30, // still 30 minutes is fine
+
+    // optional: keep previous page data
+    placeholderData: keepPreviousData,
+
+    // CACHE CONTROL
+    staleTime: Infinity, // never becomes stale
+    gcTime: 1000 * 60 * 60 * 24, // keep cache for 24 hours
+
+    // PREVENT AUTO REFETCH
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   })
 
   return {
@@ -104,6 +123,15 @@ export function useCourtBookings({
     queryKey: qKeyCourts.bookings({ organizationId, date, isAll }),
     queryFn: () => fetcher(url),
     enabled: Boolean(organizationId) && enabled,
+
+    // CACHE CONTROL
+    staleTime: Infinity, // never becomes stale
+    gcTime: 1000 * 60 * 60 * 1, // keep cache for 1 hour
+
+    // PREVENT AUTO REFETCH
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   })
 
   return {

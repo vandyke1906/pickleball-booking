@@ -14,9 +14,18 @@ export function useBookings(url: string) {
   const query = useQuery<TData<TBookedData>>({
     queryKey: qKeyBookings.list(url),
     queryFn: () => fetcher(url),
+
+    // CACHE CONTROL
+    staleTime: Infinity, // never becomes stale
+    gcTime: 1000 * 60 * 60 * 4, // keep cache for 4 hours
+
+    // PREVENT AUTO REFETCH
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+
+    // optional: keep previous page data
     placeholderData: keepPreviousData,
-    staleTime: 1000 * 60 * 10,
-    gcTime: 1000 * 60 * 30,
   })
 
   return {

@@ -103,8 +103,18 @@ export function useOpenPlay(id: string) {
     queryKey: qKeyOpenPlays.detail(id),
     queryFn: () => fetcher(url),
     enabled: typeof id === "string" && id.trim().length > 0,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 30, // still 30 minutes is fine
+
+    // optional: keep previous page data
+    placeholderData: keepPreviousData,
+
+    // CACHE CONTROL
+    staleTime: Infinity, // never becomes stale
+    gcTime: 1000 * 60 * 60 * 2, // keep cache for 24 hours
+
+    // PREVENT AUTO REFETCH
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   })
 
   return {
