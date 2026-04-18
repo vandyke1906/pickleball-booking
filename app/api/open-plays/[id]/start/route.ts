@@ -1,7 +1,9 @@
-import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
+import { OpenPlayStatus, QueueStatus } from "@/.config/prisma/generated/prisma"
 import { isServerAuthenticated } from "@/lib/auth/auth.server"
 import { prisma } from "@/lib/prisma"
 import { withRateLimit } from "@/lib/server/rate-limiter"
+import { QueueManager } from "@/lib/server/services/queue-manager.service"
+import { TQueueOpenPlay } from "@/lib/type/openplay/openplay.type"
 import { NextRequest, NextResponse } from "next/server"
 
 export const POST = withRateLimit(
@@ -12,7 +14,7 @@ export const POST = withRateLimit(
       const { id } = await params
       if (!id) return NextResponse.json({ success: false, message: "Please provide open play id!" })
       const openPlay = await prisma.openPlay.findUnique({
-        where: { id, status: OpenPlayStatus.active },
+        where: { id, status: OpenPlayStatus.active, isActive: true },
       })
       if (!openPlay)
         return NextResponse.json({ success: false, message: "Active open play not found!" })
@@ -24,7 +26,72 @@ export const POST = withRateLimit(
           data: {
             startedAt: new Date(),
           },
+          select: {
+            id: true,
+            startTime: true,
+            endTime: true,
+            isActive: true,
+            isCompleted: true,
+            startedAt: true,
+            transitionMinutes: true,
+            announcementMinutesBeforeTransition: true,
+            preparationSeconds: true,
+            organizationId: true,
+            createdAt: true,
+            updatedAt: true,
+            status: true,
+            queues: { select: { id: true, playerId: true, player: true, scheduledAt: true } },
+            courts: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
         })
+
+        const data: TQueueOpenPlay = {
+          id: openPlay.id,
+          isActive: openPlay.isActive,
+          startedAt: openPlay.startedAt,
+          isCompleted: openPlay.isCompleted,
+          startTime: openPlay.startTime,
+          endTime: openPlay.endTime,
+          transitionMinutes: openPlay.transitionMinutes,
+          preparationSeconds: openPlay.preparationSeconds,
+          announcementMinutesBeforeTransition: openPlay.announcementMinutesBeforeTransition,
+          status: openPlay.status,
+          organizationId: openPlay.organizationId,
+          createdAt: openPlay.createdAt,
+          updatedAt: openPlay.updatedAt,
+          queuePlayers: openPlay.queues.map((q) => ({
+            id: q.id,
+            playerId: q.playerId,
+            playerName: q.player.playerName,
+            scheduledAt: q.scheduledAt,
+          })),
+          courts: openPlay.courts.map((c) => ({ id: c.id, name: c.name })),
+        }
+
+        const groups = new QueueManager(data).initialize()
+        console.info({ groups })
+        for (const group of groups) {
+          for (const player of group.players) {
+            await tx.lineupQueue.upsert({
+              where: {
+                playerId_openPlayId: { playerId: player.playerId, openPlayId: openPlay.id },
+              },
+              update: { scheduledAt: group.scheduledAt, status: QueueStatus.waiting },
+              create: {
+                playerId: player.id,
+                openPlayId: openPlay.id,
+                scheduledAt: group.scheduledAt,
+                status: QueueStatus.waiting,
+              },
+            })
+          }
+        }
+
         return openPlay
       })
 

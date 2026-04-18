@@ -139,8 +139,6 @@ async function submitLineupOpenPlay(payload: OpenPlayLineupPayload) {
 }
 
 async function startActiveOpenPlay(id: string) {
-  const formData = new FormData()
-  formData.append("status", status)
   const res = await fetch(`/api/open-plays/${id}/start`, { method: "POST" })
 
   if (!res.ok) {

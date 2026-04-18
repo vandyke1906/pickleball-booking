@@ -5,7 +5,7 @@ import { useParams } from "next/navigation"
 import { LoadingScreen } from "@/components/animated/loading-screen"
 import { formatCountdown, formatDate, formatTimeRange, timeText } from "@/lib/utils"
 import { motion } from "framer-motion"
-import { Send, Clock, Users, Megaphone } from "lucide-react"
+import { Send, Clock, Users, Megaphone, RefreshCw, AlertTriangle } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -28,6 +28,7 @@ import { useSubmitLineupOpenPlay } from "@/lib/mutations/open-play/open-play.mut
 import { useOrganizationCourts } from "@/lib/hooks/court/court.hook"
 import { useActiveOpenPlayQueue } from "@/lib/hooks/open-play/open-play.hook"
 import { useVoice } from "@/lib/hooks/speech/use-voice"
+import { Badge } from "@/components/ui/badge"
 
 type OpenPlayData = {
   openPlay: {
@@ -67,7 +68,11 @@ export default function PickleballOpenPlayQueue() {
 
   const { data: orgWithCourts, isLoading: isLoadingOrgWithCourts } = useOrganizationCourts({ slug })
   const orgId = orgWithCourts?.id ?? ""
-  const { data: openPlayData, isLoading } = useActiveOpenPlayQueue(orgId)
+  const {
+    data: openPlayData,
+    isLoading,
+    refetch: refetchOpenPlayData,
+  } = useActiveOpenPlayQueue(orgId)
 
   // =====================
   // STATE (ALWAYS STABLE)
@@ -124,6 +129,7 @@ export default function PickleballOpenPlayQueue() {
   // LIVE CLOCK
   // =====================
   useEffect(() => {
+    if (!openPlayData) return
     const interval = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(interval)
   }, [])
@@ -132,7 +138,7 @@ export default function PickleballOpenPlayQueue() {
   // COUNTDOWN
   // =====================
   useEffect(() => {
-    if (!nextTransition) return
+    if (!nextTransition || !openPlayData) return
 
     const update = () => {
       const diff = new Date(nextTransition).getTime() - Date.now()
@@ -156,7 +162,7 @@ export default function PickleballOpenPlayQueue() {
   // AUTO ANNOUNCE NEXT GROUPS (multi-court)
   // =====================
   useEffect(() => {
-    if (!audioEnabled || !queue || queue.length === 0) return
+    if (!audioEnabled || !queue || queue.length === 0 || !openPlayData) return
     if (!nextTransition) return
 
     const now = Date.now()
@@ -191,7 +197,13 @@ export default function PickleballOpenPlayQueue() {
   // READY SOON (fixed)
   // =====================
   useEffect(() => {
-    if (!audioEnabled || !nextGroups.length || !openPlay?.preparationSeconds || !prepRemaining)
+    if (
+      !audioEnabled ||
+      !nextGroups.length ||
+      !openPlay?.preparationSeconds ||
+      !prepRemaining ||
+      !openPlayData
+    )
       return
 
     // Convert preparationSeconds → ms
@@ -232,7 +244,7 @@ export default function PickleballOpenPlayQueue() {
   // START WARNING (using nextGroups)
   // =====================
   useEffect(() => {
-    if (!audioEnabled || !openPlay?.announcementMinutesBeforeTransition) return
+    if (!audioEnabled || !openPlay?.announcementMinutesBeforeTransition || !openPlayData) return
     if (!nextTransition || !nextGroups || nextGroups.length === 0) return
 
     const warningMs = openPlay.announcementMinutesBeforeTransition * 60_000
@@ -299,9 +311,9 @@ export default function PickleballOpenPlayQueue() {
     })
   }, [audioEnabled, queue])
 
-  if (isLoading || isLoadingOrgWithCourts) return <div>Loading queue...</div>
-
-  if (!openPlayData) return <LoadingScreen />
+  console.info({ isLoading, isLoadingOrgWithCourts })
+  if (isLoading || isLoadingOrgWithCourts) return <LoadingScreen message="Loading Queue" />
+  if (!openPlayData) return <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
 
   return (
     <div className="min-h-screen bg-[#092021] text-white font-mono flex flex-col h-screen overflow-hidden">
@@ -335,108 +347,69 @@ export default function PickleballOpenPlayQueue() {
 
       <div className="flex-1 overflow-auto p-6 space-y-8">
         {/* NEXT TRANSITION */}
-        <div className="bg-black/60 border border-emerald-600/50 rounded-2xl p-6">
-          <div className="flex items-center gap-3 text-emerald-400 mb-2">
-            <Clock className="w-6 h-6" />
-            <span className="uppercase tracking-widest text-sm font-semibold">Next Transition</span>
+        <div className="bg-black/60 border border-emerald-600/40 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2 text-emerald-400">
+              <Clock className="w-5 h-5" />
+              <span className="uppercase tracking-wide text-xs md:text-sm lg:text-base font-semibold">
+                Next Transition
+              </span>
+            </div>
+
             <Megaphone
               onClick={handleManualAnnouncement}
-              className="w-8 h-8 text-emerald-500 cursor-pointer hover:text-emerald-400 transition"
+              className="w-5 h-5 text-emerald-500 cursor-pointer hover:text-emerald-400 transition"
             />
           </div>
 
-          <div className="text-5xl font-bold tabular-nums text-white">
-            {nextTransition && timeText(nextTransition)}
-          </div>
+          <div className="flex items-end justify-between">
+            {/* Transition time */}
+            <div
+              className="font-bold tabular-nums text-white 
+                    text-2xl md:text-4xl lg:text-6xl"
+            >
+              {nextTransition && timeText(nextTransition)}
+            </div>
 
-          {/* ✅ NEW: countdown */}
-          <div className="mt-3 text-emerald-400 text-3xl font-bold">
-            {formatCountdown(prepRemaining)}
-          </div>
-
-          <p className="text-emerald-300/70 mt-1">
-            {openPlay?.transitionMinutes} minutes transition • {openPlay?.preparationSeconds}{" "}
-            seconds player switch
-          </p>
-        </div>
-
-        {/* CURRENT GAMES */}
-        <div>
-          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-            <Users className="w-6 h-6 text-emerald-400" />
-            CURRENT GAMES
-          </h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            {currentGames.map((game, index) => (
-              <div
-                key={game.courtId}
-                className="bg-black/70 border border-emerald-600/30 rounded-2xl p-6"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <div className="text-emerald-400 font-semibold text-xl">{game.courtName}</div>
-                    <div className="text-sm text-emerald-300/60">
-                      Started {timeText(game.startTime)}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs uppercase tracking-widest text-emerald-300/70">
-                      Ends ~
-                    </div>
-                    <div className="text-lg font-mono text-emerald-400">
-                      {timeText(game.estimatedEndTime)}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {game.players.map((player, i) => (
-                    <div
-                      key={player.id}
-                      className="bg-zinc-900/80 px-4 py-3 rounded-xl text-sm border border-emerald-900/50"
-                    >
-                      {player.playerName}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
+            {/* Countdown */}
+            <div
+              className="text-emerald-400 font-semibold tabular-nums 
+                    text-lg md:text-2xl lg:text-4xl"
+            >
+              {formatCountdown(prepRemaining)}
+            </div>
           </div>
         </div>
 
-        {/* WAITING QUEUE */}
-        <div>
-          <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-            <span>WAITING QUEUE</span>
-            <span className="text-emerald-400 text-base">({queue.length} groups)</span>
-          </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* CURRENT GAMES - smaller column */}
+          <div className="lg:col-span-1">
+            <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
+              <Users className="w-5 h-5 text-emerald-400" />
+              CURRENT GAMES
+            </h2>
 
-          {queue.length === 0 ? (
-            <div className="text-center py-12 text-emerald-300/60">No groups waiting</div>
-          ) : (
             <div className="space-y-4">
-              {queue.map((group) => (
+              {currentGames.map((game) => (
                 <div
-                  key={group.id}
-                  className="bg-black/60 border border-emerald-600/30 rounded-2xl p-6 flex justify-between items-center"
+                  key={game.courtId}
+                  className="bg-black/70 border border-emerald-600/30 rounded-xl p-4"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 font-bold">
-                      {group.position}
-                    </div>
+                  <div className="flex justify-between mb-2">
                     <div>
-                      <div className="text-white font-medium">Group {group.position}</div>
-                      <div className="text-emerald-300/70 text-sm">
-                        Scheduled: {timeText(group.scheduledAt)}
-                      </div>
+                      <div className="text-emerald-400 font-semibold">{game.courtName}</div>
+                      <div className="text-xs text-emerald-300/60">{timeText(game.startTime)}</div>
+                    </div>
+                    <div className="text-xs text-emerald-400 font-mono">
+                      ~{timeText(game.estimatedEndTime)}
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    {group.players.map((player) => (
+                  <div className="grid grid-cols-2 gap-2">
+                    {game.players.map((player) => (
                       <div
                         key={player.id}
-                        className="bg-zinc-900 px-4 py-2 rounded-xl text-sm border border-emerald-900/50"
+                        className="bg-emerald-900/40 px-2 py-1 rounded text-sm text-center text-white border border-emerald-600/40"
                       >
                         {player.playerName}
                       </div>
@@ -445,7 +418,55 @@ export default function PickleballOpenPlayQueue() {
                 </div>
               ))}
             </div>
-          )}
+          </div>
+
+          {/* WAITING QUEUE - larger column */}
+          <div className="lg:col-span-2">
+            <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
+              <span>WAITING QUEUE</span>
+              <span className="text-emerald-400 text-sm">({queue.length})</span>
+            </h2>
+
+            {queue.length === 0 ? (
+              <div className="text-center py-10 text-emerald-300/60">No groups waiting</div>
+            ) : (
+              <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
+                {queue.map((group) => (
+                  <div
+                    key={group.id}
+                    className="bg-black/60 border border-emerald-600/30 rounded-xl p-4 flex justify-between items-center gap-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-[120px]">
+                      <div className="w-8 h-8 rounded-full bg-emerald-500 text-black flex items-center justify-center font-bold text-sm">
+                        {group.position}
+                      </div>
+                      <div>
+                        <div className="text-white text-xs font-semibold">
+                          Group {group.position} <Badge>{group.courtName}</Badge>
+                        </div>
+                        <div className="text-lg text-emerald-300/60">
+                          {timeText(group.scheduledAt)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3 flex-1">
+                      <div className="flex flex-wrap gap-3 flex-1">
+                        {group.players.map((player) => (
+                          <div
+                            key={player.id}
+                            className="bg-emerald-900/50 px-4 py-2 rounded-lg text-lg md:text-2xl font-bold text-white border border-emerald-500/60 shadow-sm"
+                          >
+                            {player.playerName}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -543,5 +564,53 @@ function LineupDialog({
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function OpenPlayUnavailable({
+  message = "Open Play is currently unavailable.",
+  onRetry,
+}: {
+  message?: string
+  onRetry?: () => void
+}) {
+  return (
+    <div className="min-h-screen bg-[#092021] text-white flex items-center justify-center font-mono px-6">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-black/70 border border-emerald-600/40 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl"
+      >
+        {/* ICON */}
+        <div className="flex justify-center mb-4">
+          <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500 flex items-center justify-center">
+            <AlertTriangle className="w-8 h-8 text-emerald-400" />
+          </div>
+        </div>
+
+        {/* TITLE */}
+        <h1 className="text-2xl font-bold text-white mb-2">Open Play Unavailable</h1>
+
+        {/* MESSAGE */}
+        <p className="text-emerald-300/70 text-sm mb-6">{message}</p>
+
+        {/* ACTIONS */}
+        <div className="flex flex-col gap-3">
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-black font-bold py-3 rounded-xl transition active:scale-95"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Retry
+            </button>
+          )}
+
+          <div className="text-xs text-emerald-300/50">
+            Please check your connection or try again later
+          </div>
+        </div>
+      </motion.div>
+    </div>
   )
 }

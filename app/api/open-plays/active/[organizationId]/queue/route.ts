@@ -1,5 +1,6 @@
 import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
 import { prisma } from "@/lib/prisma"
+import { deleteQueuedPlayers } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { QueueManager } from "@/lib/server/services/queue-manager.service"
 import { TQueueOpenPlay } from "@/lib/type/openplay/openplay.type"
@@ -28,7 +29,7 @@ export const GET = withRateLimit(
           createdAt: true,
           updatedAt: true,
           status: true,
-          queues: { select: { id: true, playerId: true, player: true } },
+          queues: { select: { id: true, playerId: true, player: true, scheduledAt: true } },
           courts: {
             select: {
               id: true,
@@ -59,6 +60,7 @@ export const GET = withRateLimit(
           id: q.id,
           playerId: q.playerId,
           playerName: q.player.playerName,
+          scheduledAt: q.scheduledAt,
         })),
         courts: activeOpenPlay.courts.map((c) => ({ id: c.id, name: c.name })),
       }
@@ -66,19 +68,22 @@ export const GET = withRateLimit(
       const manager = new QueueManager(data)
       const result = manager.compute({
         now: new Date(),
-        completedPlayerIds: new Set(["p1", "p2"]), // optional: players already finished
         onGroupDone: (game) => {
           console.log(`Group finished on court ${game.courtName}`)
-          // 🔔 remove group from DB
-          // e.g. prisma.game.delete({ where: { id: game.id } })
+          const playerQueuedIds = game.players.map((p) => p.id)
+          //RONIE DELETE done groups
+          // deleteQueuedPlayers(playerQueuedIds)
+          //   .then((result) => {
+          //     console.info("Deleted queued players:", result.count)
+          //   })
+          //   .catch((error) => {
+          //     console.error("Error deleting queued players:", error)
+          //   })
         },
         onPlayerDone: (player) => {
-          console.log(`Player ${player.playerName} finished`)
-          // 🔔 remove player from DB
-          // e.g. prisma.player.update({ where: { id: player.id }, data: { status: "done" } })
+          // console.log(`Player ${player.playerName} finished`))
         },
       })
-      console.info(JSON.stringify(result.completedGames, null, 2))
       return NextResponse.json(result)
     } catch (error: any) {
       console.error("Error getting open play:", error?.message || error)

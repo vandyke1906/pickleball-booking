@@ -1,11 +1,7 @@
 "use server"
 
-import {
-  LineupQueue,
-  OpenPlay,
-  OpenPlayPlayer,
-  QueueStatus,
-} from "@/.config/prisma/generated/prisma"
+import { OpenPlayPlayer, QueueStatus } from "@/.config/prisma/generated/prisma"
+import { prisma } from "@/lib/prisma"
 import { TPrismaTransaction } from "@/lib/type/util.type"
 import { addMinutes, isWithinInterval } from "date-fns"
 
@@ -19,6 +15,8 @@ export async function createLineupEntry(tx: TPrismaTransaction, openPlayPlayer: 
     },
     include: { player: true, openPlay: true },
   })
+
+  console.info({ queue })
 
   if (!openPlayPlayer?.startAt && queue?.openPlay?.startTime && queue?.openPlay?.endTime) {
     const { startAt } = await resolveOpenPlayPlayerSchedule({
@@ -47,7 +45,7 @@ export async function initializeLineup(tx: any, openPlayId: string) {
     orderBy: { registeredAt: "asc" }, // enforce registration order
   })
 
-  if (players.length === 0) return []
+  if (players.length === 0) throw new Error("No available registered player!")
 
   const lineups = []
   for (const player of players) {
@@ -90,6 +88,29 @@ export async function canJoinQueue(player: OpenPlayPlayer, currentTime: Date): P
   if (!player.startAt) return true // first time joining
   const elapsedMinutes = Math.floor((currentTime.getTime() - player.startAt.getTime()) / 60000)
   return elapsedMinutes < player.totalPlayTime
+}
+
+export async function deleteQueuedPlayers(queueIds: string[] = []) {
+  if (!queueIds.length) {
+    return { count: 0 }
+  }
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const result = await tx.lineupQueue.deleteMany({
+        where: {
+          id: {
+            in: queueIds,
+          },
+        },
+      })
+
+      return result
+    })
+  } catch (error) {
+    console.error("Failed to delete queued players:", error)
+    throw error
+  }
 }
 
 // Assign a new queue slot for the player

@@ -45,6 +45,7 @@ export const POST = withRateLimit(
 
         // Initialize lineup for registered players
         if (status === OpenPlayStatus.active) {
+          console.info("Initializing lineup for registered players...")
           await initializeLineup(tx, openPlay.id)
         }
         return openPlay

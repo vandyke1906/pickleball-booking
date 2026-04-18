@@ -65,6 +65,7 @@ model LineupQueue {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@unique([playerId, openPlayId])
   @@index([status])
   @@index([playerId])
 }
