@@ -19,59 +19,61 @@ export const GET = withRateLimit(
         where: { organizationId, status: OpenPlayStatus.active, isActive: true },
         select: {
           id: true,
-          startTime: true,
-          endTime: true,
-          isActive: true,
-          isCompleted: true,
-          startedAt: true,
-          transitionMinutes: true,
-          announcementMinutesBeforeTransition: true,
-          preparationSeconds: true,
-          organizationId: true,
-          createdAt: true,
-          updatedAt: true,
-          status: true,
-          queues: {
-            orderBy: {
-              createdAt: "asc",
-            },
-            select: { id: true, playerId: true, player: true, scheduledAt: true },
-          },
-          courts: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
+          // startTime: true,
+          // endTime: true,
+          // isActive: true,
+          // isCompleted: true,
+          // startedAt: true,
+          // transitionMinutes: true,
+          // announcementMinutesBeforeTransition: true,
+          // preparationSeconds: true,
+          // organizationId: true,
+          // createdAt: true,
+          // updatedAt: true,
+          // status: true,
+          // queues: {
+          //   orderBy: {
+          //     createdAt: "asc",
+          //   },
+          //   select: { id: true, playerId: true, player: true, scheduledAt: true,endedAt: true },
+          // },
+          // courts: {
+          //   select: {
+          //     id: true,
+          //     name: true,
+          //   },
+          // },
         },
       })
 
       if (!activeOpenPlay)
         return NextResponse.json({ message: "No active Open Play found" }, { status: 404 })
 
-      const data: TQueueOpenPlay = {
-        id: activeOpenPlay.id,
-        isActive: activeOpenPlay.isActive,
-        startedAt: activeOpenPlay.startedAt,
-        isCompleted: activeOpenPlay.isCompleted,
-        startTime: activeOpenPlay.startTime,
-        endTime: activeOpenPlay.endTime,
-        transitionMinutes: activeOpenPlay.transitionMinutes,
-        preparationSeconds: activeOpenPlay.preparationSeconds,
-        announcementMinutesBeforeTransition: activeOpenPlay.announcementMinutesBeforeTransition,
-        status: activeOpenPlay.status,
-        organizationId: activeOpenPlay.organizationId,
-        createdAt: activeOpenPlay.createdAt,
-        updatedAt: activeOpenPlay.updatedAt,
-        queuePlayers: activeOpenPlay.queues.map((q) => ({
-          id: q.id,
-          playerId: q.playerId,
-          playerName: q.player.playerName,
-          scheduledAt: q.scheduledAt,
-        })),
-        courts: activeOpenPlay.courts.map((c) => ({ id: c.id, name: c.name })),
-      }
-      const manager = new QueueManager(data)
+      // const data: TQueueOpenPlay = {
+      //   id: activeOpenPlay.id,
+      //   isActive: activeOpenPlay.isActive,
+      //   startedAt: activeOpenPlay.startedAt,
+      //   isCompleted: activeOpenPlay.isCompleted,
+      //   startTime: activeOpenPlay.startTime,
+      //   endTime: activeOpenPlay.endTime,
+      //   transitionMinutes: activeOpenPlay.transitionMinutes,
+      //   preparationSeconds: activeOpenPlay.preparationSeconds,
+      //   announcementMinutesBeforeTransition: activeOpenPlay.announcementMinutesBeforeTransition,
+      //   status: activeOpenPlay.status,
+      //   organizationId: activeOpenPlay.organizationId,
+      //   createdAt: activeOpenPlay.createdAt,
+      //   updatedAt: activeOpenPlay.updatedAt,
+      //   queuePlayers: activeOpenPlay.queues.map((q) => ({
+      //     id: q.id,
+      //     playerId: q.playerId,
+      //     playerName: q.player.playerName,
+      //     scheduledAt: q.scheduledAt,
+      //     endedAt: q.endedAt
+      //   })),
+      //   courts: activeOpenPlay.courts.map((c) => ({ id: c.id, name: c.name })),
+      // }
+      const manager = new QueueManager(activeOpenPlay.id)
+      await manager.initializeData()
       const result = manager.compute({
         now: new Date(),
         onGroupDone: (game) => {
@@ -79,13 +81,13 @@ export const GET = withRateLimit(
           console.info(JSON.stringify(game, null, 2))
           const playerIds = game.players.map((p) => p.playerId)
           //RONIE DELETE done groups
-          // deleteQueuedPlayers(playerIds)
-          //   .then((result) => {
-          //     console.info("Deleted queued players:", result.count)
-          //   })
-          //   .catch((error) => {
-          //     console.error("Error deleting queued players:", error)
-          //   })
+          deleteQueuedPlayers(playerIds)
+            .then((result) => {
+              console.info("Deleted queued players:", result.count)
+            })
+            .catch((error) => {
+              console.error("Error deleting queued players:", error)
+            })
         },
         onPlayerDone: (player) => {
           // console.log(`Player ${player.playerName} finished`))

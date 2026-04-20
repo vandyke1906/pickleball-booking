@@ -2,21 +2,21 @@
 
 import { OpenPlayPlayer, QueueStatus } from "@/.config/prisma/generated/prisma"
 import { prisma } from "@/lib/prisma"
+import { TQueuePlayer } from "@/lib/type/openplay/openplay.type"
 import { TPrismaTransaction } from "@/lib/type/util.type"
 import { addMinutes, isWithinInterval } from "date-fns"
 
-export async function createLineupEntry(tx: TPrismaTransaction, openPlayPlayer: OpenPlayPlayer) {
+export async function createLineupEntry(tx: TPrismaTransaction, openPlayPlayer: OpenPlayPlayer):Promise<TQueuePlayer> {
   const queue = await tx.lineupQueue.create({
     data: {
       openPlayId: openPlayPlayer.openPlayId,
       playerId: openPlayPlayer.id,
       status: QueueStatus.waiting,
       scheduledAt: null,
+      endedAt: null
     },
     include: { player: true, openPlay: true },
   })
-
-  console.info({ queue })
 
   if (!openPlayPlayer?.startAt && queue?.openPlay?.startTime && queue?.openPlay?.endTime) {
     const { startAt } = await resolveOpenPlayPlayerSchedule({
@@ -35,7 +35,13 @@ export async function createLineupEntry(tx: TPrismaTransaction, openPlayPlayer: 
     })
   }
 
-  return queue
+  return {
+    id: queue.id,
+    playerId: queue.playerId,
+    playerName: queue.player?.playerName || "Player",
+    scheduledAt: queue.scheduledAt,
+    endedAt: queue.endedAt,
+  }
 }
 
 // Initialize lineup for all registered players of an OpenPlay

@@ -4,7 +4,8 @@ export type TQueuePlayer = {
   id: string
   playerId: string
   playerName: string
-  scheduledAt: Date | null
+  scheduledAt?: Date | null
+  endedAt?: Date | null
 }
 export type TQueueCourt = { id: string; name: string }
 
