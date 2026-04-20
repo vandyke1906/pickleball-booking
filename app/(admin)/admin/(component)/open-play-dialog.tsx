@@ -140,6 +140,22 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
       })
   }, [orgWithCourts])
 
+  
+  // Reset form whenever dialog closes or editingPlayer changes
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        id: initialData?.id || "",
+        date: initialData?.date || "",
+        startTime: initialData?.startTime || "",
+        duration: initialData?.duration || 1,
+        transitionMinutes: initialData?.transitionMinutes || 0,
+        preparationSeconds: initialData?.preparationSeconds || 0,
+        courtIds: initialData?.courtIds || [],
+      })
+    }
+  }, [open, initialData])
+
   const onSubmit = (values: OpenPlayPayload) => {
     mutation.mutate(values, {
       onSuccess: () => {
@@ -148,6 +164,10 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
       },
     })
   }
+  
+
+  
+  console.info({error: form.formState.errors})
 
   return (
     <>
