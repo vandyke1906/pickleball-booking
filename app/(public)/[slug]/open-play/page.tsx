@@ -141,17 +141,18 @@ export default function PickleballOpenPlayQueue() {
   // LIVE CLOCK + COUNTDOWN (combined)
   // =====================
   useEffect(() => {
-    if (!nextTransition) return
 
     const tick = () => {
       const now = new Date()
       setCurrentTime(now)
 
-      const diff = new Date(nextTransition).getTime() - now.getTime()
-      setPrepRemaining(diff > 0 ? diff : 0)
+      if (nextTransition){
+        const diff = new Date(nextTransition).getTime() - now.getTime()
+        setPrepRemaining(diff > 0 ? diff : 0)
 
-      if (diff <= 0) {
-        refetchOpenPlayData()
+        if (diff <= 0) {
+          refetchOpenPlayData()
+        }
       }
     }
 
@@ -529,7 +530,7 @@ export default function PickleballOpenPlayQueue() {
               }}
             >
               {/* Track (duplicated once for seamless loop) */}
-              {[...waitingPlayers, ...waitingPlayers].map((p, i) => (
+              {waitingPlayers.map((p, i) => (
                 <span
                   key={`${p.playerName}-${i}`}
                   className="mx-4 inline-flex items-center gap-2 text-emerald-300/80 text-sm md:text-base"

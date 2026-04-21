@@ -56,32 +56,33 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       const queuePlayer = await createLineupEntry(tx, openPlayPlayer);
 
       const manager = new QueueManager(openPlayId);
-      await manager.initializeData(tx);
-      const group = manager.addPlayerToQueue(queuePlayer);
-      if (group) {
-        for (const player of group?.players) {
-          await tx.lineupQueue.upsert({
-            where: {
-              playerId_openPlayId: {
-                playerId: player.playerId,
-                openPlayId: openPlayId,
-              },
-            },
-            update: {
-              scheduledAt: group.scheduledAt,
-              endedAt: group.estimatedEndTime,
-              status: QueueStatus.waiting,
-            },
-            create: {
-              playerId: player.id,
-              openPlayId: openPlayId,
-              scheduledAt: group.scheduledAt,
-              endedAt: group.estimatedEndTime,
-              status: QueueStatus.waiting,
-            },
-          });
-        }
-      }
+      await manager.addPlayerToQueueAndScheduleWaitingPlayers(queuePlayer, tx)
+      // await manager.initializeData(tx);
+      // const group = manager.addPlayerToQueue(queuePlayer);
+      // if (group) {
+      //   for (const player of group?.players) {
+      //     await tx.lineupQueue.upsert({
+      //       where: {
+      //         playerId_openPlayId: {
+      //           playerId: player.playerId,
+      //           openPlayId: openPlayId,
+      //         },
+      //       },
+      //       update: {
+      //         scheduledAt: group.scheduledAt,
+      //         endedAt: group.estimatedEndTime,
+      //         status: QueueStatus.waiting,
+      //       },
+      //       create: {
+      //         playerId: player.id,
+      //         openPlayId: openPlayId,
+      //         scheduledAt: group.scheduledAt,
+      //         endedAt: group.estimatedEndTime,
+      //         status: QueueStatus.waiting,
+      //       },
+      //     });
+      //   }
+      // }
 
       //update ui of all clients on openplay
       EventBroadcast({

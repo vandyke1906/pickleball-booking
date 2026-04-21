@@ -7,6 +7,7 @@ export type TQueuePlayer = {
   scheduledAt?: Date | null
   endedAt?: Date | null
 }
+
 export type TQueueCourt = { id: string; name: string }
 
 export type TQueueOpenPlay = OpenPlay & {

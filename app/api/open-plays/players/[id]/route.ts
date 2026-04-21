@@ -78,7 +78,7 @@ export const PUT = withRateLimit(
       if (updated && updated.openPlay.status === OpenPlayStatus.active) {
         //update ui of all clients on openplay
         EventBroadcast({
-          type: BroadcastEventTypes.OPENPLAY_UPDATE_PLAYER,
+          type: BroadcastEventTypes.OPENPLAY_UPDATED,
           data: updated,
         })
       }
@@ -119,7 +119,7 @@ export const DELETE = withRateLimit(
       if (openPlayer.openPlay.status === OpenPlayStatus.active) {
         //update ui of all clients on openplay
         EventBroadcast({
-          type: BroadcastEventTypes.OPENPLAY_REMOVE_PLAYER,
+          type: BroadcastEventTypes.OPENPLAY_UPDATED,
           data: openPlayer,
         })
       }
