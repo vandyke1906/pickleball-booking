@@ -114,7 +114,6 @@ export class QueueManager {
       completedGames,
       waitingPlayers,
       nextTransition,
-      waitingPlayers,
     }
   }
 
@@ -180,8 +179,8 @@ export class QueueManager {
     return { scheduledGroups, waitingPlayers }
   }
 
-  /** Add player to queue respecting FIFO and group size */
-  private addPlayerToQueue(player: TQueuePlayer, now: Date = new Date()): TQueueGroup | null {
+  /** Promote the current waiting group into a scheduled group */
+  private promoteWaitingGroup(now: Date = new Date()): TQueueGroup | null {
     const { openPlay } = this
     if (!openPlay) throw new Error("No available Open Play Data")
 
@@ -189,55 +188,31 @@ export class QueueManager {
     const PREPARATION_MS = openPlay.preparationSeconds * 1_000
     const SLOT_DURATION_MS = GAME_MS + PREPARATION_MS
 
-    const { scheduledGroups, waitingPlayers } = this.getPlayerSchedules()
-    const lastGroup = scheduledGroups.length ? scheduledGroups[scheduledGroups.length - 1] : null
+    const waitingGroup = this.getWaitingGroup()
+    if (!waitingGroup) return null
 
-    let newGroup: TQueueGroup | null = null
+    // Get the last scheduled player (FIFO) from queuePlayers
+    const lastScheduledPlayer = openPlay.queuePlayers
+      .filter((p) => p.scheduledAt)
+      .sort((a, b) => b.scheduledAt!.getTime() - a.scheduledAt!.getTime())[0]
 
-    if (waitingPlayers.length > 0 && waitingPlayers.length < 4) {
-      // Add to waiting players
-      waitingPlayers.push(player)
-      if (waitingPlayers.length === 4) {
-        // Promote to scheduled group
-        const scheduledAt = lastGroup
-          ? new Date(lastGroup.estimatedEndTime.getTime() + SLOT_DURATION_MS)
-          : new Date(now.getTime() + SLOT_DURATION_MS)
+    // Determine baseline from last scheduled player’s endedAt or now
+    const baseline = lastScheduledPlayer?.endedAt ?? now
 
-        const gameEndTime = new Date(scheduledAt.getTime() + GAME_MS)
-        newGroup = {
-          id: `grp-${openPlay.courts[0].id}-${scheduledAt.getTime()}`,
-          courtId: openPlay.courts[0].id,
-          courtName: openPlay.courts[0].name,
-          players: waitingPlayers.map((p) => ({ ...p, scheduledAt })),
-          scheduledAt,
-          estimatedEndTime: gameEndTime,
-          position: (lastGroup?.position ?? 0) + 1,
-        }
-        scheduledGroups.push(newGroup)
-      }
-    } else {
-      // No waiting players, start a new waiting group
-      const scheduledAt = lastGroup
-        ? new Date(lastGroup.estimatedEndTime.getTime() + SLOT_DURATION_MS)
-        : new Date(now.getTime() + SLOT_DURATION_MS)
+    // Start time is baseline + slot duration
+    const scheduledAt = new Date(baseline.getTime() + SLOT_DURATION_MS)
+    const gameEndTime = new Date(scheduledAt.getTime() + GAME_MS)
 
-      const gameEndTime = new Date(scheduledAt.getTime() + GAME_MS)
-      newGroup = {
-        id: `grp-${openPlay.courts[0].id}-${scheduledAt.getTime()}`,
-        courtId: openPlay.courts[0].id,
-        courtName: openPlay.courts[0].name,
-        players: [{ ...player, scheduledAt }],
-        scheduledAt,
-        estimatedEndTime: gameEndTime,
-        position: (lastGroup?.position ?? 0) + 1,
-      }
-      scheduledGroups.push(newGroup)
+    const newGroup: TQueueGroup = {
+      id: `grp-${openPlay.courts[0].id}-${scheduledAt.getTime()}`,
+      courtId: openPlay.courts[0].id,
+      courtName: openPlay.courts[0].name,
+      players: waitingGroup.players.map((p) => ({ ...p, scheduledAt })),
+      scheduledAt,
+      estimatedEndTime: gameEndTime,
+      position: lastScheduledPlayer ? waitingGroup.position : 1,
     }
 
-    // Update queuePlayers
-    openPlay.queuePlayers.push(player)
-
-    // Return only the newly scheduled group (or null if not promoted yet)
     return newGroup
   }
 
@@ -349,11 +324,7 @@ export class QueueManager {
     )
   }
 
-  /** Get current schedule state based on FIFO players */
-  private getPlayerSchedules(now: Date = new Date()): {
-    scheduledGroups: TQueueGroup[]
-    waitingPlayers: TQueuePlayer[]
-  } {
+  private getWaitingGroup(now: Date = new Date()): TQueueGroup | null {
     const { openPlay } = this
     if (!openPlay) throw new Error("No available Open Play Data")
 
@@ -366,8 +337,7 @@ export class QueueManager {
     const groups = this.chunkPlayers(players, 4)
     const courtsCount = courts.length
 
-    const scheduledGroups: TQueueGroup[] = []
-    let waitingPlayers: TQueuePlayer[] = []
+    let waitingGroup: TQueueGroup | null = null
 
     // Find the latest endedAt among players
     const lastEndedAt = players
@@ -379,43 +349,42 @@ export class QueueManager {
     let baseline = lastEndedAt ?? now
 
     for (let slot = 0; slot * courtsCount < groups.length; slot++) {
-      const scheduledAt = new Date(baseline.getTime() + slot * GAME_MS)
-      const gameEndTime = new Date(scheduledAt.getTime() + GAME_MS)
-
       for (let ci = 0; ci < courtsCount; ci++) {
         const gi = slot * courtsCount + ci
         if (gi >= groups.length) break
 
         const g = groups[gi]
-        if (g.length < 4) {
-          waitingPlayers = g
+
+        // Only consider groups with unscheduled players
+        const allUnscheduled = g.every((p) => !p.scheduledAt)
+
+        if (allUnscheduled) {
+          waitingGroup = {
+            id: `waiting-${courts[ci].id}-${now.getTime()}`,
+            courtId: courts[ci].id,
+            courtName: courts[ci].name,
+            players: g,
+            scheduledAt: null as any, // explicitly unscheduled
+            estimatedEndTime: null as any, // no end time yet
+            position: gi + 1,
+          }
           break
         }
-
-        scheduledGroups.push({
-          id: `grp-${courts[ci].id}-${scheduledAt.getTime()}`,
-          courtId: courts[ci].id,
-          courtName: courts[ci].name,
-          players: g.map((p) => ({ ...p, scheduledAt })),
-          scheduledAt,
-          estimatedEndTime: gameEndTime,
-          position: gi + 1,
-        })
       }
+      if (waitingGroup) break // stop at the first waiting group (FIFO)
     }
 
-    return { scheduledGroups, waitingPlayers }
+    return waitingGroup
   }
 
-  public async addPlayerToQueueAndScheduleWaitingPlayers(
-    queuePlayer: TQueuePlayer,
-    prismaTransaction?: TPrismaTransaction,
-  ) {
+  public async scheduleWaitingPlayers(prismaTransaction?: TPrismaTransaction) {
     const db = prismaTransaction ?? prisma
     await this.initializeData(db)
-    const group = this.addPlayerToQueue(queuePlayer)
-    if (group) {
-      for (const player of group?.players) {
+    // const group = this.addPlayerToQueue(queuePlayer)
+    const newGroup = this.promoteWaitingGroup()
+    console.info({ newGroup: JSON.stringify(newGroup, null, 2) })
+    if (newGroup) {
+      for (const player of newGroup?.players) {
         await db.lineupQueue.upsert({
           where: {
             playerId_openPlayId: {
@@ -424,15 +393,15 @@ export class QueueManager {
             },
           },
           update: {
-            scheduledAt: group.scheduledAt,
-            endedAt: group.estimatedEndTime,
+            scheduledAt: newGroup.scheduledAt,
+            endedAt: newGroup.estimatedEndTime,
             status: QueueStatus.waiting,
           },
           create: {
             playerId: player.id,
             openPlayId: this.openPlayId,
-            scheduledAt: group.scheduledAt,
-            endedAt: group.estimatedEndTime,
+            scheduledAt: newGroup.scheduledAt,
+            endedAt: newGroup.estimatedEndTime,
             status: QueueStatus.waiting,
           },
         })

@@ -1,19 +1,19 @@
-import { OpenPlayStatus, QueueStatus } from "@/.config/prisma/generated/prisma";
-import { BroadcastEventTypes } from "@/lib/event-broadcaster.type";
-import { prisma } from "@/lib/prisma";
-import { EventBroadcast } from "@/lib/server-event/broadcaster.event";
-import { createLineupEntry } from "@/lib/server/action/openplay.action";
-import { withRateLimit } from "@/lib/server/rate-limiter";
-import { QueueManager } from "@/lib/server/services/queue-manager.service";
-import { NextRequest, NextResponse } from "next/server";
+import { OpenPlayStatus, QueueStatus } from "@/.config/prisma/generated/prisma"
+import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
+import { prisma } from "@/lib/prisma"
+import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
+import { createLineupEntry } from "@/lib/server/action/openplay.action"
+import { withRateLimit } from "@/lib/server/rate-limiter"
+import { QueueManager } from "@/lib/server/services/queue-manager.service"
+import { NextRequest, NextResponse } from "next/server"
 
 export const POST = withRateLimit(async (req: NextRequest) => {
   try {
-    const formData = await req.formData();
-    const openPlayId = formData.get("openPlayId") as string;
-    const code = formData.get("code") as string;
+    const formData = await req.formData()
+    const openPlayId = formData.get("openPlayId") as string
+    const code = formData.get("code") as string
 
-    if (!openPlayId || !code) throw new Error("Missing required fields");
+    if (!openPlayId || !code) throw new Error("Missing required fields")
 
     const result = await prisma.$transaction(async (tx) => {
       // Find player
@@ -33,16 +33,16 @@ export const POST = withRateLimit(async (req: NextRequest) => {
             },
           },
         },
-      });
+      })
 
-      if (!openPlayPlayer) throw new Error("Invalid code or open play session");
+      if (!openPlayPlayer) throw new Error("Invalid code or open play session")
       if (openPlayPlayer?.openPlay?.status !== OpenPlayStatus.active)
-        throw new Error("Open play session is not active");
+        throw new Error("Open play session is not active")
 
       // Check session time
-      const now = new Date();
+      const now = new Date()
       if (now > openPlayPlayer.openPlay.endTime)
-        throw new Error("Open play session has already ended");
+        throw new Error("Open play session has already ended")
 
       // Prevent duplicate queue entry
       const existing = await tx.lineupQueue.findFirst({
@@ -50,13 +50,13 @@ export const POST = withRateLimit(async (req: NextRequest) => {
           playerId: openPlayPlayer.id,
           status: QueueStatus.waiting,
         },
-      });
+      })
 
-      if (existing) throw new Error("You are already in the queue");
-      const queuePlayer = await createLineupEntry(tx, openPlayPlayer);
+      if (existing) throw new Error("You are already in the queue")
+      await createLineupEntry(tx, openPlayPlayer)
 
-      const manager = new QueueManager(openPlayId);
-      await manager.addPlayerToQueueAndScheduleWaitingPlayers(queuePlayer, tx)
+      const manager = new QueueManager(openPlayId)
+      await manager.scheduleWaitingPlayers(tx)
       // await manager.initializeData(tx);
       // const group = manager.addPlayerToQueue(queuePlayer);
       // if (group) {
@@ -88,18 +88,18 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       EventBroadcast({
         type: BroadcastEventTypes.OPENPLAY_UPDATED,
         data: openPlayPlayer?.openPlay,
-      });
+      })
 
-      return openPlayPlayer;
-    });
+      return openPlayPlayer
+    })
 
     return NextResponse.json({
       success: true,
       message: "Lineup submitted successfully",
       result,
-    });
+    })
   } catch (err: any) {
-    console.error("Lineup submission error:", err);
+    console.error("Lineup submission error:", err)
 
     return NextResponse.json(
       {
@@ -107,6 +107,6 @@ export const POST = withRateLimit(async (req: NextRequest) => {
         error: err.message || "Failed to submit lineup",
       },
       { status: 400 },
-    );
+    )
   }
-});
+})
