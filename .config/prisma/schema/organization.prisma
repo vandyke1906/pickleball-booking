@@ -11,10 +11,10 @@ model Organization {
   instagramPage String?
   youtubePage   String?
 
-  openingHours OrganizationOpeningHour[]   
+  openingHours OrganizationOpeningHour[]
   pricingRules OrganizationPricingRule[]
   openPlayRule OrganizationOpenPlayRule?
-  
+
   courtLimit Int
   courts     Court[]
   openPlays  OpenPlay[]
@@ -24,17 +24,16 @@ model Organization {
   updatedAt DateTime @updatedAt
 }
 
-
 model OrganizationOpeningHour {
   id             String       @id @default(cuid())
-  organizationId String 
+  organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
-  startHour      Int          // 0–23 (e.g., 0 = 12 AM, 8 = 8 AM)
-  endHour        Int          // 0–24 (exclusive upper bound, e.g., 24 = midnight)
+  startHour Int // 0–23 (e.g., 0 = 12 AM, 8 = 8 AM)
+  endHour   Int // 0–24 (exclusive upper bound, e.g., 24 = midnight)
 
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model OrganizationPricingRule {
@@ -42,24 +41,22 @@ model OrganizationPricingRule {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
-  startHour      Int          // 0–23
-  endHour        Int          // 1–24
-  price          Float
+  startHour Int // 0–23
+  endHour   Int // 1–24
+  price     Float
 
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model OrganizationOpenPlayRule {
   id             String       @id @default(cuid())
-  organizationId String @unique
+  organizationId String       @unique
   organization   Organization @relation(fields: [organizationId], references: [id])
 
-  transitionMinutes Int @default(60)
-  price          Float
+  transitionMinutes Int   @default(60)
+  price             Float
 
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
-
-

@@ -40,6 +40,7 @@ export class QueueManager {
             player: true,
             scheduledAt: true,
             endedAt: true,
+            courtId: true,
           },
         },
         courts: {
@@ -186,7 +187,6 @@ export class QueueManager {
 
     const GAME_MS = openPlay.transitionMinutes * 60_000
     const PREPARATION_MS = openPlay.preparationSeconds * 1_000
-    const SLOT_DURATION_MS = GAME_MS + PREPARATION_MS
 
     const waitingGroup = this.getWaitingGroup()
     if (!waitingGroup) return null
@@ -200,7 +200,7 @@ export class QueueManager {
     const baseline = lastScheduledPlayer?.endedAt ?? now
 
     // Start time is baseline + slot duration
-    const scheduledAt = new Date(baseline.getTime() + SLOT_DURATION_MS)
+    const scheduledAt = new Date(baseline.getTime() + (PREPARATION_MS * 2))
     const gameEndTime = new Date(scheduledAt.getTime() + GAME_MS)
 
     const newGroup: TQueueGroup = {
@@ -328,10 +328,6 @@ export class QueueManager {
     const { openPlay } = this
     if (!openPlay) throw new Error("No available Open Play Data")
 
-    const GAME_MS = openPlay.transitionMinutes * 60_000
-    const PREPARATION_MS = openPlay.preparationSeconds * 1_000
-    const SLOT_DURATION_MS = GAME_MS + PREPARATION_MS
-
     const players = openPlay.queuePlayers
     const courts = openPlay.courts
     const groups = this.chunkPlayers(players, 4)
@@ -383,29 +379,33 @@ export class QueueManager {
     // const group = this.addPlayerToQueue(queuePlayer)
     const newGroup = this.promoteWaitingGroup()
     console.info({ newGroup: JSON.stringify(newGroup, null, 2) })
-    if (newGroup) {
-      for (const player of newGroup?.players) {
-        await db.lineupQueue.upsert({
-          where: {
-            playerId_openPlayId: {
-              playerId: player.playerId,
-              openPlayId: this.openPlayId,
-            },
-          },
-          update: {
-            scheduledAt: newGroup.scheduledAt,
-            endedAt: newGroup.estimatedEndTime,
-            status: QueueStatus.waiting,
-          },
-          create: {
-            playerId: player.id,
+    if (newGroup)  await this.lineupQueueGroupPlayers(newGroup, db)
+  }
+
+  public async lineupQueueGroupPlayers(newGroup: TQueueGroup, db: TPrismaTransaction) {
+    for (const player of newGroup?.players) {
+      await db.lineupQueue.upsert({
+        where: {
+          playerId_openPlayId: {
+            playerId: player.playerId,
             openPlayId: this.openPlayId,
-            scheduledAt: newGroup.scheduledAt,
-            endedAt: newGroup.estimatedEndTime,
-            status: QueueStatus.waiting,
           },
-        })
-      }
+        },
+        update: {
+          scheduledAt: newGroup.scheduledAt,
+          endedAt: newGroup.estimatedEndTime,
+          courtId: newGroup.courtId,
+          status: QueueStatus.waiting,
+        },
+        create: {
+          playerId: player.id,
+          openPlayId: this.openPlayId,
+          scheduledAt: newGroup.scheduledAt,
+          endedAt: newGroup.estimatedEndTime,
+          courtId: newGroup.courtId,
+          status: QueueStatus.waiting,
+        },
+      })
     }
   }
 }

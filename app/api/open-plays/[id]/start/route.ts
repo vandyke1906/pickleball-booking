@@ -81,41 +81,42 @@ export const POST = withRateLimit(
         await manager.initializeData(tx)
         const { scheduledGroups } = manager.initializeSchedule()
         for (const group of scheduledGroups) {
-          for (const player of group.players) {
-            await tx.lineupQueue.upsert({
-              where: {
-                playerId_openPlayId: { playerId: player.playerId, openPlayId: openPlay.id },
-              },
-              update: {
-                scheduledAt: group.scheduledAt,
-                endedAt: group.estimatedEndTime,
-                status: QueueStatus.waiting,
-              },
-              create: {
-                playerId: player.id,
-                openPlayId: openPlay.id,
-                scheduledAt: group.scheduledAt,
-                endedAt: group.estimatedEndTime,
-                status: QueueStatus.waiting,
-              },
-            })
-          }
+          if (group) await manager.lineupQueueGroupPlayers(group, tx)
+        //   for (const player of group.players) {
+        //     await tx.lineupQueue.upsert({
+        //       where: {
+        //         playerId_openPlayId: { playerId: player.playerId, openPlayId: openPlay.id },
+        //       },
+        //       update: {
+        //         scheduledAt: group.scheduledAt,
+        //         endedAt: group.estimatedEndTime,
+        //         status: QueueStatus.waiting,
+        //       },
+        //       create: {
+        //         playerId: player.id,
+        //         openPlayId: openPlay.id,
+        //         scheduledAt: group.scheduledAt,
+        //         endedAt: group.estimatedEndTime,
+        //         status: QueueStatus.waiting,
+        //       },
+        //     })
+        //   }
 
-          // Persist waiting players (no scheduledAt yet)
-          // for (const player of waitingPlayers) {
-          //   await tx.lineupQueue.upsert({
-          //     where: {
-          //       playerId_openPlayId: { playerId: player.id, openPlayId: openPlay.id },
-          //     },
-          //     update: { scheduledAt: null, status: QueueStatus.waiting },
-          //     create: {
-          //       playerId: player.id,
-          //       openPlayId: openPlay.id,
-          //       scheduledAt: null,
-          //       status: QueueStatus.waiting,
-          //     },
-          //   })
-          // }
+        //   // Persist waiting players (no scheduledAt yet)
+        //   // for (const player of waitingPlayers) {
+        //   //   await tx.lineupQueue.upsert({
+        //   //     where: {
+        //   //       playerId_openPlayId: { playerId: player.id, openPlayId: openPlay.id },
+        //   //     },
+        //   //     update: { scheduledAt: null, status: QueueStatus.waiting },
+        //   //     create: {
+        //   //       playerId: player.id,
+        //   //       openPlayId: openPlay.id,
+        //   //       scheduledAt: null,
+        //   //       status: QueueStatus.waiting,
+        //   //     },
+        //   //   })
+        //   // }
         }
 
         //update ui of all clients on openplay

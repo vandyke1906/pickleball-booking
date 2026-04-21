@@ -1,19 +1,19 @@
 model OpenPlay {
-  id   String @id @default(cuid())
+  id String @id @default(cuid())
 
   courts Court[] @relation("OpenPlayCourts")
 
-  isActive Boolean @default(false)
-  startedAt DateTime?
-  isCompleted Boolean @default(false)
-  startTime DateTime
-  endTime   DateTime
-  transitionMinutes Int @default(60)
-  preparationSeconds Int @default(20)
-  announcementMinutesBeforeTransition Int @default(5) 
-  status OpenPlayStatus @default(pending)
+  isActive                            Boolean        @default(false)
+  startedAt                           DateTime?
+  isCompleted                         Boolean        @default(false)
+  startTime                           DateTime
+  endTime                             DateTime
+  transitionMinutes                   Int            @default(60)
+  preparationSeconds                  Int            @default(20)
+  announcementMinutesBeforeTransition Int            @default(5)
+  status                              OpenPlayStatus @default(pending)
 
-  queues LineupQueue[]
+  queues  LineupQueue[]
   players OpenPlayPlayer[] @relation("OpenPlayPlayers")
 
   organizationId String
@@ -29,42 +29,45 @@ model OpenPlay {
 }
 
 model OpenPlayPlayer {
-  id        String   @id @default(cuid())
-  openPlay  OpenPlay @relation("OpenPlayPlayers", fields: [openPlayId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  openPlay   OpenPlay @relation("OpenPlayPlayers", fields: [openPlayId], references: [id], onDelete: Cascade)
   openPlayId String
 
-  code String
-  playerName      String
-  contactNumber   String?
-  emailAddress    String?
-  registeredAt    DateTime @default(now())
-  lineupQueues    LineupQueue[]
+  code          String
+  playerName    String
+  contactNumber String?
+  emailAddress  String?
+  registeredAt  DateTime      @default(now())
+  lineupQueues  LineupQueue[]
 
-  totalPlayTime Int @default(180) // in minutes default 30 minutes
-  startAt   DateTime?
-  endAt     DateTime? 
+  totalPlayTime Int       @default(180) // in minutes default 30 minutes
+  startAt       DateTime?
+  endAt         DateTime?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([openPlayId, code])
 }
 
 model LineupQueue {
-  id          String        @id @default(cuid())
-  
-  openPlayId    String
-  openPlay      OpenPlay @relation(fields: [openPlayId], references: [id], onDelete: Cascade)
+  id String @id @default(cuid())
 
-  playerId    String
-  player      OpenPlayPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
- 
-  status      QueueStatus @default(waiting)
-  scheduledAt DateTime?  
+  openPlayId String
+  openPlay   OpenPlay @relation(fields: [openPlayId], references: [id], onDelete: Cascade)
+
+  playerId String
+  player   OpenPlayPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  status QueueStatus @default(waiting)
+
+  scheduledAt DateTime?
   endedAt     DateTime?
+  courtId     String?
+  court       Court?    @relation("LineupQueues", fields: [courtId], references: [id], onDelete: Cascade)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([playerId, openPlayId])
   @@index([status])
@@ -77,9 +80,10 @@ enum QueueStatus {
   playing
   finished
 }
+
 enum OpenPlayStatus {
   active
-  pending 
+  pending
   completed
   cancelled
 }
