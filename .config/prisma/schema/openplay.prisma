@@ -60,8 +60,8 @@ model LineupQueue {
   player      OpenPlayPlayer @relation(fields: [playerId], references: [id], onDelete: Cascade)
  
   status      QueueStatus @default(waiting)
-  scheduledAt DateTime?
-  endedAt DateTime?     
+  scheduledAt DateTime?  
+  endedAt     DateTime?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

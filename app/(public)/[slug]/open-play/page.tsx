@@ -77,6 +77,8 @@ export default function PickleballOpenPlayQueue() {
     refetch: refetchOpenPlayData,
   } = useActiveOpenPlayQueue(orgId)
 
+  console.info({openPlayData})
+
   //Event Listener
   useEventListener(EventBusKeys.OPENPLAY_UPDATED, () => refetchOpenPlayData())
 
@@ -139,17 +141,18 @@ export default function PickleballOpenPlayQueue() {
   // LIVE CLOCK + COUNTDOWN (combined)
   // =====================
   useEffect(() => {
-    if (!nextTransition) return
 
     const tick = () => {
       const now = new Date()
       setCurrentTime(now)
 
-      const diff = new Date(nextTransition).getTime() - now.getTime()
-      setPrepRemaining(diff > 0 ? diff : 0)
+      if (nextTransition){
+        const diff = new Date(nextTransition).getTime() - now.getTime()
+        setPrepRemaining(diff > 0 ? diff : 0)
 
-      if (diff <= 0) {
-        refetchOpenPlayData()
+        if (diff <= 0) {
+          refetchOpenPlayData()
+        }
       }
     }
 
@@ -315,6 +318,7 @@ export default function PickleballOpenPlayQueue() {
   if (isLoading || isLoadingOrgWithCourts) return <LoadingScreen message="Loading Queue" />
   if (!openPlayData) return <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
 
+
   return (
     <div className="min-h-screen bg-[#092021] text-white font-mono flex flex-col h-screen overflow-hidden">
       {/* HEADER */}
@@ -327,10 +331,16 @@ export default function PickleballOpenPlayQueue() {
             <h1 className="text-3xl md:text-5xl font-bold tracking-tighter text-white">
               OPEN PLAY QUEUE
             </h1>
-            <p className="text-emerald-400 text-base md:text-xl">
-              {openPlay?.courts.length} Courts • {openPlay?.transitionMinutes} minutes playing time
-              • {formatDate(openPlay?.startTime)} •{" "}
-              {formatTimeRange(openPlay?.startTime, openPlay?.endTime)}
+            <p className="text-emerald-400 text-base md:text-xl flex flex-col gap-1">
+              <span>
+                {formatDate(openPlay?.startTime)} •{" "}
+                {formatTimeRange(openPlay?.startTime, openPlay?.endTime)}
+              </span>
+              <span>
+                {openPlay?.courts.length}{" "}
+                {openPlay?.courts.length === 1 ? "Court" : "Courts"} •{" "}
+                {openPlay?.transitionMinutes} minutes playing time • Max 4 players per court
+              </span>
             </p>
           </div>
         </div>
@@ -495,9 +505,44 @@ export default function PickleballOpenPlayQueue() {
       </div>
 
       {/* FOOTER */}
-      <footer className="bg-black/80 border-t border-emerald-600 py-4 px-6 text-center text-emerald-300/70 text-lg flex-shrink-0">
-        {openPlay?.transitionMinutes}-minute playing time • Max 4 players per court
-      </footer>
+      {!!openPlayData.waitingPlayers.length && (
+        <footer className="bg-black/70 backdrop-blur-md border-t border-emerald-600/40 px-6 py-3 flex items-center gap-4 overflow-hidden">
+          {/* Label */}
+          <span className="text-emerald-400 font-semibold text-sm md:text-base whitespace-nowrap">
+            Waiting players
+          </span>
+
+          {/* Marquee */}
+          <div className="relative flex-1 overflow-hidden">
+
+            {/* Edge fade */}
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-black/70 to-transparent z-10" />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-black/70 to-transparent z-10" />
+
+            <motion.div
+              className="flex w-max items-center whitespace-nowrap will-change-transform"
+              initial={{ x: "100%" }}               // 👈 always start from right
+              animate={{ x: "-50%" }}              // 👈 scroll through
+              transition={{
+                repeat: Infinity,
+                duration: Math.max(14, waitingPlayers.length * 3),
+                ease: "linear",
+              }}
+            >
+              {/* Track (duplicated once for seamless loop) */}
+              {waitingPlayers.map((p, i) => (
+                <span
+                  key={`${p.playerName}-${i}`}
+                  className="mx-4 inline-flex items-center gap-2 text-emerald-300/80 text-sm md:text-base"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  {p.playerName}
+                </span>
+              ))}
+            </motion.div>
+          </div>
+        </footer>
+      )}
 
       {/* SUBMIT LINEUP BUTTON */}
       <motion.button

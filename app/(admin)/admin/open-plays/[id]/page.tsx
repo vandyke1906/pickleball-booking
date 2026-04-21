@@ -229,7 +229,6 @@ export default function OpenPlayPage() {
   }
 
   const handleStartOpenPlayNow = () => {
-    console.info({ openPlay })
     if (!openPlay?.id || !openPlay.isActive) return
 
     startActiveOpenPlayMutation.mutate(

@@ -30,55 +30,56 @@ export const POST = withRateLimit(
           },
           select: {
             id: true,
-            startTime: true,
-            endTime: true,
-            isActive: true,
-            isCompleted: true,
-            startedAt: true,
-            transitionMinutes: true,
-            announcementMinutesBeforeTransition: true,
-            preparationSeconds: true,
-            organizationId: true,
-            createdAt: true,
-            updatedAt: true,
-            status: true,
-            queues: {
-              select: { id: true, playerId: true, player: true, scheduledAt: true, endedAt: true },
-            },
-            courts: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
+            // startTime: true,
+            // endTime: true,
+            // isActive: true,
+            // isCompleted: true,
+            // startedAt: true,
+            // transitionMinutes: true,
+            // announcementMinutesBeforeTransition: true,
+            // preparationSeconds: true,
+            // organizationId: true,
+            // createdAt: true,
+            // updatedAt: true,
+            // status: true,
+            // queues: { select: { id: true, playerId: true, player: true, scheduledAt: true, endedAt: true } },
+            // courts: {
+            //   select: {
+            //     id: true,
+            //     name: true,
+            //   },
+            // },
           },
         })
 
-        const data: TQueueOpenPlay = {
-          id: openPlay.id,
-          isActive: openPlay.isActive,
-          startedAt: openPlay.startedAt,
-          isCompleted: openPlay.isCompleted,
-          startTime: openPlay.startTime,
-          endTime: openPlay.endTime,
-          transitionMinutes: openPlay.transitionMinutes,
-          preparationSeconds: openPlay.preparationSeconds,
-          announcementMinutesBeforeTransition: openPlay.announcementMinutesBeforeTransition,
-          status: openPlay.status,
-          organizationId: openPlay.organizationId,
-          createdAt: openPlay.createdAt,
-          updatedAt: openPlay.updatedAt,
-          queuePlayers: openPlay.queues.map((q) => ({
-            id: q.id,
-            playerId: q.playerId,
-            playerName: q.player.playerName,
-            scheduledAt: q.scheduledAt,
-            gameEndTime: q.endedAt,
-          })),
-          courts: openPlay.courts.map((c) => ({ id: c.id, name: c.name })),
-        }
+        // const data: TQueueOpenPlay = {
+        //   id: openPlay.id,
+        //   isActive: openPlay.isActive,
+        //   startedAt: openPlay.startedAt,
+        //   isCompleted: openPlay.isCompleted,
+        //   startTime: openPlay.startTime,
+        //   endTime: openPlay.endTime,
+        //   transitionMinutes: openPlay.transitionMinutes,
+        //   preparationSeconds: openPlay.preparationSeconds,
+        //   announcementMinutesBeforeTransition: openPlay.announcementMinutesBeforeTransition,
+        //   status: openPlay.status,
+        //   organizationId: openPlay.organizationId,
+        //   createdAt: openPlay.createdAt,
+        //   updatedAt: openPlay.updatedAt,
+        //   queuePlayers: openPlay.queues.map((q) => ({
+        //     id: q.id,
+        //     playerId: q.playerId,
+        //     playerName: q.player.playerName,
+        //     scheduledAt: q.scheduledAt,
+        //     endedAt: q.endedAt
+        //   })),
+        //   courts: openPlay.courts.map((c) => ({ id: c.id, name: c.name })),
+        // }
 
-        const { scheduledGroups, waitingPlayers } = new QueueManager(data).initialize()
+        // const {scheduledGroups} = new QueueManager(data).initializeSchedule()
+        const manager = new QueueManager(openPlay.id)
+        await manager.initializeData(tx)
+        const { scheduledGroups } = manager.initializeSchedule()
         for (const group of scheduledGroups) {
           for (const player of group.players) {
             await tx.lineupQueue.upsert({
