@@ -77,8 +77,6 @@ export default function PickleballOpenPlayQueue() {
     refetch: refetchOpenPlayData,
   } = useActiveOpenPlayQueue(orgId)
 
-  console.info({openPlayData})
-
   //Event Listener
   useEventListener(EventBusKeys.OPENPLAY_UPDATED, () => refetchOpenPlayData())
 
@@ -135,8 +133,6 @@ export default function PickleballOpenPlayQueue() {
       nextTransition && new Date(q.scheduledAt).getTime() === new Date(nextTransition).getTime(),
   )
 
-  console.info({ openPlayData, queue })
-
   // =====================
   // LIVE CLOCK + COUNTDOWN (combined)
   // =====================
@@ -166,7 +162,6 @@ export default function PickleballOpenPlayQueue() {
   // AUTO ANNOUNCE NEXT GROUPS (multi-court)
   // =====================
   useEffect(() => {
-    console.info({ audioEnabled, queue, nextTransition })
     if (!audioEnabled || !queue || queue.length === 0) return
     if (!nextTransition) return
 
@@ -175,8 +170,6 @@ export default function PickleballOpenPlayQueue() {
 
     // Normalize nextTransition to string key
     const transitionKey = new Date(nextTransition).toISOString()
-
-    console.info({ lastAnnouncedRef, transitionKey, time: now - last < GUARD_MS })
 
     // Only announce once per transition slot, throttle to avoid repeats
     if (lastAnnouncedRef.current === transitionKey && now - last < GUARD_MS) return
@@ -187,7 +180,6 @@ export default function PickleballOpenPlayQueue() {
       const nt = new Date(nextTransition).getTime()
       return Math.abs(t - nt) <= GUARD_MS
     })
-    console.info({ upcomingGroups })
 
     if (!upcomingGroups.length) return
 
@@ -290,7 +282,6 @@ export default function PickleballOpenPlayQueue() {
   // MANUAL ANNOUNCEMENT (nextGroups)
   // =====================
   const handleManualAnnouncement = useCallback(() => {
-    console.info({ audioEnabled, queue })
     if (!audioEnabled || !queue || queue.length === 0) return
 
     // Find the earliest upcoming scheduled time

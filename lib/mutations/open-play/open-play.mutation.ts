@@ -185,7 +185,6 @@ export function useCreateOrUpdateOpenPlay() {
     },
 
     onSettled: (data) => {
-      console.info({ data })
       queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
       if (data?.result?.id)
         queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.detail(data?.result?.id) })

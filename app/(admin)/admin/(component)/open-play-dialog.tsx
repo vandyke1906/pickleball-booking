@@ -166,9 +166,6 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
   }
   
 
-  
-  console.info({error: form.formState.errors})
-
   return (
     <>
       <Dialog

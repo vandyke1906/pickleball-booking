@@ -24,8 +24,6 @@ export const GET = withRateLimit(
       const result = manager.compute({
         now: new Date(),
         onGroupDone: (game) => {
-          console.log(`Group finished on court ${game.courtName}`)
-          console.info(JSON.stringify(game, null, 2))
           const playerIds = game.players.map((p) => p.playerId)
           //RONIE DELETE done groups
           deleteQueuedPlayers(playerIds)

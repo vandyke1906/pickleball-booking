@@ -16,8 +16,6 @@ export default function PickleballOpenPlayQueue() {
   if (isLoading || isLoadingOrgWithCourts) return <div>Loading queue...</div>
   if (!data) return <div>No queue data</div>
 
-  console.info({ data })
-
   return (
     <div>
       <h2>Current Games</h2>
