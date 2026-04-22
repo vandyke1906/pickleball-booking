@@ -5,6 +5,7 @@ import {
   TCurrentGame,
   TQueueGroup,
   TQueueOpenPlay,
+  TQueueCourt,
 } from "@/lib/type/openplay/openplay.type"
 import { TPrismaTransaction } from "@/lib/type/util.type"
 
@@ -74,6 +75,7 @@ export class QueueManager {
         playerName: q.player.playerName,
         scheduledAt: q.scheduledAt,
         endedAt: q.endedAt,
+        courtId: q.courtId,
       })),
       courts: activeOpenPlay.courts.map((c) => ({ id: c.id, name: c.name })),
     }
@@ -191,138 +193,423 @@ export class QueueManager {
     const waitingGroup = this.getWaitingGroup()
     if (!waitingGroup) return null
 
-    // Get the last scheduled player (FIFO) from queuePlayers
-    const lastScheduledPlayer = openPlay.queuePlayers
-      .filter((p) => p.scheduledAt)
-      .sort((a, b) => b.scheduledAt!.getTime() - a.scheduledAt!.getTime())[0]
+    // Find the next earliest available court
+    let earliestCourt: TQueueCourt | null = null
+    let baseline: Date = now
 
-    // Determine baseline from last scheduled player’s endedAt or now
-    const baseline = lastScheduledPlayer?.endedAt ?? now
+    for (const court of openPlay.courts) {
+      // Get last scheduled player for this court
+      const lastScheduledPlayer = openPlay.queuePlayers
+        .filter((p) => p.scheduledAt && p.courtId === court.id)
+        .sort((a, b) => b.scheduledAt!.getTime() - a.scheduledAt!.getTime())[0]
 
-    // Start time is baseline + slot duration
-    const scheduledAt = new Date(baseline.getTime() + (PREPARATION_MS * 2))
+      const courtBaseline = lastScheduledPlayer?.endedAt ?? now
+
+      if (!earliestCourt || courtBaseline.getTime() < baseline.getTime()) {
+        earliestCourt = court
+        baseline = courtBaseline
+      }
+    }
+
+    if (!earliestCourt) {
+      // fallback: assign to first court if none found
+      earliestCourt = openPlay.courts[0]
+    }
+
+    // Schedule after baseline + preparation
+    const scheduledAt = new Date(baseline.getTime() + PREPARATION_MS)
     const gameEndTime = new Date(scheduledAt.getTime() + GAME_MS)
 
     const newGroup: TQueueGroup = {
-      id: `grp-${openPlay.courts[0].id}-${scheduledAt.getTime()}`,
-      courtId: openPlay.courts[0].id,
-      courtName: openPlay.courts[0].name,
+      id: `grp-${earliestCourt.id}-${scheduledAt.getTime()}`,
+      courtId: earliestCourt.id,
+      courtName: earliestCourt.name,
       players: waitingGroup.players.map((p) => ({ ...p, scheduledAt })),
       scheduledAt,
       estimatedEndTime: gameEndTime,
-      position: lastScheduledPlayer ? waitingGroup.position : 1,
+      position: waitingGroup.position,
     }
 
     return newGroup
   }
 
+
   /** Compute current state with callbacks */
+  // public compute(
+  //   options: {
+  //     now?: Date
+  //     onGroupDone?: (game: TCurrentGame) => void
+  //     onPlayerDone?: (player: TQueuePlayer) => void
+  //     completedPlayerIds?: Set<string>
+  //   } = {},
+  // ) {
+  //   const { openPlay } = this
+  //   if (!openPlay) throw new Error("No available Open Play Data")
+  //   const now = options.now ?? new Date()
+  //   const onGroupDone = options.onGroupDone
+  //   const onPlayerDone = options.onPlayerDone
+  //   const completedPlayerIds = options.completedPlayerIds ?? new Set<string>()
+
+  //   if (!openPlay.startedAt) 
+  //     return this.getScheduleState([], [], [], null, openPlay.queuePlayers)
+
+  //   const GAME_MS = openPlay.transitionMinutes * 60_000
+  //   const PREPARATION_MS = openPlay.preparationSeconds * 1_000
+  //   const SLOT_DURATION_MS = GAME_MS + PREPARATION_MS
+
+  //   // Remove completed players entirely
+  //   const players = openPlay.queuePlayers.filter((p) => !completedPlayerIds.has(p.id))
+  //   const courts = openPlay.courts
+  //   const groups = this.chunkPlayers(players, 4) // FIFO chunking
+  //   const courtsCount = courts.length
+
+  //   const currentGames: TCurrentGame[] = []
+  //   const queue: TQueueGroup[] = []
+  //   const completedGames: TCurrentGame[] = []
+  //   let waitingPlayers: TQueuePlayer[] = []
+
+  //   for (let slot = 0; slot * courtsCount < groups.length; slot++) {
+  //     for (let ci = 0; ci < courtsCount; ci++) {
+  //       const gi = slot * courtsCount + ci
+  //       if (gi >= groups.length) break
+
+  //       const g = groups[gi]
+  //       if (g.length < 4) {
+  //         waitingPlayers = g
+  //         break
+  //       }
+
+  //       // Determine scheduledAt: use players’ scheduledAt if available, else fallback
+  //       const scheduledAt =
+  //         g[0].scheduledAt ?? (openPlay.startedAt ? new Date(openPlay.startedAt) : now)
+
+  //       const gameEndTime = new Date(scheduledAt.getTime() + GAME_MS)
+  //       const slotEndTime = new Date(scheduledAt.getTime() + SLOT_DURATION_MS)
+
+  //       const annotated = g.map((p) => ({ ...p, scheduledAt }))
+
+  //       if (now >= gameEndTime) {
+  //         const finished: TCurrentGame = {
+  //           courtId: courts[ci].id,
+  //           courtName: courts[ci].name,
+  //           players: annotated,
+  //           startTime: scheduledAt,
+  //           estimatedEndTime: gameEndTime,
+  //           isPreparing: false,
+  //         }
+  //         completedGames.push(finished)
+  //         if (onGroupDone) onGroupDone(finished)
+  //         if (onPlayerDone) annotated.forEach((p) => onPlayerDone(p))
+  //       } else if (now >= scheduledAt && now < gameEndTime) {
+  //         currentGames.push({
+  //           courtId: courts[ci].id,
+  //           courtName: courts[ci].name,
+  //           players: annotated,
+  //           startTime: scheduledAt,
+  //           estimatedEndTime: gameEndTime,
+  //           isPreparing: now > gameEndTime && now < slotEndTime,
+  //         })
+  //       } else {
+  //         queue.push({
+  //           id: `grp-${courts[ci].id}-${scheduledAt.getTime()}`,
+  //           courtId: courts[ci].id,
+  //           courtName: courts[ci].name,
+  //           players: annotated,
+  //           scheduledAt,
+  //           estimatedEndTime: gameEndTime,
+  //           position: gi + 1,
+  //         })
+  //       }
+  //     }
+  //   }
+
+  //   let nextTransition: Date | null = null
+  //   if (currentGames.length > 0) {
+  //     nextTransition = currentGames
+  //       .map((g) => g.estimatedEndTime)
+  //       .sort((a, b) => a.getTime() - b.getTime())[0]
+  //   } else if (queue.length > 0) {
+  //     nextTransition = queue[0].scheduledAt
+  //   }
+
+  //   return this.getScheduleState(
+  //     currentGames,
+  //     queue,
+  //     completedGames,
+  //     nextTransition,
+  //     waitingPlayers,
+  //   )
+  // }
+
+  // public compute(
+  //   options: {
+  //     now?: Date
+  //     onGroupDone?: (game: TCurrentGame) => void
+  //     onPlayerDone?: (player: TQueuePlayer) => void
+  //     completedPlayerIds?: Set<string>
+  //   } = {},
+  // ) {
+  //   const { openPlay } = this
+  //   if (!openPlay) throw new Error("No available Open Play Data")
+
+  //   const now = options.now ?? new Date()
+  //   const onGroupDone = options.onGroupDone
+  //   const onPlayerDone = options.onPlayerDone
+  //   const completedPlayerIds = options.completedPlayerIds ?? new Set<string>()
+
+  //   if (!openPlay.startedAt) {
+  //     return this.getScheduleState([], [], [], null, openPlay.queuePlayers)
+  //   }
+
+  //   const GAME_MS = openPlay.transitionMinutes * 60_000
+  //   const PREPARATION_MS = openPlay.preparationSeconds * 1_000
+  //   const SLOT_DURATION_MS = GAME_MS + PREPARATION_MS
+
+  //   // Remove completed players entirely
+  //   const players = openPlay.queuePlayers.filter((p) => !completedPlayerIds.has(p.id))
+  //   const groups = this.chunkPlayers(players, 4) // FIFO chunking
+
+  //   const currentGames: TCurrentGame[] = []
+  //   const queue: TQueueGroup[] = []
+  //   const completedGames: TCurrentGame[] = []
+  //   let waitingPlayers: TQueuePlayer[] = []
+
+  //   for (let gi = 0; gi < groups.length; gi++) {
+  //     const g = groups[gi]
+  //     if (g.length < 4) {
+  //       waitingPlayers = g
+  //       break
+  //     }
+
+  //     // ✅ Court consistency check
+  //     const courtIds = new Set(g.map(p => p.courtId))
+  //     console.info({g})
+  //     if (courtIds.size !== 1) {
+  //       throw new Error(`Group ${gi} has players from multiple courts: ${[...courtIds].join(", ")}`)
+  //     }
+  //     const courtId = g[0].courtId
+  //     const court = openPlay.courts.find(c => c.id === courtId)
+  //     if (!court) throw new Error(`Court ${courtId} not found`)
+
+  //     // ✅ Schedule consistency check
+  //     const scheduleTimes = g.map(p => p.scheduledAt).filter(Boolean) as Date[]
+  //     let scheduledAt: Date
+  //     if (scheduleTimes.length > 0) {
+  //       const first = scheduleTimes[0].getTime()
+  //       const allSame = scheduleTimes.every(t => t.getTime() === first)
+  //       if (!allSame) {
+  //         throw new Error(`Group ${gi} has inconsistent scheduledAt values`)
+  //       }
+  //       scheduledAt = scheduleTimes[0]
+  //     } else {
+  //       scheduledAt = openPlay.startedAt ? new Date(openPlay.startedAt) : now
+  //     }
+
+  //     const gameEndTime = new Date(scheduledAt.getTime() + GAME_MS)
+  //     const slotEndTime = new Date(scheduledAt.getTime() + SLOT_DURATION_MS)
+
+  //     const annotated = g.map((p) => ({ ...p, scheduledAt }))
+
+  //     if (now >= gameEndTime) {
+  //       const finished: TCurrentGame = {
+  //         courtId: court.id,
+  //         courtName: court.name,
+  //         players: annotated,
+  //         startTime: scheduledAt,
+  //         estimatedEndTime: gameEndTime,
+  //         isPreparing: false,
+  //       }
+  //       completedGames.push(finished)
+  //       if (onGroupDone) onGroupDone(finished)
+  //       if (onPlayerDone) annotated.forEach((p) => onPlayerDone(p))
+  //     } else if (now >= scheduledAt && now < gameEndTime) {
+  //       currentGames.push({
+  //         courtId: court.id,
+  //         courtName: court.name,
+  //         players: annotated,
+  //         startTime: scheduledAt,
+  //         estimatedEndTime: gameEndTime,
+  //         isPreparing: now > gameEndTime && now < slotEndTime,
+  //       })
+  //     } else {
+  //       queue.push({
+  //         id: `grp-${court.id}-${scheduledAt.getTime()}`,
+  //         courtId: court.id,
+  //         courtName: court.name,
+  //         players: annotated,
+  //         scheduledAt,
+  //         estimatedEndTime: gameEndTime,
+  //         position: gi + 1,
+  //       })
+  //     }
+  //   }
+
+  //   let nextTransition: Date | null = null
+  //   if (currentGames.length > 0) {
+  //     nextTransition = currentGames
+  //       .map((g) => g.estimatedEndTime)
+  //       .sort((a, b) => a.getTime() - b.getTime())[0]
+  //   } else if (queue.length > 0) {
+  //     nextTransition = queue[0].scheduledAt
+  //   }
+
+  //   return this.getScheduleState(
+  //     currentGames,
+  //     queue,
+  //     completedGames,
+  //     nextTransition,
+  //     waitingPlayers,
+  //   )
+  // }
+
+
   public compute(
-    options: {
-      now?: Date
-      onGroupDone?: (game: TCurrentGame) => void
-      onPlayerDone?: (player: TQueuePlayer) => void
-      completedPlayerIds?: Set<string>
-    } = {},
-  ) {
-    const { openPlay } = this
-    if (!openPlay) throw new Error("No available Open Play Data")
-    const now = options.now ?? new Date()
-    const onGroupDone = options.onGroupDone
-    const onPlayerDone = options.onPlayerDone
-    const completedPlayerIds = options.completedPlayerIds ?? new Set<string>()
+  options: {
+    now?: Date
+    onGroupDone?: (game: TCurrentGame) => void
+    onPlayerDone?: (player: TQueuePlayer) => void
+    completedPlayerIds?: Set<string>
+  } = {},
+) {
+  const { openPlay } = this
+  if (!openPlay) throw new Error("No available Open Play Data")
 
-    if (!openPlay.startedAt) {
-      return this.getScheduleState([], [], [], null, openPlay.queuePlayers)
-    }
+  const now = options.now ?? new Date()
+  const onGroupDone = options.onGroupDone
+  const onPlayerDone = options.onPlayerDone
+  const completedPlayerIds = options.completedPlayerIds ?? new Set<string>()
 
-    const GAME_MS = openPlay.transitionMinutes * 60_000
-    const PREPARATION_MS = openPlay.preparationSeconds * 1_000
-    const SLOT_DURATION_MS = GAME_MS + PREPARATION_MS
-
-    // Remove completed players entirely
-    const players = openPlay.queuePlayers.filter((p) => !completedPlayerIds.has(p.id))
-    const courts = openPlay.courts
-    const groups = this.chunkPlayers(players, 4) // FIFO chunking
-    const courtsCount = courts.length
-
-    const currentGames: TCurrentGame[] = []
-    const queue: TQueueGroup[] = []
-    const completedGames: TCurrentGame[] = []
-    let waitingPlayers: TQueuePlayer[] = []
-
-    for (let slot = 0; slot * courtsCount < groups.length; slot++) {
-      for (let ci = 0; ci < courtsCount; ci++) {
-        const gi = slot * courtsCount + ci
-        if (gi >= groups.length) break
-
-        const g = groups[gi]
-        if (g.length < 4) {
-          waitingPlayers = g
-          break
-        }
-
-        // Determine scheduledAt: use players’ scheduledAt if available, else fallback
-        const scheduledAt =
-          g[0].scheduledAt ?? (openPlay.startedAt ? new Date(openPlay.startedAt) : now)
-
-        const gameEndTime = new Date(scheduledAt.getTime() + GAME_MS)
-        const slotEndTime = new Date(scheduledAt.getTime() + SLOT_DURATION_MS)
-
-        const annotated = g.map((p) => ({ ...p, scheduledAt }))
-
-        if (now >= gameEndTime) {
-          const finished: TCurrentGame = {
-            courtId: courts[ci].id,
-            courtName: courts[ci].name,
-            players: annotated,
-            startTime: scheduledAt,
-            estimatedEndTime: gameEndTime,
-            isPreparing: false,
-          }
-          completedGames.push(finished)
-          if (onGroupDone) onGroupDone(finished)
-          if (onPlayerDone) annotated.forEach((p) => onPlayerDone(p))
-        } else if (now >= scheduledAt && now < gameEndTime) {
-          currentGames.push({
-            courtId: courts[ci].id,
-            courtName: courts[ci].name,
-            players: annotated,
-            startTime: scheduledAt,
-            estimatedEndTime: gameEndTime,
-            isPreparing: now > gameEndTime && now < slotEndTime,
-          })
-        } else {
-          queue.push({
-            id: `grp-${courts[ci].id}-${scheduledAt.getTime()}`,
-            courtId: courts[ci].id,
-            courtName: courts[ci].name,
-            players: annotated,
-            scheduledAt,
-            estimatedEndTime: gameEndTime,
-            position: gi + 1,
-          })
-        }
-      }
-    }
-
-    let nextTransition: Date | null = null
-    if (currentGames.length > 0) {
-      nextTransition = currentGames
-        .map((g) => g.estimatedEndTime)
-        .sort((a, b) => a.getTime() - b.getTime())[0]
-    } else if (queue.length > 0) {
-      nextTransition = queue[0].scheduledAt
-    }
-
-    return this.getScheduleState(
-      currentGames,
-      queue,
-      completedGames,
-      nextTransition,
-      waitingPlayers,
-    )
+  if (!openPlay.startedAt) {
+    return this.getScheduleState([], [], [], null, openPlay.queuePlayers)
   }
+
+  const GAME_MS = openPlay.transitionMinutes * 60_000
+  const PREPARATION_MS = openPlay.preparationSeconds * 1_000
+  const SLOT_DURATION_MS = GAME_MS + PREPARATION_MS
+
+  // Remove completed players entirely
+  const players = openPlay.queuePlayers.filter((p) => !completedPlayerIds.has(p.id))
+  const groups = this.chunkPlayers(players, 4) // FIFO chunking
+
+  const currentGames: TCurrentGame[] = []
+  const queue: TQueueGroup[] = []
+  const completedGames: TCurrentGame[] = []
+  let waitingPlayers: TQueuePlayer[] = []
+
+  for (let gi = 0; gi < groups.length; gi++) {
+    const g = groups[gi]
+    if (g.length < 4) {
+      waitingPlayers = g
+      break
+    }
+
+    // ✅ Court consistency check
+    const courtIds = new Set(g.map(p => p.courtId))
+    if (courtIds.size !== 1) {
+      throw new Error(`Group ${gi} has players from multiple courts: ${[...courtIds].join(", ")}`)
+    }
+    const courtId = g[0].courtId
+    const court = openPlay.courts.find(c => c.id === courtId)
+    if (!court) throw new Error(`Court ${courtId} not found`)
+
+    // ✅ Schedule consistency check
+    const scheduleTimes = g.map(p => p.scheduledAt).filter(Boolean) as Date[]
+    let scheduledAt: Date
+    if (scheduleTimes.length > 0) {
+      const first = scheduleTimes[0].getTime()
+      const allSame = scheduleTimes.every(t => t.getTime() === first)
+      if (!allSame) {
+        throw new Error(`Group ${gi} has inconsistent scheduledAt values`)
+      }
+      scheduledAt = scheduleTimes[0]
+    } else {
+      scheduledAt = openPlay.startedAt ? new Date(openPlay.startedAt) : now
+    }
+
+    const gameEndTime = new Date(scheduledAt.getTime() + GAME_MS)
+    const slotEndTime = new Date(scheduledAt.getTime() + SLOT_DURATION_MS)
+
+    const annotated = g.map((p) => ({ ...p, scheduledAt }))
+
+    if (now >= gameEndTime) {
+      const finished: TCurrentGame = {
+        courtId: court.id,
+        courtName: court.name,
+        players: annotated,
+        startTime: scheduledAt,
+        estimatedEndTime: gameEndTime,
+        isPreparing: false,
+      }
+      completedGames.push(finished)
+      if (onGroupDone) onGroupDone(finished)
+      if (onPlayerDone) annotated.forEach((p) => onPlayerDone(p))
+    } else if (now >= scheduledAt && now < gameEndTime) {
+      currentGames.push({
+        courtId: court.id,
+        courtName: court.name,
+        players: annotated,
+        startTime: scheduledAt,
+        estimatedEndTime: gameEndTime,
+        isPreparing: now > gameEndTime && now < slotEndTime,
+      })
+    } else {
+      queue.push({
+        id: `grp-${court.id}-${scheduledAt.getTime()}`,
+        courtId: court.id,
+        courtName: court.name,
+        players: annotated,
+        scheduledAt,
+        estimatedEndTime: gameEndTime,
+        position: gi + 1,
+      })
+    }
+  }
+
+  // ✅ Promote queued groups if their court is free
+  const busyCourtIds = new Set(currentGames.map(g => g.courtId))
+  const promotableGroups = queue.filter(q => !busyCourtIds.has(q.courtId))
+
+  for (const group of promotableGroups) {
+    // Remove from queue
+    const idx = queue.findIndex(q => q.id === group.id)
+    if (idx >= 0) queue.splice(idx, 1)
+
+    const scheduledAt = now
+    const gameEndTime = new Date(scheduledAt.getTime() + GAME_MS)
+    const annotated = group.players.map(p => ({ ...p, scheduledAt }))
+
+    const promoted: TCurrentGame = {
+      courtId: group.courtId,
+      courtName: group.courtName,
+      players: annotated,
+      startTime: scheduledAt,
+      estimatedEndTime: gameEndTime,
+      isPreparing: false,
+    }
+
+    currentGames.push(promoted)
+    if (onGroupDone) onGroupDone(promoted)
+    if (onPlayerDone) annotated.forEach(p => onPlayerDone(p))
+  }
+
+  let nextTransition: Date | null = null
+  if (currentGames.length > 0) {
+    nextTransition = currentGames
+      .map((g) => g.estimatedEndTime)
+      .sort((a, b) => a.getTime() - b.getTime())[0]
+  } else if (queue.length > 0) {
+    nextTransition = queue[0].scheduledAt
+  }
+
+  return this.getScheduleState(
+    currentGames,
+    queue,
+    completedGames,
+    nextTransition,
+    waitingPlayers,
+  )
+}
+
 
   private getWaitingGroup(now: Date = new Date()): TQueueGroup | null {
     const { openPlay } = this
@@ -340,9 +627,6 @@ export class QueueManager {
       .filter((p) => p.endedAt)
       .map((p) => p.endedAt as Date)
       .sort((a, b) => b.getTime() - a.getTime())[0]
-
-    // Baseline time: last endedAt if exists, otherwise now
-    let baseline = lastEndedAt ?? now
 
     for (let slot = 0; slot * courtsCount < groups.length; slot++) {
       for (let ci = 0; ci < courtsCount; ci++) {
@@ -376,7 +660,6 @@ export class QueueManager {
   public async scheduleWaitingPlayers(prismaTransaction?: TPrismaTransaction) {
     const db = prismaTransaction ?? prisma
     await this.initializeData(db)
-    // const group = this.addPlayerToQueue(queuePlayer)
     const newGroup = this.promoteWaitingGroup()
     console.info({ newGroup: JSON.stringify(newGroup, null, 2) })
     if (newGroup)  await this.lineupQueueGroupPlayers(newGroup, db)

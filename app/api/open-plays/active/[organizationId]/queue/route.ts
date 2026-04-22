@@ -1,11 +1,8 @@
 import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
-import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
-import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { deleteQueuedPlayers } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { QueueManager } from "@/lib/server/services/queue-manager.service"
-import { TQueueOpenPlay } from "@/lib/type/openplay/openplay.type"
 import { NextRequest, NextResponse } from "next/server"
 
 export const GET = withRateLimit(
@@ -17,61 +14,11 @@ export const GET = withRateLimit(
 
       const activeOpenPlay = await prisma.openPlay.findFirst({
         where: { organizationId, status: OpenPlayStatus.active, isActive: true },
-        select: {
-          id: true,
-          // startTime: true,
-          // endTime: true,
-          // isActive: true,
-          // isCompleted: true,
-          // startedAt: true,
-          // transitionMinutes: true,
-          // announcementMinutesBeforeTransition: true,
-          // preparationSeconds: true,
-          // organizationId: true,
-          // createdAt: true,
-          // updatedAt: true,
-          // status: true,
-          // queues: {
-          //   orderBy: {
-          //     createdAt: "asc",
-          //   },
-          //   select: { id: true, playerId: true, player: true, scheduledAt: true,endedAt: true },
-          // },
-          // courts: {
-          //   select: {
-          //     id: true,
-          //     name: true,
-          //   },
-          // },
-        },
-      })
+        select: { id: true }, })
 
       if (!activeOpenPlay)
         return NextResponse.json({ message: "No active Open Play found" }, { status: 404 })
 
-      // const data: TQueueOpenPlay = {
-      //   id: activeOpenPlay.id,
-      //   isActive: activeOpenPlay.isActive,
-      //   startedAt: activeOpenPlay.startedAt,
-      //   isCompleted: activeOpenPlay.isCompleted,
-      //   startTime: activeOpenPlay.startTime,
-      //   endTime: activeOpenPlay.endTime,
-      //   transitionMinutes: activeOpenPlay.transitionMinutes,
-      //   preparationSeconds: activeOpenPlay.preparationSeconds,
-      //   announcementMinutesBeforeTransition: activeOpenPlay.announcementMinutesBeforeTransition,
-      //   status: activeOpenPlay.status,
-      //   organizationId: activeOpenPlay.organizationId,
-      //   createdAt: activeOpenPlay.createdAt,
-      //   updatedAt: activeOpenPlay.updatedAt,
-      //   queuePlayers: activeOpenPlay.queues.map((q) => ({
-      //     id: q.id,
-      //     playerId: q.playerId,
-      //     playerName: q.player.playerName,
-      //     scheduledAt: q.scheduledAt,
-      //     endedAt: q.endedAt
-      //   })),
-      //   courts: activeOpenPlay.courts.map((c) => ({ id: c.id, name: c.name })),
-      // }
       const manager = new QueueManager(activeOpenPlay.id)
       await manager.initializeData()
       const result = manager.compute({
@@ -95,6 +42,7 @@ export const GET = withRateLimit(
       })
       return NextResponse.json(result)
     } catch (error: any) {
+      console.error(error)
       console.error("Error getting open play:", error?.message || error)
       return NextResponse.json({ error: "Failed to get open play" }, { status: 500 })
     }

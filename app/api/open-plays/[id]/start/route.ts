@@ -28,95 +28,14 @@ export const POST = withRateLimit(
           data: {
             startedAt: new Date(),
           },
-          select: {
-            id: true,
-            // startTime: true,
-            // endTime: true,
-            // isActive: true,
-            // isCompleted: true,
-            // startedAt: true,
-            // transitionMinutes: true,
-            // announcementMinutesBeforeTransition: true,
-            // preparationSeconds: true,
-            // organizationId: true,
-            // createdAt: true,
-            // updatedAt: true,
-            // status: true,
-            // queues: { select: { id: true, playerId: true, player: true, scheduledAt: true, endedAt: true } },
-            // courts: {
-            //   select: {
-            //     id: true,
-            //     name: true,
-            //   },
-            // },
-          },
+          select: { id: true },
         })
 
-        // const data: TQueueOpenPlay = {
-        //   id: openPlay.id,
-        //   isActive: openPlay.isActive,
-        //   startedAt: openPlay.startedAt,
-        //   isCompleted: openPlay.isCompleted,
-        //   startTime: openPlay.startTime,
-        //   endTime: openPlay.endTime,
-        //   transitionMinutes: openPlay.transitionMinutes,
-        //   preparationSeconds: openPlay.preparationSeconds,
-        //   announcementMinutesBeforeTransition: openPlay.announcementMinutesBeforeTransition,
-        //   status: openPlay.status,
-        //   organizationId: openPlay.organizationId,
-        //   createdAt: openPlay.createdAt,
-        //   updatedAt: openPlay.updatedAt,
-        //   queuePlayers: openPlay.queues.map((q) => ({
-        //     id: q.id,
-        //     playerId: q.playerId,
-        //     playerName: q.player.playerName,
-        //     scheduledAt: q.scheduledAt,
-        //     endedAt: q.endedAt
-        //   })),
-        //   courts: openPlay.courts.map((c) => ({ id: c.id, name: c.name })),
-        // }
-
-        // const {scheduledGroups} = new QueueManager(data).initializeSchedule()
         const manager = new QueueManager(openPlay.id)
         await manager.initializeData(tx)
         const { scheduledGroups } = manager.initializeSchedule()
         for (const group of scheduledGroups) {
           if (group) await manager.lineupQueueGroupPlayers(group, tx)
-        //   for (const player of group.players) {
-        //     await tx.lineupQueue.upsert({
-        //       where: {
-        //         playerId_openPlayId: { playerId: player.playerId, openPlayId: openPlay.id },
-        //       },
-        //       update: {
-        //         scheduledAt: group.scheduledAt,
-        //         endedAt: group.estimatedEndTime,
-        //         status: QueueStatus.waiting,
-        //       },
-        //       create: {
-        //         playerId: player.id,
-        //         openPlayId: openPlay.id,
-        //         scheduledAt: group.scheduledAt,
-        //         endedAt: group.estimatedEndTime,
-        //         status: QueueStatus.waiting,
-        //       },
-        //     })
-        //   }
-
-        //   // Persist waiting players (no scheduledAt yet)
-        //   // for (const player of waitingPlayers) {
-        //   //   await tx.lineupQueue.upsert({
-        //   //     where: {
-        //   //       playerId_openPlayId: { playerId: player.id, openPlayId: openPlay.id },
-        //   //     },
-        //   //     update: { scheduledAt: null, status: QueueStatus.waiting },
-        //   //     create: {
-        //   //       playerId: player.id,
-        //   //       openPlayId: openPlay.id,
-        //   //       scheduledAt: null,
-        //   //       status: QueueStatus.waiting,
-        //   //     },
-        //   //   })
-        //   // }
         }
 
         //update ui of all clients on openplay

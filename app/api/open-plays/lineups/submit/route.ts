@@ -37,12 +37,14 @@ export const POST = withRateLimit(async (req: NextRequest) => {
 
       if (!openPlayPlayer) throw new Error("Invalid code or open play session")
       if (openPlayPlayer?.openPlay?.status !== OpenPlayStatus.active)
-        throw new Error("Open play session is not active")
+        throw new Error("Your session is not active")
 
       // Check session time
       const now = new Date()
       if (now > openPlayPlayer.openPlay.endTime)
-        throw new Error("Open play session has already ended")
+        throw new Error("Open Play session has already ended")
+      if (openPlayPlayer.endAt && now > openPlayPlayer.endAt)
+        throw new Error("Your session has already ended")
 
       // Prevent duplicate queue entry
       const existing = await tx.lineupQueue.findFirst({

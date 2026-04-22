@@ -63,36 +63,9 @@ export const POST = withRateLimit(async (req: NextRequest) => {
 
       //if active open play then lineup directly
       if (openPlay && openPlay.status === OpenPlayStatus.active) {
-        const queuePlayer = await createLineupEntry(tx, player)
-
+        await createLineupEntry(tx, player)
         const manager = new QueueManager(parsed.openPlayId)
         await manager.scheduleWaitingPlayers(tx)
-        // await manager.initializeData(tx);
-        // const group = manager.addPlayerToQueue(queuePlayer);
-        // if (group) {
-        //   for (const player of group?.players) {
-        //     await tx.lineupQueue.upsert({
-        //       where: {
-        //         playerId_openPlayId: {
-        //           playerId: player.playerId,
-        //           openPlayId: parsed.openPlayId,
-        //         },
-        //       },
-        //       update: {
-        //         scheduledAt: group.scheduledAt,
-        //         endedAt: group.estimatedEndTime,
-        //         status: QueueStatus.waiting,
-        //       },
-        //       create: {
-        //         playerId: player.id,
-        //         openPlayId: parsed.openPlayId,
-        //         scheduledAt: group.scheduledAt,
-        //         endedAt: group.estimatedEndTime,
-        //         status: QueueStatus.waiting,
-        //       },
-        //     });
-        //   }
-        // }
 
         //update ui of all clients on openplay
         EventBroadcast({
