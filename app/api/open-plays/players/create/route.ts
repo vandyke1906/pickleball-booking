@@ -3,7 +3,7 @@ import { isServerAuthenticated } from "@/lib/auth/auth.server"
 import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
-import { createLineupEntry } from "@/lib/server/action/openplay.action"
+import { createLineupEntries } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { QueueManager } from "@/lib/server/services/queue-manager.service"
 import { openPlayPlayerSchema } from "@/lib/validation/open-play/open-play.validation"
@@ -48,6 +48,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
     const createdPlayer = await prisma.$transaction(async (tx) => {
       const openPlay = await tx.openPlay.findUnique({
         where: { id: parsed.openPlayId },
+        select: { id: true, status: true }
       })
 
       const player = await tx.openPlayPlayer.create({
@@ -63,7 +64,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
 
       //if active open play then lineup directly
       if (openPlay && openPlay.status === OpenPlayStatus.active) {
-        await createLineupEntry(tx, player)
+        await createLineupEntries(tx, [player])
         const manager = new QueueManager(parsed.openPlayId)
         await manager.scheduleWaitingPlayers(tx)
 

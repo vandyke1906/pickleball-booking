@@ -1,33 +1,22 @@
 "use server"
 
-import { OpenPlayPlayer, QueueStatus } from "@/.config/prisma/generated/prisma"
+import { OpenPlayPlayer, Prisma, QueueStatus } from "@/.config/prisma/generated/prisma"
 import { prisma } from "@/lib/prisma"
-import { TQueuePlayer } from "@/lib/type/openplay/openplay.type"
 import { TPrismaTransaction } from "@/lib/type/util.type"
-import { addMinutes, isWithinInterval } from "date-fns"
 
-export async function createLineupEntry(
+export async function createLineupEntries(
   tx: TPrismaTransaction,
-  openPlayPlayer: OpenPlayPlayer,
-): Promise<TQueuePlayer> {
-  const queue = await tx.lineupQueue.create({
-    data: {
-      openPlayId: openPlayPlayer.openPlayId,
-      playerId: openPlayPlayer.id,
+  openPlayPlayers: OpenPlayPlayer[],
+): Promise<Prisma.BatchPayload> {
+  return await tx.lineupQueue.createMany({
+    data: openPlayPlayers.map((p) => ({
+      openPlayId: p.openPlayId,
+      playerId: p.id,
       status: QueueStatus.waiting,
       scheduledAt: null,
       endedAt: null,
-    },
-    include: { player: true, openPlay: true },
+    })),
   })
-
-  return {
-    id: queue.id,
-    playerId: queue.playerId,
-    playerName: queue.player?.playerName || "Player",
-    scheduledAt: queue.scheduledAt,
-    endedAt: queue.endedAt,
-  }
 }
 
 // Initialize lineup for all registered players of an OpenPlay
@@ -38,14 +27,15 @@ export async function initializeLineup(tx: TPrismaTransaction, openPlayId: strin
   })
 
   if (players.length === 0) throw new Error("No available registered player!")
+    await createLineupEntries(tx, players)
+    return true
+  // const lineups = []
+  // for (const player of players) {
+  //   const entry = await createLineupEntries(tx, player)
+  //   lineups.push(entry)
+  // }
 
-  const lineups = []
-  for (const player of players) {
-    const entry = await createLineupEntry(tx, player)
-    lineups.push(entry)
-  }
-
-  return lineups
+  // return lineups
 }
 
 // Check if player still has allowance based on elapsed time

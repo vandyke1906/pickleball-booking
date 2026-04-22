@@ -2,7 +2,7 @@ import { OpenPlayStatus, QueueStatus } from "@/.config/prisma/generated/prisma"
 import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
-import { createLineupEntry } from "@/lib/server/action/openplay.action"
+import { createLineupEntries } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { QueueManager } from "@/lib/server/services/queue-manager.service"
 import { NextRequest, NextResponse } from "next/server"
@@ -55,7 +55,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       })
 
       if (existing) throw new Error("You are already in the queue")
-      await createLineupEntry(tx, openPlayPlayer)
+      await createLineupEntries(tx, openPlayPlayer)
 
       const manager = new QueueManager(openPlayId)
       await manager.scheduleWaitingPlayers(tx)
