@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { createLineupEntries } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
-import { QueueManager } from "@/lib/server/services/queue-manager.service"
+import { QueueManager } from "@/lib/server/services/queue-manager.v1.service"
 import { openPlayPlayerSchema } from "@/lib/validation/open-play/open-play.validation"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -48,7 +48,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
     const createdPlayer = await prisma.$transaction(async (tx) => {
       const openPlay = await tx.openPlay.findUnique({
         where: { id: parsed.openPlayId },
-        select: { id: true, status: true }
+        select: { id: true, status: true },
       })
 
       const player = await tx.openPlayPlayer.create({

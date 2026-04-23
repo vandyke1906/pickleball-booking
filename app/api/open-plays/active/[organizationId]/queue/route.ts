@@ -2,7 +2,7 @@ import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
 import { prisma } from "@/lib/prisma"
 import { deleteQueuedPlayers } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
-import { QueueManager } from "@/lib/server/services/queue-manager.service"
+import { QueueManager } from "@/lib/server/services/queue-manager.v1.service"
 import { NextRequest, NextResponse } from "next/server"
 
 export const GET = withRateLimit(
@@ -14,7 +14,8 @@ export const GET = withRateLimit(
 
       const activeOpenPlay = await prisma.openPlay.findFirst({
         where: { organizationId, status: OpenPlayStatus.active, isActive: true },
-        select: { id: true }, })
+        select: { id: true },
+      })
 
       if (!activeOpenPlay)
         return NextResponse.json({ message: "No active Open Play found" }, { status: 404 })

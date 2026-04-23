@@ -4,7 +4,7 @@ import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { withRateLimit } from "@/lib/server/rate-limiter"
-import { QueueManager } from "@/lib/server/services/queue-manager.service"
+import { QueueManager } from "@/lib/server/services/queue-manager.v1.service"
 import { TQueueOpenPlay } from "@/lib/type/openplay/openplay.type"
 import { NextRequest, NextResponse } from "next/server"
 
