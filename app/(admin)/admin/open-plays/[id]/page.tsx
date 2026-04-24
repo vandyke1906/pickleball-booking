@@ -137,6 +137,9 @@ export default function OpenPlayPage() {
     },
   })
 
+  //watch
+  const playerSkill = form.watch("skill")
+
   const [confirmOpenPlay, setConfirmOpenPlay] = useState<{
     open: boolean
     status: OpenPlayStatus | null
@@ -152,6 +155,18 @@ export default function OpenPlayPage() {
       form.reset({ openPlayId: id })
     }
   }, [openPlayerFormDialog, id])
+
+  const getAssignedCourtPerSkill = useMemo(() => {
+    if (!openPlay || !playerSkill) return []
+
+    const courts = openPlay.courts
+      .filter((c: any) => c.skills.includes(playerSkill))
+      .flatMap((c: any) => (c.courts || []).map((court: any) => court.name))
+
+    return [...new Set(courts)]
+  }, [openPlay, playerSkill])
+
+  console.info({ getAssignedCourtPerSkill })
 
   if (isLoading) {
     return <Loading text="Loading Open Play..." className="p-6 min-h-[200px]" />
@@ -253,7 +268,6 @@ export default function OpenPlayPage() {
       },
     )
   }
-
   const initialOpenPlayData = openPlay
     ? {
         id: openPlay.id,
@@ -631,6 +645,21 @@ export default function OpenPlayPage() {
                             <p className="text-sm text-red-600">
                               {form.formState.errors.skill.message}
                             </p>
+                          )}
+                        </div>
+
+                        {/* Assigned Courts */}
+                        <div className="rounded w-full flex flex-wrap gap-2">
+                          {getAssignedCourtPerSkill.length > 0 ? (
+                            getAssignedCourtPerSkill.map((court) => (
+                              <Badge key={court} variant="default" className="px-3 py-1">
+                                {court}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              No courts assigned
+                            </span>
                           )}
                         </div>
                       </div>

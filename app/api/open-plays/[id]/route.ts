@@ -30,6 +30,7 @@ export const GET = withRateLimit(
               id: true,
               skills: true,
               courts: { select: { id: true, name: true } },
+              players: { select: { id: true, playerName: true, code: true } },
             },
           },
         },
