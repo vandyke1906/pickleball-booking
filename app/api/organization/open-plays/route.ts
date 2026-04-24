@@ -52,7 +52,9 @@ export const GET = withRateLimit(async (request: Request) => {
         startTime: true,
         endTime: true,
         status: true,
-        courts: true,
+        courts: {
+          include: { courts: true },
+        },
         players: true,
       },
       orderBy,

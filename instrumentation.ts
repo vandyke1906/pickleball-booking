@@ -11,6 +11,11 @@ export async function register() {
   }
 }
 
+function getRandomId(ids: string[]): string {
+  const randomIndex = Math.floor(Math.random() * ids.length)
+  return ids[randomIndex]
+}
+
 async function intervalTest() {
   const { manager, QUEUE_KEYS } = await import("@/lib/server/services/queue-manager.service")
   setTimeout(async () => {
@@ -62,20 +67,21 @@ async function randomTest() {
   const { manager, QUEUE_KEYS } = await import("@/lib/server/services/queue-manager.service")
 
   setTimeout(async () => {
-    console.info("xxxxx")
-    const openPlayId = "openplay-1"
+    const courtIds = ["court 1", "court 2"]
 
     // Clear batch first
-    await manager.clearBatch(`batch:${openPlayId}`)
+    await Promise.all(courtIds.map((id) => manager.clearBatch(`batch:${id}`)))
 
-    const limit = 8
+    const limit = 20
     const jobs: Promise<any>[] = []
 
     for (let counter = 0; counter < limit; counter++) {
+      const courtId = getRandomId(courtIds)
       jobs.push(
-        manager.addJob(QUEUE_KEYS.LINEUP_PLAYER, "assignPlayer", {
+        manager.addJob(QUEUE_KEYS.LINEUP_PLAYER, courtId, {
           playerId: `player ${counter + 1}`,
-          openPlayId,
+          openPlayId: "1",
+          courtId,
         }),
       )
     }
@@ -87,7 +93,7 @@ async function randomTest() {
         results.map((r, idx) => {
           if (r.status === "fulfilled") {
             const job = r.value
-            return `Job ${idx + 1}: player=${job.data.playerId}, status=fulfilled`
+            return `Job ${idx + 1}: player=${job.data.playerId} on court=${job.data.courtId}, status=fulfilled`
           } else {
             return `Job ${idx + 1}: status=failed, reason=${r.reason}`
           }

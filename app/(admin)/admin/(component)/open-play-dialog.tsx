@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useMemo } from "react"
+import { useEffect, useMemo } from "react"
 import { preventDialogCloseProps } from "@/components/dialog/dialog-helper"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,7 +15,12 @@ import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { CalendarDays, Clock, Loader2 } from "lucide-react"
 import { format, startOfDay } from "date-fns"
-import { calculateDuration, normalizeOpeningHoursClient, parseLocalDate } from "@/lib/utils"
+import {
+  calculateDuration,
+  normalizeOpeningHoursClient,
+  parseLocalDate,
+  PlayerSkillLabels,
+} from "@/lib/utils"
 import { Calendar } from "@/components/ui/calendar"
 import {
   Select,
@@ -29,9 +34,10 @@ import { OpenPlayPayload, openPlaySchema } from "@/lib/validation/open-play/open
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useOrganizationCourts } from "@/lib/hooks/court/court.hook"
 import { useSession } from "next-auth/react"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { useCreateOrUpdateOpenPlay } from "@/lib/mutations/open-play/open-play.mutation"
+import { MultiCombobox } from "@/components/common/multi-combobox"
+import { PlayerSkill } from "@/.config/prisma/generated/prisma"
 
 interface DialogProps {
   open: boolean
@@ -58,7 +64,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
       duration: initialData?.duration || 1,
       transitionMinutes: initialData?.transitionMinutes || 0,
       preparationSeconds: initialData?.preparationSeconds || 0,
-      courtIds: initialData?.courtIds || [],
+      courtSkills: initialData?.courtSkills || [],
     },
   })
 
@@ -140,7 +146,6 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
       })
   }, [orgWithCourts])
 
-  
   // Reset form whenever dialog closes or editingPlayer changes
   useEffect(() => {
     if (initialData) {
@@ -151,7 +156,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
         duration: initialData?.duration || 1,
         transitionMinutes: initialData?.transitionMinutes || 0,
         preparationSeconds: initialData?.preparationSeconds || 0,
-        courtIds: initialData?.courtIds || [],
+        courtSkills: initialData?.courtSkills || [],
       })
     }
   }, [open, initialData])
@@ -164,7 +169,6 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
       },
     })
   }
-  
 
   return (
     <>
@@ -177,15 +181,15 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
           }
         }}
       >
-        <DialogContent {...preventDialogCloseProps}>
+        <DialogContent className="max-w-full lg:max-w-3xl" {...preventDialogCloseProps}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <fieldset disabled={mutation.isPending || isLoadingOrgWithCourts} className="space-y-6">
               <DialogHeader>
                 <DialogTitle>Open Play Form</DialogTitle>
                 <DialogDescription>{summaryText}</DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="space-y-2">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   {/* Date */}
                   <div className="lg:col-span-2 rounded w-full space-y-2">
                     <Label className="font-semibold text-slate-700">Date</Label>
@@ -310,44 +314,124 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
 
                   {/* Courts */}
                   <div className="lg:col-span-2 space-y-2">
-                    <Label className="font-semibold text-slate-700">Select Courts</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="font-semibold text-slate-700">Court Details</Label>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          const current = form.getValues("courtSkills") || []
+                          form.setValue("courtSkills", [...current, { courtIds: [], skills: [] }])
+                        }}
+                      >
+                        + Add Court Selection
+                      </Button>
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                      You can book multiple courts at once by checking more than one option.
+                      You can assign multiple courts with skills at once by checking more than one
+                      option.
                     </p>
 
-                    <div className="border rounded-md p-4 bg-slate-50/60 max-h-48 overflow-y-auto space-y-3">
-                      {(orgWithCourts?.courts || []).map((court: any) => (
-                        <div key={court.id} className="flex items-center space-x-3">
-                          <Checkbox
-                            disabled={!dateString || !startTime}
-                            id={court.id}
-                            checked={form.watch("courtIds").includes(court.id)}
-                            onCheckedChange={() => {
-                              const current = form.getValues("courtIds")
-                              if (current.includes(court.id)) {
-                                form.setValue(
-                                  "courtIds",
-                                  current.filter((id) => id !== court.id),
-                                )
-                              } else {
-                                form.setValue("courtIds", [...current, court.id])
-                              }
-                            }}
-                          />
-                          <label htmlFor={court.id} className="text-sm cursor-pointer leading-none">
-                            {court.name}
-                          </label>
-                        </div>
-                      ))}
+                    <div className="max-h-60 overflow-y-auto space-y-3">
+                      {/* COURT SKILLS BUILDER */}
+                      <div className="space-y-2">
+                        {form.watch("courtSkills")?.map((entry, index) => (
+                          <div
+                            key={index}
+                            className="flex items-start justify-between border rounded-md p-2 space-x-2"
+                          >
+                            <div className="flex-1 space-y-2">
+                              {/* Court selection */}
+                              <MultiCombobox
+                                placeholder="Courts..."
+                                variant="default"
+                                options={(orgWithCourts?.courts || [])
+                                  .filter((court: any) => {
+                                    const allSelectedCourtIds =
+                                      form
+                                        .watch("courtSkills")
+                                        ?.flatMap((cs: any) => cs.courtIds) || []
+                                    return (
+                                      !allSelectedCourtIds.includes(court.id) ||
+                                      entry.courtIds.includes(court.id)
+                                    )
+                                  })
+                                  .map((court: any) => ({
+                                    value: court.id,
+                                    label: court.name,
+                                  }))}
+                                value={entry.courtIds}
+                                onValueChange={(selected) => {
+                                  const current = form.getValues("courtSkills") || []
+                                  const updated = current.map((cs, i) =>
+                                    i === index ? { ...cs, courtIds: selected } : cs,
+                                  )
+                                  form.setValue("courtSkills", updated, { shouldValidate: true })
+                                }}
+                              />
+
+                              {/* Skills selection */}
+                              <MultiCombobox
+                                placeholder="Skills..."
+                                options={Object.entries(PlayerSkillLabels)
+                                  .filter(([key]) => {
+                                    const allSelectedSkills =
+                                      form
+                                        .watch("courtSkills")
+                                        ?.flatMap((cs: any) => cs.skills as PlayerSkill[]) || []
+                                    return (
+                                      !allSelectedSkills.includes(key as PlayerSkill) ||
+                                      entry.skills.includes(key as PlayerSkill)
+                                    )
+                                  })
+                                  .map(([key, label]) => ({
+                                    value: key,
+                                    label,
+                                  }))}
+                                value={entry.skills}
+                                onValueChange={(selected) => {
+                                  const current = form.getValues("courtSkills") || []
+                                  const updated = current.map((cs, i) =>
+                                    i === index ? { ...cs, skills: selected as PlayerSkill[] } : cs,
+                                  )
+                                  form.setValue("courtSkills", updated, { shouldValidate: true })
+                                }}
+                                maxVisibleItems={3}
+                              />
+
+                              {/* Per-entry error */}
+                              {form.formState.errors.courtSkills?.[index] && (
+                                <p className="text-xs text-red-600">
+                                  {form.formState.errors.courtSkills[index]?.courtIds?.message ||
+                                    form.formState.errors.courtSkills[index]?.skills?.message}
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Remove action */}
+                            <button
+                              type="button"
+                              className="text-xs text-red-600 hover:underline ml-2"
+                              onClick={() => {
+                                const current = form.getValues("courtSkills") || []
+                                const updated = current.filter((_, i) => i !== index)
+                                form.setValue("courtSkills", updated, { shouldValidate: true })
+                              }}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      {form.formState.errors.courtSkills && (
+                        <p className="text-sm text-red-600">
+                          {form.formState.errors.courtSkills.message}
+                        </p>
+                      )}
                     </div>
                     {(!dateString || !startTime) && (
                       <p className="text-xs text-slate-500 mt-2">
                         Please select a date and time to enable court selection.
-                      </p>
-                    )}
-                    {form.formState.errors.courtIds && (
-                      <p className="text-sm text-red-600">
-                        {form.formState.errors.courtIds.message}
                       </p>
                     )}
                   </div>

@@ -3,6 +3,7 @@ import { toDate, toZonedTime } from "date-fns-tz"
 import { twMerge } from "tailwind-merge"
 import { enUS } from "date-fns/locale"
 import { addDays, addHours, format } from "date-fns"
+import { PlayerSkill } from "@/.config/prisma/generated/prisma"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -393,4 +394,12 @@ export function timeText(
     second: showSeconds ? "2-digit" : undefined,
     hour12,
   })
+}
+
+export const PlayerSkillLabels: Record<PlayerSkill, string> = {
+  [PlayerSkill.beginner]: "Beginner",
+  [PlayerSkill.novice_low]: "Novice (Low)",
+  [PlayerSkill.novice_high]: "Novice (High)",
+  [PlayerSkill.intermediate]: "Intermediate",
+  [PlayerSkill.advanced]: "Advanced",
 }

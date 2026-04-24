@@ -1,4 +1,4 @@
-import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
+import { OpenPlayStatus, PlayerSkill } from "@/.config/prisma/generated/prisma"
 import { isServerAuthenticated } from "@/lib/auth/auth.server"
 import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
@@ -47,6 +47,7 @@ export const PUT = withRateLimit(
         code: (formData.get("code") as string) || "",
         contactNumber: (formData.get("contactNumber") as string) || "",
         emailAddress: (formData.get("emailAddress") as string) || "",
+        skill: (formData.get("skill") as PlayerSkill) || "",
       }
 
       const parsed = openPlayPlayerSchema.partial().parse(payload)
@@ -54,7 +55,7 @@ export const PUT = withRateLimit(
       // Check unique code per OpenPlay
       if (parsed.code) {
         const existing = await prisma.openPlayPlayer.findFirst({
-          where: { code: parsed.code, id: { not: id } },
+          where: { skill: parsed.skill, code: parsed.code, id: { not: id } },
         })
         if (existing)
           return NextResponse.json(
@@ -70,6 +71,7 @@ export const PUT = withRateLimit(
           code: parsed.code,
           contactNumber: parsed.contactNumber,
           emailAddress: parsed.emailAddress || null,
+          skill: parsed.skill,
         },
         include: { openPlay: true },
       })

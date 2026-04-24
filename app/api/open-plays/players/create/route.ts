@@ -1,4 +1,4 @@
-import { OpenPlayStatus, QueueStatus } from "@/.config/prisma/generated/prisma"
+import { OpenPlayStatus, PlayerSkill, QueueStatus } from "@/.config/prisma/generated/prisma"
 import { isServerAuthenticated } from "@/lib/auth/auth.server"
 import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
@@ -22,6 +22,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       contactNumber: (formData.get("contactNumber") as string) || "",
       emailAddress: (formData.get("emailAddress") as string) || "",
       totalPlayTime: Number(formData.get("totalPlayTime")),
+      skill: (formData.get("skill") as PlayerSkill) || "",
     }
 
     // Validate payload with Zod
@@ -30,7 +31,11 @@ export const POST = withRateLimit(async (req: NextRequest) => {
     // Check for unique code per OpenPlay
     const existing = await prisma.openPlayPlayer.findUnique({
       where: {
-        openPlayId_code: { openPlayId: parsed.openPlayId, code: parsed.code },
+        openPlayId_skill_code: {
+          openPlayId: parsed.openPlayId,
+          skill: parsed.skill,
+          code: parsed.code,
+        },
       },
     })
 
@@ -59,14 +64,15 @@ export const POST = withRateLimit(async (req: NextRequest) => {
           contactNumber: parsed.contactNumber,
           emailAddress: parsed.emailAddress || null,
           totalPlayTime: parsed.totalPlayTime || 0,
+          skill: parsed.skill,
         },
       })
 
       //if active open play then lineup directly
       if (openPlay && openPlay.status === OpenPlayStatus.active) {
-        await createLineupEntries(tx, [player])
-        const manager = new QueueManager(parsed.openPlayId)
-        await manager.scheduleWaitingPlayers(tx)
+        // await createLineupEntries(tx, [player])
+        // const manager = new QueueManager(parsed.openPlayId)
+        // await manager.scheduleWaitingPlayers(tx)
 
         //update ui of all clients on openplay
         EventBroadcast({

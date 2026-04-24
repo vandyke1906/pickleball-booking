@@ -25,3 +25,18 @@ export async function initRedis() {
   ])
   console.info("[Redis] Both clients initialized")
 }
+
+export const SubscriberStore = {
+  async add(userId: string) {
+    await redisPublisher.sadd("subscribers", userId)
+  },
+  async remove(userId: string) {
+    await redisPublisher.srem("subscribers", userId)
+  },
+  async count(): Promise<number> {
+    return await redisPublisher.scard("subscribers")
+  },
+  async all(): Promise<string[]> {
+    return await redisPublisher.smembers("subscribers")
+  },
+}

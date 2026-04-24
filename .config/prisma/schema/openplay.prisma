@@ -1,8 +1,6 @@
 model OpenPlay {
   id String @id @default(cuid())
 
-  courts Court[] @relation("OpenPlayCourts")
-
   isActive                            Boolean        @default(false)
   startedAt                           DateTime?
   isCompleted                         Boolean        @default(false)
@@ -12,9 +10,10 @@ model OpenPlay {
   preparationSeconds                  Int            @default(20)
   announcementMinutesBeforeTransition Int            @default(5)
   status                              OpenPlayStatus @default(pending)
-
+  
   queues  LineupQueue[]
   players OpenPlayPlayer[] @relation("OpenPlayPlayers")
+  courts OpenPlayCourt[]
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
@@ -28,13 +27,35 @@ model OpenPlay {
   @@index([organizationId, status])
 }
 
+model OpenPlayCourt {
+  id String @id @default(cuid())
+
+  openPlayId String
+  openPlay   OpenPlay @relation(fields: [openPlayId], references: [id], onDelete: Cascade)
+  
+  courts         Court[]
+  skills         PlayerSkill[]
+  status QueueStatus @default(waiting)
+  players OpenPlayPlayer[]
+
+  scheduledAt DateTime?
+  endedAt     DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+}
+
 model OpenPlayPlayer {
   id         String   @id @default(cuid())
-  openPlay   OpenPlay @relation("OpenPlayPlayers", fields: [openPlayId], references: [id], onDelete: Cascade)
   openPlayId String
+  openPlay   OpenPlay @relation("OpenPlayPlayers", fields: [openPlayId], references: [id], onDelete: Cascade)
+
+  OpenPlayCourts   OpenPlayCourt[]
 
   code          String
   playerName    String
+  skill         PlayerSkill @default(beginner)
   contactNumber String?
   emailAddress  String?
   registeredAt  DateTime      @default(now())
@@ -47,7 +68,8 @@ model OpenPlayPlayer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([openPlayId, code])
+  @@unique([openPlayId, skill, code])
+  @@index([skill])
 }
 
 model LineupQueue {
@@ -86,4 +108,12 @@ enum OpenPlayStatus {
   pending
   completed
   cancelled
+}
+
+enum PlayerSkill {
+  beginner
+  novice_low
+  novice_high
+  intermediate
+  advanced
 }

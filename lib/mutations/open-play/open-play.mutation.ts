@@ -22,7 +22,7 @@ async function createOrUpdateOpenPlay(payload: OpenPlayPayload) {
   formData.append("duration", parsed.duration.toString())
   formData.append("transitionMinutes", parsed.transitionMinutes.toString())
   formData.append("preparationSeconds", parsed.preparationSeconds.toString())
-  formData.append("courtIds", JSON.stringify(parsed.courtIds))
+  formData.append("courtSkills", JSON.stringify(parsed.courtSkills))
 
   const response = await fetch("/api/open-plays", {
     method: "POST",
@@ -55,6 +55,7 @@ async function createOpenPlayPlayer(payload: OpenPlayPlayerPayload) {
   formData.append("contactNumber", parsed.contactNumber ?? "")
   formData.append("emailAddress", parsed.emailAddress ?? "")
   formData.append("totalPlayTime", parsed.totalPlayTime.toString())
+  formData.append("skill", parsed.skill)
 
   try {
     const response = await fetch("/api/open-plays/players/create", {
@@ -167,15 +168,18 @@ export function useCreateOrUpdateOpenPlay() {
       if (context?.previousBookings) {
         queryClient.setQueryData(["open-plays"], context.previousBookings)
       }
-      if (error instanceof Error && "issues" in error) {
-        const zodErr = error as any
-        toast.error("Validation failed", {
-          description: zodErr.issues.map((e: any) => e.message).join(", "),
-        })
-        return
-      }
+      toast.error("Open Play failed", {
+        description: "An error occurred. Please contact the administrator.",
+      })
+      // if (error instanceof Error && "issues" in error) {
+      //   const zodErr = error as any
+      //   toast.error("Validation failed", {
+      //     description: zodErr.issues.map((e: any) => e.message).join(", "),
+      //   })
+      //   return
+      // }
 
-      toast.error("Open Play failed", { description: (error as Error).message })
+      // toast.error("Open Play failed", { description: (error as Error).message })
     },
 
     onSuccess: () => {

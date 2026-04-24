@@ -16,13 +16,14 @@ export const POST = withRateLimit(async (req: NextRequest) => {
   const duration = Number(formData.get("duration"))
   const transitionMinutes = Number(formData.get("transitionMinutes"))
   const preparationSeconds = Number(formData.get("preparationSeconds"))
-  const courtIds = JSON.parse(formData.get("courtIds") as string)
+  const courtSkills = JSON.parse(formData.get("courtSkills") as string)
 
   const { start, end } = makeBookingDate(date, startTime, duration)
   console.info("[Open Play] Details: ", { date, startTime, duration })
   console.info("[Open Play] UTC Date Equivalent: ", { start, end })
 
   try {
+    const courtIds = courtSkills.flatMap((c: any) => c.courtIds)
     const result = await prisma.$transaction(async (tx) => {
       if (!id) {
         const conflicts = await tx.openPlay.findMany({
@@ -46,8 +47,11 @@ export const POST = withRateLimit(async (req: NextRequest) => {
             transitionMinutes,
             preparationSeconds,
             courts: {
-              set: [],
-              connect: courtIds.map((cid: string) => ({ id: cid })),
+              deleteMany: {},
+              create: courtSkills.map((c: any) => ({
+                courts: { connect: c.courtIds.map((id: string) => ({ id })) },
+                skills: { set: c.skills },
+              })),
             },
           },
           include: { courts: true },
@@ -62,7 +66,10 @@ export const POST = withRateLimit(async (req: NextRequest) => {
             transitionMinutes: transitionMinutes,
             preparationSeconds: preparationSeconds,
             courts: {
-              connect: courtIds.map((id: string) => ({ id })),
+              create: courtSkills.map((c: any) => ({
+                courts: { connect: c.courtIds.map((id: string) => ({ id })) },
+                skills: { set: c.skills },
+              })),
             },
           },
           include: { courts: true },
@@ -74,7 +81,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
 
     return NextResponse.json({ success: true, result })
   } catch (err: any) {
-    console.error("Create/Update Open Play error:", err)
+    console.error("Create/Update Open Play error:", err?.message)
     return NextResponse.json(
       { success: false, error: err.message || "Something went wrong. Please try again later" },
       { status: 400 },

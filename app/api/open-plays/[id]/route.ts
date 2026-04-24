@@ -28,7 +28,8 @@ export const GET = withRateLimit(
           courts: {
             select: {
               id: true,
-              name: true,
+              skills: true,
+              courts: { select: { id: true, name: true } },
             },
           },
         },

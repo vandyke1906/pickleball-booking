@@ -1,3 +1,4 @@
+import { PlayerSkill } from "@/.config/prisma/generated/prisma"
 import { dateOnlySchema } from "@/lib/validation/util.validation"
 import z from "zod"
 
@@ -8,7 +9,14 @@ export const openPlaySchema = z.object({
   duration: z.number().min(1).max(16),
   transitionMinutes: z.number({ error: "Transition minutes is required" }).min(1),
   preparationSeconds: z.number().min(1),
-  courtIds: z.array(z.string()).min(1, "At least one court must be selected"),
+  courtSkills: z
+    .array(
+      z.object({
+        courtIds: z.array(z.string()).min(1, "At least one court must be selected"),
+        skills: z.array(z.enum(PlayerSkill)).min(1, "At least one skill must be selected"),
+      }),
+    )
+    .min(1, "At least one court with skill must be selected"),
 })
 export type OpenPlayPayload = z.infer<typeof openPlaySchema>
 
@@ -19,6 +27,7 @@ export const openPlayPlayerSchema = z.object({
   emailAddress: z.email({ message: "Invalid email address" }),
   code: z.string().min(1, "Player code is required"),
   totalPlayTime: z.number().min(1),
+  skill: z.enum(PlayerSkill, { error: "Invalid skill" }),
 })
 export type OpenPlayPlayerPayload = z.infer<typeof openPlayPlayerSchema>
 

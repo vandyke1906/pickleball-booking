@@ -12,10 +12,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import OpenPlayDialog from "@/app/(admin)/admin/(component)/open-play-dialog"
 import { useSession } from "next-auth/react"
-import { formatDateString, formatTimeRange } from "@/lib/utils"
+import { formatDateString, formatTimeRange, PlayerSkillLabels } from "@/lib/utils"
 import Link from "next/link"
 import BadgeStatus from "@/components/common/badge-status"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { PlayerSkill } from "@/.config/prisma/generated/prisma"
 
 export default function OpenPlaysList() {
   const { data: session } = useSession()
@@ -35,8 +36,9 @@ export default function OpenPlaysList() {
   )
 
   const { data, totalCount, perPage, isLoading, isError, error } = useOrganizationOpenPlays(params)
-
   const [openNewOpenPlayDialog, setOpenNewOpenPlayDialog] = useState(false)
+
+  console.info({ data })
 
   const columns = useMemo<ColumnDef<TOpenPlayData>[]>(
     () => [
@@ -96,16 +98,39 @@ export default function OpenPlaysList() {
         cell: ({ row }) => {
           return (
             <div className="flex flex-wrap gap-2">
-              {(row.original.courts || []).map((court: any) => (
-                <Badge variant="default" key={court.id}>
-                  {court.name}
-                </Badge>
+              {(row.original.courts || []).map((playCourt: any) => (
+                <div
+                  key={playCourt.id}
+                  className="flex flex-col border rounded-md p-2 mb-2 space-y-1"
+                >
+                  {/* Courts */}
+                  <div className="flex flex-wrap gap-1">
+                    {(playCourt.courts || []).map((court: any) => (
+                      <Badge variant="default" key={court.id} className="text-xs px-2 py-0.5">
+                        {court.name}
+                      </Badge>
+                    ))}
+                  </div>
+
+                  {/* Skills */}
+                  {playCourt.skills?.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {playCourt.skills.map((skill: any) => (
+                        <Badge key={skill} variant="outline" className="text-xs px-2 py-0.5">
+                          {PlayerSkillLabels[skill as PlayerSkill]}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
+
+            //
           )
         },
         meta: {
-          label: "Courts",
+          label: "Courts with Skills",
           variant: "multiSelect",
           options: [],
           exportValue: (row) => row.courts.map((c: any) => c.name).join(", "),

@@ -6,7 +6,7 @@ model Court {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
-  openPlays OpenPlay[] @relation("OpenPlayCourts")
+  openPlayCourts OpenPlayCourt[]
 
   bookings  Booking[]     @relation("BookingCourts")
   queues    LineupQueue[] @relation("LineupQueues")

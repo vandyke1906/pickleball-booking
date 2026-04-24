@@ -40,7 +40,7 @@ class QueueManager {
 
   async addJob<T>(
     queueName: string,
-    name: string,
+    jobName: string,
     data: T,
     options: JobsOptions = {
       attempts: 1,
@@ -49,7 +49,7 @@ class QueueManager {
       removeOnFail: false,
     },
   ) {
-    return this.queues[queueName].add(name, data, options)
+    return this.queues[queueName].add(jobName, data, options)
   }
 
   async getJobs(
@@ -98,12 +98,12 @@ class QueueManager {
       async (job) => {
         switch (queueName) {
           case QUEUE_KEYS.LINEUP_PLAYER: {
-            const { playerId, openPlayId } = job.data
+            const { playerId, openPlayId, courtId } = job.data
             console.log(`[Worker:${queueName}] Player ${playerId} joined lineup`)
 
             await this.aggregateBatchPlayers(
-              `batch:${openPlayId}`, // redis batch key
-              { playerId, openPlayId }, // payload
+              `batch:${courtId}`, // redis batch key
+              { playerId, openPlayId, courtId }, // payload
               4,
               {
                 onPromoted: (data) => {

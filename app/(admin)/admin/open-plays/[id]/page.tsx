@@ -37,11 +37,11 @@ import ConfirmationDialog from "@/components/common/confirm-dialog"
 import {
   AlertTriangleIcon,
   BadgeCheck,
+  BicepsFlexed,
   CheckIcon,
   ChevronDownIcon,
   Clock,
   Pencil,
-  Trash2,
   TrashIcon,
   X,
 } from "lucide-react"
@@ -56,7 +56,7 @@ import {
 import { ButtonGroup } from "@/components/ui/button-group"
 import OpenPlayDialog from "@/app/(admin)/admin/(component)/open-play-dialog"
 import { format } from "date-fns"
-import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
+import { OpenPlayStatus, PlayerSkill } from "@/.config/prisma/generated/prisma"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,6 +66,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Spinner } from "@/components/ui/spinner"
+import { PlayerSkillLabels } from "@/lib/utils"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { CopyButton } from "@/components/common/copy-button"
 
 const dialogConfig: any = {
   [OpenPlayStatus.active]: {
@@ -97,6 +106,8 @@ export default function OpenPlayPage() {
 
   const { data: openPlay, isLoading, isError, error } = useOpenPlay(id)
 
+  console.info({ openPlay })
+
   const [openEditOpenPlayDialog, setOpenEditOpenPlayDialog] = useState(false)
   const [confirmDeleteOpenPlayDialogOpen, setConfirmDeleteOpenPlayDialogOpen] = useState(false)
   const [openPlayerFormDialog, setOpenPlayerFormDialog] = useState(false)
@@ -122,6 +133,7 @@ export default function OpenPlayPage() {
       emailAddress: "",
       code: "",
       totalPlayTime: 3 * 60,
+      skill: PlayerSkill.beginner,
     },
   })
 
@@ -171,6 +183,7 @@ export default function OpenPlayPage() {
             emailAddress: "",
             code: "",
             totalPlayTime: 3 * 60,
+            skill: PlayerSkill.beginner,
           })
           setOpenPlayerFormDialog(false)
         },
@@ -249,7 +262,10 @@ export default function OpenPlayPage() {
         duration: openPlay?.formatted?.duration,
         transitionMinutes: openPlay?.transitionMinutes,
         preparationSeconds: openPlay?.preparationSeconds,
-        courtIds: openPlay.courts.map((c) => c.id),
+        courtSkills: openPlay.courts.map((c) => ({
+          courtIds: c.courts.map((c) => c.id),
+          skills: c.skills,
+        })),
       }
     : undefined
 
@@ -432,10 +448,31 @@ export default function OpenPlayPage() {
             <p className="text-sm text-muted-foreground">Courts</p>
             <div className="flex flex-wrap gap-2">
               {openPlay?.courts?.length ? (
-                openPlay.courts.map((court: any, index: number) => (
-                  <Badge key={index} variant="default">
-                    {court.name}
-                  </Badge>
+                openPlay.courts.map((playCourt: any) => (
+                  <div
+                    key={playCourt.id}
+                    className="flex flex-col border rounded-md p-2 mb-2 space-y-1"
+                  >
+                    {/* Courts */}
+                    <div className="flex flex-wrap gap-1">
+                      {(playCourt.courts || []).map((court: any) => (
+                        <Badge variant="default" key={court.id} className="text-xs px-2 py-0.5">
+                          {court.name}
+                        </Badge>
+                      ))}
+                    </div>
+
+                    {/* Skills */}
+                    {playCourt.skills?.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {playCourt.skills.map((skill: any) => (
+                          <Badge key={skill} variant="outline" className="text-xs px-2 py-0.5">
+                            {PlayerSkillLabels[skill as PlayerSkill]}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))
               ) : (
                 <span className="text-sm text-muted-foreground">No courts assigned</span>
@@ -570,6 +607,32 @@ export default function OpenPlayPage() {
                             </p>
                           )}
                         </div>
+
+                        {/* Player Skill */}
+                        <div className="rounded w-full space-y-2">
+                          <Label className="font-semibold text-slate-700">Start Time</Label>
+                          <Select
+                            value={form.watch("skill")}
+                            onValueChange={(v: PlayerSkill) => form.setValue("skill", v)}
+                          >
+                            <SelectTrigger className="h-12 w-full">
+                              <BicepsFlexed className="mr-3 h-5 w-5 text-primary" />
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(PlayerSkillLabels).map(([key, label]) => (
+                                <SelectItem key={key} value={key}>
+                                  {label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {form.formState.errors.skill && (
+                            <p className="text-sm text-red-600">
+                              {form.formState.errors.skill.message}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
                       <DialogFooter>
@@ -592,17 +655,24 @@ export default function OpenPlayPage() {
 
             {openPlay?.players?.length ? (
               <div className="space-y-2">
-                {openPlay.players.map((player: any, index: number) => (
+                {openPlay.players.map((player, index: number) => (
                   <div
                     key={index}
                     className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 shadow-sm gap-2"
                   >
-                    <div className="font-semibold text-primary sm:mr-4 min-w-[80px]">
-                      Code: {player.code}
+                    <div className="sm:mr-4 min-w-[80px] text-sm">
+                      code:{" "}
+                      <span className="font-semibold text-primary ">
+                        <CopyButton text={player.code} html={`strong>${player.code}</strong>`} />
+                        {player.code}
+                      </span>
                     </div>
-                    <div className="sm:flex-1 text-sm font-medium">{player.playerName}</div>
+                    <div className="sm:flex-1 text-sm font-medium">
+                      {player.playerName}
+                      <Badge variant="outline">{PlayerSkillLabels[player.skill]}</Badge>
+                    </div>
                     <div className="text-sm text-muted-foreground">
-                      {player.contactNumber || "N/A"}
+                      ({player.totalPlayTime || "N/A"} minutes Play Time)
                     </div>
                     <div className="flex gap-2">
                       <Button size="xs" variant="outline" onClick={() => onEditPlayer(player)}>

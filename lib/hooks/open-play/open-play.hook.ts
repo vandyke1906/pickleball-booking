@@ -1,4 +1,4 @@
-import { Court, OpenPlay, OpenPlayPlayer } from "@/.config/prisma/generated/prisma"
+import { Court, OpenPlay, OpenPlayCourt, OpenPlayPlayer } from "@/.config/prisma/generated/prisma"
 import { fetcher } from "@/lib/hooks/common.hook"
 import { TCurrentGame, TQueueGroup } from "@/lib/type/openplay/openplay.type"
 import { TData } from "@/lib/type/util.type"
@@ -53,13 +53,16 @@ export type TOpenPlay = OpenPlay & {
       endTime: string
     }
   }
-  courts: Court[]
+  courts: (OpenPlayCourt & { courts: Court[] })[]
   players: OpenPlayPlayer[]
 }
 
 export type TQueueResponse = {
   isStarted: boolean
-  openPlay: Partial<OpenPlay> & { courts: Court[]; players: OpenPlayPlayer[] }
+  openPlay: Partial<OpenPlay> & {
+    courts: (OpenPlayCourt & { courts: Court[] })[]
+    players: OpenPlayPlayer[]
+  }
   currentGames: TCurrentGame[]
   queue: TQueueGroup[]
   nextTransition: Date | null
