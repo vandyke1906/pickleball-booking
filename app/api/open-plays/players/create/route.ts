@@ -53,8 +53,12 @@ export const POST = withRateLimit(async (req: NextRequest) => {
     const createdPlayer = await prisma.$transaction(async (tx) => {
       const openPlay = await tx.openPlay.findUnique({
         where: { id: parsed.openPlayId },
-        select: { id: true, status: true },
+        select: { id: true, status: true, courts: { select: { id: true, skills: true } } },
       })
+
+      const matchedCourt = openPlay?.courts.find((c) => c.skills.includes(parsed.skill))
+
+      if (!matchedCourt) throw new Error("Court is not available for the selected skill")
 
       const player = await tx.openPlayPlayer.create({
         data: {
@@ -65,6 +69,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
           emailAddress: parsed.emailAddress || null,
           totalPlayTime: parsed.totalPlayTime || 0,
           skill: parsed.skill,
+          openPlayCourtId: matchedCourt.id,
         },
       })
 

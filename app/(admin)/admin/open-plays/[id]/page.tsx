@@ -106,6 +106,8 @@ export default function OpenPlayPage() {
 
   const { data: openPlay, isLoading, isError, error } = useOpenPlay(id)
 
+  console.info({ openPlay })
+
   const [openEditOpenPlayDialog, setOpenEditOpenPlayDialog] = useState(false)
   const [confirmDeleteOpenPlayDialogOpen, setConfirmDeleteOpenPlayDialogOpen] = useState(false)
   const [openPlayerFormDialog, setOpenPlayerFormDialog] = useState(false)
@@ -620,7 +622,7 @@ export default function OpenPlayPage() {
 
                         {/* Player Skill */}
                         <div className="rounded w-full space-y-2">
-                          <Label className="font-semibold text-slate-700">Start Time</Label>
+                          <Label className="font-semibold text-slate-700">Skill Level</Label>
                           <Select
                             value={form.watch("skill")}
                             onValueChange={(v: PlayerSkill) => form.setValue("skill", v)}
@@ -654,7 +656,8 @@ export default function OpenPlayPage() {
                             ))
                           ) : (
                             <span className="text-sm text-muted-foreground">
-                              No courts assigned
+                              No courts assigned on {PlayerSkillLabels[form.watch("skill")]} skill
+                              level
                             </span>
                           )}
                         </div>
@@ -663,7 +666,11 @@ export default function OpenPlayPage() {
                       <DialogFooter>
                         <Button
                           type="submit"
-                          disabled={createMutation.isPending || updateMutation.isPending}
+                          disabled={
+                            createMutation.isPending ||
+                            updateMutation.isPending ||
+                            !Boolean(getAssignedCourtPerSkill.length)
+                          }
                         >
                           {createMutation.isPending || updateMutation.isPending
                             ? "Submitting..."
