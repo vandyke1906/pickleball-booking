@@ -47,6 +47,7 @@ export const PUT = withRateLimit(
         code: (formData.get("code") as string) || "",
         contactNumber: (formData.get("contactNumber") as string) || "",
         emailAddress: (formData.get("emailAddress") as string) || "",
+        totalPlayTime: Number(formData.get("totalPlayTime")),
         skill: (formData.get("skill") as PlayerSkill) || "",
       }
 
@@ -71,6 +72,7 @@ export const PUT = withRateLimit(
           code: parsed.code,
           contactNumber: parsed.contactNumber,
           emailAddress: parsed.emailAddress || null,
+          totalPlayTime: parsed.totalPlayTime,
           skill: parsed.skill,
         },
         include: { openPlay: true },

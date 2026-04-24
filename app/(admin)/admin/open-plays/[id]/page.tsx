@@ -106,8 +106,6 @@ export default function OpenPlayPage() {
 
   const { data: openPlay, isLoading, isError, error } = useOpenPlay(id)
 
-  console.info({ openPlay })
-
   const [openEditOpenPlayDialog, setOpenEditOpenPlayDialog] = useState(false)
   const [confirmDeleteOpenPlayDialogOpen, setConfirmDeleteOpenPlayDialogOpen] = useState(false)
   const [openPlayerFormDialog, setOpenPlayerFormDialog] = useState(false)
@@ -165,8 +163,6 @@ export default function OpenPlayPage() {
 
     return [...new Set(courts)]
   }, [openPlay, playerSkill])
-
-  console.info({ getAssignedCourtPerSkill })
 
   if (isLoading) {
     return <Loading text="Loading Open Play..." className="p-6 min-h-[200px]" />

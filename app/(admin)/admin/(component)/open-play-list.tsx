@@ -38,8 +38,6 @@ export default function OpenPlaysList() {
   const { data, totalCount, perPage, isLoading, isError, error } = useOrganizationOpenPlays(params)
   const [openNewOpenPlayDialog, setOpenNewOpenPlayDialog] = useState(false)
 
-  console.info({ data })
-
   const columns = useMemo<ColumnDef<TOpenPlayData>[]>(
     () => [
       {
