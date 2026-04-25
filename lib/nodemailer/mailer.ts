@@ -1,10 +1,10 @@
 import nodemailer from "nodemailer"
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  service: process.env.EMAIL_SERVICE ?? "gmail",
   auth: {
-    user: process.env.GMAIL_EMAIL,
-    pass: process.env.GMAIL_PASSPHRASE,
+    user: process.env.EMAIL_ADDRESS,
+    pass: process.env.EMAIL_PASSPHRASE,
   },
 })
 
@@ -18,9 +18,9 @@ export async function sendEmail({
   html: string
 }) {
   try {
-    if (!process.env.GMAIL_EMAIL || !transporter) return null
+    if (!process.env.EMAIL_ADDRESS || !transporter) return null
     const info = await transporter.sendMail({
-      from: `"Pickl. Digos Admin" <${process.env.GMAIL_EMAIL}>`,
+      from: `"Pickl. Digos Admin" <${process.env.EMAIL_ADDRESS}>`,
       to,
       subject,
       html,
