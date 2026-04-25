@@ -76,7 +76,7 @@ import {
 } from "@/components/ui/select"
 import { CopyButton } from "@/components/common/copy-button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { TCourt } from "@/app/(admin)/admin/(component)/court-list"
+import DraggablePlayersList from "@/app/(admin)/admin/(component)/draggable-player-list"
 
 const dialogConfig: any = {
   [OpenPlayStatus.active]: {
@@ -789,7 +789,17 @@ export default function OpenPlayPage() {
 
                       {/* Players */}
                       <div className="space-y-2 text-sm">
-                        {group.players && group.players.length > 0 ? (
+                        <DraggablePlayersList
+                          group={group}
+                          onEditPlayer={onEditPlayer}
+                          onDeletePlayer={onDeletePlayer}
+                          PlayerSkillLabels={PlayerSkillLabels}
+                          PlayerSkill={PlayerSkill}
+                          onReorder={(newOrder: any) => {
+                            console.log("New order:", newOrder)
+                          }}
+                        />
+                        {/* {group.players && group.players.length > 0 ? (
                           group.players.map((player: any, index: number) => (
                             <div
                               key={index}
@@ -834,7 +844,7 @@ export default function OpenPlayPage() {
                           ))
                         ) : (
                           <span className="text-muted-foreground">No players registered.</span>
-                        )}
+                        )} */}
                       </div>
                     </div>
                   </CardContent>
