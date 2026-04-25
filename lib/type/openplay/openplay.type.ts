@@ -10,7 +10,6 @@ export type TQueuePlayer = {
 }
 
 export type TQueueCourt = { id: string; name: string }
-
 export type TQueueOpenPlay = OpenPlay & {
   queuePlayers: TQueuePlayer[]
   courts: TQueueCourt[]

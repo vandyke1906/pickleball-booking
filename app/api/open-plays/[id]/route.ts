@@ -29,8 +29,12 @@ export const GET = withRateLimit(
             select: {
               id: true,
               skills: true,
-              courts: { select: { id: true, name: true } },
-              players: { select: { id: true, playerName: true, code: true } },
+              courts: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
         },
@@ -42,6 +46,14 @@ export const GET = withRateLimit(
       const end = new Date(openPlay.endTime)
       const startedAt = openPlay.startedAt ? new Date(openPlay.startedAt) : null
 
+      const courtsWithPlayers = openPlay.courts.map((court) => {
+        const eligiblePlayers = openPlay.players.filter((p) => court.skills.includes(p.skill))
+        return {
+          ...court,
+          players: eligiblePlayers,
+        }
+      })
+
       const data = {
         ...openPlay,
         formatted: {
@@ -49,7 +61,7 @@ export const GET = withRateLimit(
           preparationSeconds: openPlay.preparationSeconds,
           announcementMinutesBeforeTransition: openPlay.announcementMinutesBeforeTransition,
           status: openPlay.status,
-          courts: openPlay.courts,
+          courts: courtsWithPlayers,
           isActive: openPlay.isActive,
           startedAt: startedAt ? formatTimeOnly(startedAt.toISOString()) : null,
           date: formatToPHDateString(start),

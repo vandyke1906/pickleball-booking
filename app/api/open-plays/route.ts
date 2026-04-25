@@ -25,20 +25,17 @@ export const POST = withRateLimit(async (req: NextRequest) => {
   try {
     const courtIds = courtSkills.flatMap((c: any) => c.courtIds)
     const result = await prisma.$transaction(async (tx) => {
-      if (!id) {
-        const conflicts = await tx.openPlay.findMany({
-          where: {
-            courts: { some: { id: { in: courtIds } } },
-            startTime: { lt: end },
-            endTime: { gt: start },
-            status: { in: ["pending", "active"] },
-          },
-        })
-        if (conflicts.length > 0) throw new Error("One or more courts already scheduled")
+      const whereClauseConflict: any = {
+        courts: { some: { id: { in: courtIds } } },
+        startTime: { lt: end },
+        endTime: { gt: start },
+        status: { in: ["pending", "active"] },
       }
+      if (id) whereClauseConflict.NOT = { id }
+      const conflicts = await tx.openPlay.findMany({ where: whereClauseConflict })
+      if (conflicts.length > 0) throw new Error("One or more courts already scheduled")
 
       if (id) {
-        // Update existing OpenPlay
         const updated = await tx.openPlay.update({
           where: { id },
           data: {
@@ -54,8 +51,11 @@ export const POST = withRateLimit(async (req: NextRequest) => {
               })),
             },
           },
-          include: { courts: true },
+          include: {
+            courts: true,
+          },
         })
+
         return updated
       } else {
         const created = await tx.openPlay.create({

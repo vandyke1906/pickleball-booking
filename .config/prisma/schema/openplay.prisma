@@ -36,7 +36,6 @@ model OpenPlayCourt {
   courts         Court[]
   skills         PlayerSkill[]
   status QueueStatus @default(waiting)
-  players OpenPlayPlayer[]
 
   scheduledAt DateTime?
   endedAt     DateTime?
@@ -47,13 +46,11 @@ model OpenPlayCourt {
   @@index([openPlayId])
 }
 
+
 model OpenPlayPlayer {
   id         String   @id @default(cuid())
   openPlayId String
   openPlay   OpenPlay @relation("OpenPlayPlayers", fields: [openPlayId], references: [id], onDelete: Cascade)
-
-  openPlayCourtId String
-  openPlayCourt   OpenPlayCourt @relation(fields: [openPlayCourtId], references: [id], onDelete: Cascade)
 
   code          String
   playerName    String

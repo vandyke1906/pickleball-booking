@@ -56,10 +56,6 @@ export const POST = withRateLimit(async (req: NextRequest) => {
         select: { id: true, status: true, courts: { select: { id: true, skills: true } } },
       })
 
-      const matchedCourt = openPlay?.courts.find((c) => c.skills.includes(parsed.skill))
-
-      if (!matchedCourt) throw new Error("Court is not available for the selected skill")
-
       const player = await tx.openPlayPlayer.create({
         data: {
           openPlayId: parsed.openPlayId,
@@ -69,7 +65,6 @@ export const POST = withRateLimit(async (req: NextRequest) => {
           emailAddress: parsed.emailAddress || null,
           totalPlayTime: parsed.totalPlayTime || 0,
           skill: parsed.skill,
-          openPlayCourtId: matchedCourt.id,
         },
       })
 

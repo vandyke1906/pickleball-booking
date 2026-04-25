@@ -2,8 +2,8 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useOpenPlay } from "@/lib/hooks/open-play/open-play.hook"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { TOpenPlay, useOpenPlay } from "@/lib/hooks/open-play/open-play.hook"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import BadgeStatus from "@/components/common/badge-status"
@@ -75,6 +75,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CopyButton } from "@/components/common/copy-button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { TCourt } from "@/app/(admin)/admin/(component)/court-list"
 
 const dialogConfig: any = {
   [OpenPlayStatus.active]: {
@@ -493,6 +495,349 @@ export default function OpenPlayPage() {
           </div>
 
           <Separator />
+
+          {/* //// */}
+          {/* <Tabs defaultValue="overview" className="w-full">
+            <TabsList>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              <TabsTrigger value="reports">Reports</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+            </TabsList>
+            <TabsContent value="overview">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Overview</CardTitle>
+                  <CardDescription>
+                    View your key metrics and recent project activity. Track progress across all
+                    your active projects.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground">
+                  You have 12 active projects and 3 pending tasks.
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="analytics">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Analytics</CardTitle>
+                  <CardDescription>
+                    Track performance and user engagement metrics. Monitor trends and identify
+                    growth opportunities.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground">
+                  Page views are up 25% compared to last month.
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="reports">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Reports</CardTitle>
+                  <CardDescription>
+                    Generate and download your detailed reports. Export data in multiple formats for
+                    analysis.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground">
+                  You have 5 reports ready and available to export.
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="settings">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Settings</CardTitle>
+                  <CardDescription>
+                    Manage your account preferences and options. Customize your experience to fit
+                    your needs.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground">
+                  Configure notifications, security, and themes.
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs> */}
+
+          {/* total players with register player */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <p className="text-sm text-muted-foreground font-semibold">
+              Overall Total Players ({openPlay?.players?.length || 0})
+            </p>
+            {/* Register Button */}
+            <Dialog open={openPlayerFormDialog} onOpenChange={setOpenPlayerFormDialog}>
+              <DialogTrigger asChild>
+                <Button size="sm">+ Register Player</Button>
+              </DialogTrigger>
+
+              <DialogContent className="w-full sm:max-w-md" {...preventDialogCloseProps}>
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  key={editingPlayer?.id || "new-player"}
+                >
+                  <fieldset
+                    disabled={createMutation.isPending || updateMutation.isPending}
+                    className="space-y-6"
+                  >
+                    <DialogHeader>
+                      <DialogTitle>{editingPlayer ? "Edit Player" : "Register Player"}</DialogTitle>
+                      <DialogDescription>
+                        {editingPlayer
+                          ? "Update player details for this open play session."
+                          : "Add a player to this open play session."}
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                      {/* Full Name */}
+                      <div className="space-y-2">
+                        <Label>Full Name</Label>
+                        <Input placeholder="Enter player name" {...form.register("playerName")} />
+                        {form.formState.errors.playerName && (
+                          <p className="text-sm text-red-600">
+                            {form.formState.errors.playerName.message}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Contact Number */}
+                      <div className="space-y-2">
+                        <Label>Contact Number</Label>
+                        <Input
+                          placeholder="e.g. 09123456789"
+                          {...form.register("contactNumber")}
+                          onBlur={(e) => {
+                            const value = e.target.value.trim()
+                            form.setValue("contactNumber", value)
+                            const currentCode = form.getValues("code")
+                            if (!currentCode) form.setValue("code", value)
+                          }}
+                        />
+                        {form.formState.errors.contactNumber && (
+                          <p className="text-sm text-red-600">
+                            {form.formState.errors.contactNumber.message}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Email */}
+                      <div className="space-y-2">
+                        <Label>Email Address</Label>
+                        <Input
+                          type="email"
+                          placeholder="Enter email (optional)"
+                          {...form.register("emailAddress")}
+                        />
+                        {form.formState.errors.emailAddress && (
+                          <p className="text-sm text-red-600">
+                            {form.formState.errors.emailAddress.message}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Player Code */}
+                      <div className="space-y-2">
+                        <Label>Player Code</Label>
+                        <Input
+                          placeholder="Auto-generated or custom code"
+                          {...form.register("code")}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Defaults to contact number. You can override this.
+                        </p>
+                        {form.formState.errors.code && (
+                          <p className="text-sm text-red-600">
+                            {form.formState.errors.code.message}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Total Play Time Minutes */}
+                      <div className="rounded w-full space-y-2">
+                        <Label className="font-semibold text-slate-700">
+                          Total Play Time
+                          <span className="text-xs font-normal text-slate-500 block">
+                            Default value is 180 minutes (3 hours)
+                          </span>
+                        </Label>
+                        <InputGroup>
+                          <InputGroupInput
+                            id="totalPlayTime"
+                            type="number"
+                            step={1}
+                            defaultValue={180}
+                            placeholder="Enter duration"
+                            required
+                            {...form.register("totalPlayTime", { valueAsNumber: true })}
+                          />
+
+                          <InputGroupAddon align="inline-end">
+                            <InputGroupText>minutes</InputGroupText>
+                          </InputGroupAddon>
+                        </InputGroup>
+                        {form.formState.errors.totalPlayTime && (
+                          <p className="text-sm text-red-600">
+                            {form.formState.errors.totalPlayTime.message}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Player Skill */}
+                      <div className="rounded w-full space-y-2">
+                        <Label className="font-semibold text-slate-700">Skill Level</Label>
+                        <Select
+                          value={form.watch("skill")}
+                          onValueChange={(v: PlayerSkill) => form.setValue("skill", v)}
+                        >
+                          <SelectTrigger className="h-12 w-full">
+                            <BicepsFlexed className="mr-3 h-5 w-5 text-primary" />
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(PlayerSkillLabels).map(([key, label]) => (
+                              <SelectItem key={key} value={key}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {form.formState.errors.skill && (
+                          <p className="text-sm text-red-600">
+                            {form.formState.errors.skill.message}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Assigned Courts */}
+                      <div className="rounded w-full flex flex-wrap gap-2">
+                        {getAssignedCourtPerSkill.length > 0 ? (
+                          getAssignedCourtPerSkill.map((court) => (
+                            <Badge key={court} variant="default" className="px-3 py-1">
+                              {court}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-sm text-muted-foreground">
+                            No courts assigned on {PlayerSkillLabels[form.watch("skill")]} skill
+                            level
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <DialogFooter>
+                      <Button
+                        type="submit"
+                        disabled={
+                          createMutation.isPending ||
+                          updateMutation.isPending ||
+                          !Boolean(getAssignedCourtPerSkill.length)
+                        }
+                      >
+                        {createMutation.isPending || updateMutation.isPending
+                          ? "Submitting..."
+                          : editingPlayer
+                            ? "Update Player"
+                            : "Register Player"}
+                      </Button>
+                    </DialogFooter>
+                  </fieldset>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <Tabs
+            defaultValue={openPlay?.formatted?.courts[0]?.skills.join(" | ") ?? ""}
+            className="w-full"
+          >
+            <TabsList>
+              {openPlay?.formatted?.courts.map((group) => (
+                <TabsTrigger key={group.id} value={group.skills.join(" | ")}>
+                  {group.skills.map((skill: PlayerSkill) => PlayerSkillLabels[skill]).join(" | ")}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            {openPlay?.formatted?.courts.map((group: any) => (
+              <TabsContent key={group.id} value={group.skills.join(" | ")}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>
+                      {group.skills
+                        .map((skill: PlayerSkill) => PlayerSkillLabels[skill])
+                        .join(" | ")}
+                    </CardTitle>
+                    <CardDescription>Courts available for these skill levels.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col gap-4">
+                      <div className="flex flex-wrap gap-2">
+                        {group.courts.map((court: any) => (
+                          <Badge key={court.id} variant="outline">
+                            {court.name}
+                          </Badge>
+                        ))}
+                      </div>
+
+                      {/* Players */}
+                      <div className="space-y-2 text-sm">
+                        {group.players && group.players.length > 0 ? (
+                          group.players.map((player: any, index: number) => (
+                            <div
+                              key={index}
+                              className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 shadow-sm gap-2"
+                            >
+                              <div className="sm:mr-4 min-w-[80px] text-sm">
+                                code:{" "}
+                                <span className="font-semibold text-primary ">
+                                  <CopyButton
+                                    text={player.code}
+                                    html={`strong>${player.code}</strong>`}
+                                  />
+                                  {player.code}
+                                </span>
+                              </div>
+                              <div className="sm:flex-1 text-sm font-medium">
+                                {player.playerName}
+                                <Badge variant="outline">
+                                  {PlayerSkillLabels[player.skill as PlayerSkill]}
+                                </Badge>
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                ({player.totalPlayTime || "N/A"} minutes Play Time)
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="xs"
+                                  variant="outline"
+                                  onClick={() => onEditPlayer(player)}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  size="xs"
+                                  variant="destructive"
+                                  onClick={() => onDeletePlayer(player)}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground">No players registered.</span>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            ))}
+          </Tabs>
 
           {/* Players */}
           <div className="space-y-2">

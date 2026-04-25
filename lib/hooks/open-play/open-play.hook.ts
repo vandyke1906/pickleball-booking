@@ -1,4 +1,10 @@
-import { Court, OpenPlay, OpenPlayCourt, OpenPlayPlayer } from "@/.config/prisma/generated/prisma"
+import {
+  Court,
+  OpenPlay,
+  OpenPlayCourt,
+  OpenPlayPlayer,
+  OpenPlayStatus,
+} from "@/.config/prisma/generated/prisma"
 import { fetcher } from "@/lib/hooks/common.hook"
 import { TCurrentGame, TQueueGroup } from "@/lib/type/openplay/openplay.type"
 import { TData } from "@/lib/type/util.type"
@@ -42,6 +48,12 @@ type OpenPlayListParams = {
 
 export type TOpenPlay = OpenPlay & {
   formatted: {
+    id: string
+    preparationSeconds: number
+    announcementMinutesBeforeTransition: number
+    status: OpenPlayStatus
+    courts: OpenPlayCourt[]
+    isActive: boolean
     date: string
     startedAt?: string
     startTime: string
@@ -53,7 +65,7 @@ export type TOpenPlay = OpenPlay & {
       endTime: string
     }
   }
-  courts: (OpenPlayCourt & { courts: Court[] })[]
+  courts: (OpenPlayCourt & { players: OpenPlayPlayer; courts: Court[] })[]
   players: OpenPlayPlayer[]
 }
 
