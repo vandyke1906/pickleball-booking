@@ -20,6 +20,7 @@ export const GET = withRateLimit(
       if (!activeOpenPlay)
         return NextResponse.json({ message: "No active Open Play found" }, { status: 404 })
 
+      return NextResponse.json(null)
       const manager = new QueueManager(activeOpenPlay.id)
       await manager.initializeData()
       const result = manager.compute({

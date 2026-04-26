@@ -9,7 +9,6 @@ model Court {
   openPlayCourts OpenPlayCourt[]
 
   bookings  Booking[]     @relation("BookingCourts")
-  queues    LineupQueue[] @relation("LineupQueues")
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 

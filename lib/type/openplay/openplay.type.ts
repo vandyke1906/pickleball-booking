@@ -2,11 +2,13 @@ import { OpenPlay } from "@/.config/prisma/generated/prisma"
 
 export type TQueuePlayer = {
   id: string
+  openPlayId: string
+  status: string
+  openPlayCourtId: string
   playerId: string
   playerName: string
   scheduledAt?: Date | null
   endedAt?: Date | null
-  courtId?: string | null
 }
 
 export type TQueueCourt = { id: string; name: string }

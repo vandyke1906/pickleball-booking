@@ -1,4 +1,6 @@
+import { LineupQueue } from "@/.config/prisma/generated/prisma"
 import { redisUrl } from "@/lib/redis/redis"
+import { TQueuePlayer } from "@/lib/type/openplay/openplay.type"
 import { Queue, Worker, QueueEvents, JobsOptions } from "bullmq"
 import Redis from "ioredis"
 
@@ -98,12 +100,12 @@ class QueueManager {
       async (job) => {
         switch (queueName) {
           case QUEUE_KEYS.LINEUP_PLAYER: {
-            const { playerId, openPlayId, courtId } = job.data
-            console.log(`[Worker:${queueName}] Player ${playerId} joined lineup`)
+            const player: TQueuePlayer = job.data
+            console.log(`[Worker:${queueName}] Player ${player.playerName} joined lineup`)
 
             await this.aggregateBatchPlayers(
-              `batch:${courtId}`, // redis batch key
-              { playerId, openPlayId, courtId }, // payload
+              `batch:${player.openPlayCourtId}`, // redis batch key
+              player, // payload
               4,
               {
                 onPromoted: (data) => {

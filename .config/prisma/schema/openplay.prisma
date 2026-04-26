@@ -37,8 +37,7 @@ model OpenPlayCourt {
   skills         PlayerSkill[]
   status QueueStatus @default(waiting)
 
-  scheduledAt DateTime?
-  endedAt     DateTime?
+  queues    LineupQueue[] @relation("LineupQueues")
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -82,15 +81,16 @@ model LineupQueue {
 
   status QueueStatus @default(waiting)
 
+  openPlayCourtId     String
+  openPlayCourt       OpenPlayCourt   @relation("LineupQueues", fields: [openPlayCourtId], references: [id], onDelete: Cascade)
+
   scheduledAt DateTime?
   endedAt     DateTime?
-  courtId     String?
-  court       Court?    @relation("LineupQueues", fields: [courtId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([playerId, openPlayId])
+  @@unique([playerId, openPlayId, openPlayCourtId])
   @@index([status])
   @@index([playerId])
 }
