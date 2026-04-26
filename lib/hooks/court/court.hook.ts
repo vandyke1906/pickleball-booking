@@ -1,5 +1,6 @@
 import {
   Organization,
+  OrganizationCustomPricingRule,
   OrganizationOpeningHour,
   OrganizationPricingRule,
 } from "@/.config/prisma/generated/prisma"
@@ -71,6 +72,7 @@ export function useOrganizationCourts({ slug }: { slug: string }) {
       courts: Array<Court>
       openingHours: OrganizationOpeningHour[]
       pricingRules: OrganizationPricingRule[]
+      customPricingRules: OrganizationCustomPricingRule[]
     }
   >({
     queryKey: qKeyCourts.organizationCourts(slug),

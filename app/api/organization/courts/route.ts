@@ -28,6 +28,16 @@ export const GET = withRateLimit(async (request: NextRequest) => {
           },
           orderBy: { startHour: "asc" },
         },
+        custompricingRules: {
+          select: {
+            startDate: true,
+            endDate: true,
+            startHour: true,
+            endHour: true,
+            price: true,
+          },
+          orderBy: { startHour: "asc" },
+        },
         courts: {
           select: {
             id: true,
@@ -52,6 +62,13 @@ export const GET = withRateLimit(async (request: NextRequest) => {
         startHour: r.startHour,
         endHour: r.endHour,
         price: r.price,
+      })),
+      customPricingRules: organization.custompricingRules.map((c) => ({
+        startDate: c.startDate,
+        endDate: c.endDate,
+        startHour: c.startHour,
+        endHour: c.endHour,
+        price: c.price,
       })),
       courts: organization.courts.map((court) => ({
         id: court.id,

@@ -8,6 +8,7 @@ export const BroadcastEventTypes = {
   SYSTEM_MAINTENANCE: "system:maintenance",
   BOOKING_CREATED: "booking:created",
   BOOKING_CANCELLED: "booking:cancelled",
+  ORGANIZATION_UPDATED: "organization:updated",
 } as const
 
 export type TEventType = (typeof BroadcastEventTypes)[keyof typeof BroadcastEventTypes]
