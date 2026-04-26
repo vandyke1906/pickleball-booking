@@ -10,7 +10,7 @@ let isSubscribed = false
 export function setupEventInvalidations(queryClient: QueryClient) {
   if (isSubscribed) return
   isSubscribed = true
-  
+
   // Initialize Pusher client
   const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
     cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
@@ -28,4 +28,7 @@ export function setupEventInvalidations(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: qKeyCourts.all, exact: false })
   })
 
+  channel.bind(BroadcastEventTypes.ORGANIZATION_UPDATED, (data: any) => {
+    queryClient.invalidateQueries({ queryKey: qKeyCourts.all, exact: false })
+  })
 }

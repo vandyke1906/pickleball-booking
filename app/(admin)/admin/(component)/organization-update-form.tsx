@@ -89,7 +89,7 @@ export default function OrganizationUpdateForm() {
       <fieldset disabled={isBusy} className="space-y-4 border p-4 rounded">
         <legend className="font-semibold text-lg">Opening Hours</legend>
         {openingHoursArray.fields.map((field, index) => (
-          <div key={field.id} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+          <div key={field.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
             {/* Start Hour */}
             <div className="space-y-1">
               <Label>Start Hour</Label>
@@ -170,7 +170,7 @@ export default function OrganizationUpdateForm() {
       <fieldset disabled={isBusy} className="space-y-4 border p-4 rounded">
         <legend className="font-semibold text-lg">Daily Pricing Rules</legend>
         {pricingRulesArray.fields.map((field, index) => (
-          <div key={field.id} className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-center">
+          <div key={field.id} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
             {/* Start Hour */}
             <div className="space-y-1">
               <Label>Start Hour</Label>
@@ -283,7 +283,10 @@ export default function OrganizationUpdateForm() {
             const endDate = form.watch(`customPricingRules.${index}.endDate`)
 
             return (
-              <div key={field.id} className="grid grid-cols-1 sm:grid-cols-6 gap-4 items-center">
+              <div
+                key={field.id}
+                className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-center"
+              >
                 {/* Start Date */}
                 <div className="space-y-1">
                   <Label>Start Date</Label>
