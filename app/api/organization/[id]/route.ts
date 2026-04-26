@@ -5,6 +5,7 @@ import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { isServerAuthenticated } from "@/lib/auth/auth.server"
+import { toPhilippineDateOnly } from "@/lib/utils"
 
 export const PUT = withRateLimit(
   async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
@@ -47,13 +48,17 @@ export const PUT = withRateLimit(
           },
           custompricingRules: {
             deleteMany: {},
-            create: customPricingRules.map((cr) => ({
-              startDate: cr.startDate,
-              endDate: cr.endDate,
-              startHour: cr.startHour,
-              endHour: cr.endHour,
-              price: cr.price,
-            })),
+            create: customPricingRules.map((cr) => {
+              const startDate = toPhilippineDateOnly(cr.startDate)
+              const endDate = toPhilippineDateOnly(cr.endDate)
+              return {
+                startDate: startDate,
+                endDate: endDate,
+                startHour: cr.startHour,
+                endHour: cr.endHour,
+                price: cr.price,
+              }
+            }),
           },
         },
       })

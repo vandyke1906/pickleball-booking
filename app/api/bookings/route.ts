@@ -5,7 +5,7 @@ import { put } from "@vercel/blob"
 import { customAlphabet } from "nanoid"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
-import { formatISO } from "date-fns"
+import { formatISO, startOfDay } from "date-fns"
 import {
   sendAdminBookingNotificationEmail,
   sendBookingConfirmationEmail,
@@ -175,7 +175,7 @@ export const POST = withRateLimit(async (req: Request) => {
       select: {
         id: true,
         organization: {
-          select: { pricingRules: true, email: true },
+          select: { pricingRules: true, custompricingRules: true, email: true },
         },
       },
     })
@@ -184,9 +184,10 @@ export const POST = withRateLimit(async (req: Request) => {
     const endHour = startHour + duration
 
     const pricingRules = courts[0]?.organization?.pricingRules || [] //Get pricing rules from the first court’s organization (all share the same org rules)
+    const customPricingRules = courts[0]?.organization?.custompricingRules || [] //Get pricing rules from the first court’s organization (all share the same org rules)
     const organizationEmail = courts[0]?.organization?.email || ""
 
-    const basePrice = calculateBasePrice(startHour, endHour, pricingRules)
+    const basePrice = calculateBasePrice(startHour, endHour, pricingRules, date, customPricingRules)
 
     // Multiply by number of courts selected
     const totalPrice = basePrice * courts.length
@@ -311,6 +312,14 @@ export function calculateBasePrice(
   startHour: number,
   endHour: number,
   pricingRules: { startHour: number; endHour: number; price: number }[],
+  currentDateString: string,
+  customPricingRules: {
+    startDate: Date
+    endDate: Date
+    startHour: number
+    endHour: number
+    price: number
+  }[],
 ): number {
   const normalizeRanges = (start: number, end: number) => {
     const ranges: { startHour: number; endHour: number }[] = []
@@ -328,10 +337,23 @@ export function calculateBasePrice(
 
   const ranges = normalizeRanges(startHour, endHour)
 
+  const customRules = customPricingRules || []
+
+  // Check if selected date falls within any custom pricing rule
+  const selectedDay = startOfDay(new Date(currentDateString))
+  const activeCustomRules = customRules.filter((rule) => {
+    const start = startOfDay(new Date(rule.startDate))
+    const end = startOfDay(new Date(rule.endDate))
+    return selectedDay >= start && selectedDay <= end
+  })
+
+  // Use custom rules if any match, otherwise fallback to base rules
+  const effectiveRules = activeCustomRules.length > 0 ? activeCustomRules : pricingRules
+
   return ranges.reduce((total, range) => {
     return (
       total +
-      pricingRules.reduce((sum, rule) => {
+      effectiveRules.reduce((sum, rule) => {
         const overlapStart = Math.max(range.startHour, rule.startHour)
         const overlapEnd = Math.min(range.endHour, rule.endHour)
         const hours = Math.max(0, overlapEnd - overlapStart)

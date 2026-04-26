@@ -255,7 +255,8 @@ export default function BookingPage({ slug }: { slug: string }) {
     const startTimeStr = form.watch("startTime") || "00:00"
     const duration = form.watch("duration") || 0
     const priceRules = orgWithCourts?.pricingRules || []
-    if (!duration) return 0
+    const customRules = orgWithCourts?.customPricingRules || []
+    if (!duration || !dateString) return 0
 
     const startHour = parseInt(startTimeStr.split(":")[0], 10) // Parse "HH:mm" into an integer hour
     const endHour = startHour + duration
@@ -276,10 +277,21 @@ export default function BookingPage({ slug }: { slug: string }) {
 
     const ranges = normalizeRanges(startHour, endHour)
 
+    // Check if selected date falls within any custom pricing rule
+    const selectedDay = startOfDay(new Date(dateString))
+    const activeCustomRules = customRules.filter((rule) => {
+      const start = startOfDay(new Date(rule.startDate))
+      const end = startOfDay(new Date(rule.endDate))
+      return selectedDay >= start && selectedDay <= end
+    })
+
+    // Use custom rules if any match, otherwise fallback to base rules
+    const effectiveRules = activeCustomRules.length > 0 ? activeCustomRules : priceRules
+
     const basePrice = ranges.reduce((sum, range) => {
       return (
         sum +
-        priceRules.reduce((innerSum, rule) => {
+        effectiveRules.reduce((innerSum, rule) => {
           const overlapStart = Math.max(range.startHour, rule.startHour)
           const overlapEnd = Math.min(range.endHour, rule.endHour)
           const hours = Math.max(0, overlapEnd - overlapStart)
@@ -289,7 +301,13 @@ export default function BookingPage({ slug }: { slug: string }) {
     }, 0)
 
     return basePrice * selectedCourtIds.length
-  }, [form.watch("courtIds"), form.watch("duration"), form.watch("startTime"), orgWithCourts])
+  }, [
+    form.watch("date"),
+    form.watch("courtIds"),
+    form.watch("duration"),
+    form.watch("startTime"),
+    orgWithCourts,
+  ])
 
   if (isLoadingOrgWithCourts) return <LoadingScreen />
   if (!orgWithCourts) notFound()

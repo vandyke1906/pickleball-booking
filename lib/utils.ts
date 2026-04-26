@@ -342,3 +342,21 @@ export const parseLocalDate = (dateString: string) => {
   const [year, month, day] = dateString.split("-").map(Number)
   return new Date(year, month - 1, day) // local midnight
 }
+
+/**
+ * Normalize any UTC ISO string or Date into
+ * Philippine local midnight (date-only).
+ *
+ * @param input - UTC ISO string or Date
+ * @returns Date object snapped to PH local midnight
+ */
+export function toPhilippineDateOnly(input: string | Date): Date {
+  const utcDate = typeof input === "string" ? new Date(input) : input
+  const phInstant = toPhilippineTime(utcDate)
+  const year = phInstant.getFullYear()
+  const month = phInstant.getMonth()
+  const day = phInstant.getDate()
+
+  // Build a new Date at PH local midnight
+  return new Date(Date.UTC(year, month, day, 0, 0, 0))
+}
