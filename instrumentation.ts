@@ -75,30 +75,30 @@ async function randomTest() {
     const limit = 20
     const jobs: Promise<any>[] = []
 
-    for (let counter = 0; counter < limit; counter++) {
-      const courtId = getRandomId(courtIds)
-      jobs.push(
-        manager.addJob(QUEUE_KEYS.LINEUP_PLAYER, courtId, {
-          playerId: `player ${counter + 1}`,
-          openPlayId: "1",
-          courtId,
-        }),
-      )
-    }
+    // for (let counter = 0; counter < limit; counter++) {
+    //   const courtId = getRandomId(courtIds)
+    //   jobs.push(
+    //     manager.addJob(QUEUE_KEYS.LINEUP_PLAYER, courtId, {
+    //       playerId: `player ${counter + 1}`,
+    //       openPlayId: "1",
+    //       courtId,
+    //     }),
+    //   )
+    // }
 
-    // Fire them all at once, but don’t await each individually
-    Promise.allSettled(jobs).then((results) => {
-      console.info(
-        "BatchTest finished, results:",
-        results.map((r, idx) => {
-          if (r.status === "fulfilled") {
-            const job = r.value
-            return `Job ${idx + 1}: player=${job.data.playerId} on court=${job.data.courtId}, status=fulfilled`
-          } else {
-            return `Job ${idx + 1}: status=failed, reason=${r.reason}`
-          }
-        }),
-      )
-    })
+    // // Fire them all at once, but don’t await each individually
+    // Promise.allSettled(jobs).then((results) => {
+    //   console.info(
+    //     "BatchTest finished, results:",
+    //     results.map((r, idx) => {
+    //       if (r.status === "fulfilled") {
+    //         const job = r.value
+    //         return `Job ${idx + 1}: player=${job.data.playerId} on court=${job.data.courtId}, status=fulfilled`
+    //       } else {
+    //         return `Job ${idx + 1}: status=failed, reason=${r.reason}`
+    //       }
+    //     }),
+    //   )
+    // })
   }, 2000)
 }
