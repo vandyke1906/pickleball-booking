@@ -1,16 +1,25 @@
 "use client"
 
-import { normalizeOpeningHoursClient } from "@/lib/utils"
+import { Separator } from "@/components/ui/separator"
+import { normalizeOpeningHoursClient, toPhilippineDateOnly } from "@/lib/utils"
 import { motion } from "framer-motion"
 import { Clock, PhilippinePeso, MapPin } from "lucide-react"
 
 type OpeningHour = { startHour: number; endHour: number }
 type PricingRule = { startHour: number; endHour: number; price: number }
+type CustomPricingRule = {
+  startDate: Date
+  endDate: Date
+  startHour: number
+  endHour: number
+  price: number
+}
 type Court = { id: string; name: string; location: string }
 
 interface OrgProps {
   openingHours: OpeningHour[]
   pricingRules: PricingRule[]
+  customPricingRules: CustomPricingRule[]
   courts: Court[]
 }
 
@@ -76,6 +85,54 @@ export function normalizePricingRulesClient(rules: PricingRule[]): PricingRule[]
 
   return normalized
 }
+
+/**
+ * Normalize pricing rules:
+ * - Snap startDate/endDate to PH local midnight (date-only)
+ * - Merge adjacent/same-price hour ranges
+ */
+export function normalizeCustomPricingRules(rules: CustomPricingRule[]): CustomPricingRule[] {
+  // First normalize dates
+  const withNormalizedDates = rules.map((rule) => ({
+    ...rule,
+    startDate: toPhilippineDateOnly(rule.startDate),
+    endDate: toPhilippineDateOnly(rule.endDate),
+  }))
+
+  // Then reuse your existing hour-merging logic
+  const sorted = [...withNormalizedDates].sort((a, b) => a.startHour - b.startHour)
+  const normalized: CustomPricingRule[] = []
+
+  for (const current of sorted) {
+    const prev = normalized[normalized.length - 1]
+    if (prev && prev.price === current.price) {
+      if (prev.endHour === 24 && current.startHour === 0) {
+        prev.endHour = 24 + current.endHour
+        continue
+      }
+      if (prev.endHour === current.startHour) {
+        prev.endHour = current.endHour
+        continue
+      }
+    }
+    normalized.push({ ...current })
+  }
+
+  if (
+    normalized.length >= 2 &&
+    normalized[0].startHour === 0 &&
+    normalized[normalized.length - 1].endHour === 24 &&
+    normalized[0].price === normalized[normalized.length - 1].price
+  ) {
+    const last = normalized.pop()!
+    last.endHour = 24 + normalized[0].endHour
+    normalized.shift()
+    normalized.push(last)
+  }
+
+  return normalized
+}
+
 const container = {
   hidden: { opacity: 0 },
   show: {
@@ -93,9 +150,16 @@ const item = {
   },
 }
 
-export function OrganizationInfo({ openingHours, pricingRules, courts }: OrgProps) {
+export function OrganizationInfo({
+  openingHours,
+  pricingRules,
+  courts,
+  customPricingRules = [],
+}: OrgProps) {
   const normalizedHours = normalizeOpeningHoursClient(openingHours)
   const normalizedPricing = normalizePricingRulesClient(pricingRules)
+  const normalizedCustomPricing = normalizeCustomPricingRules(customPricingRules)
+  const groupedCustomPricing = groupByDate(normalizedCustomPricing)
 
   return (
     <div className="py-10 px-6">
@@ -126,19 +190,31 @@ export function OrganizationInfo({ openingHours, pricingRules, courts }: OrgProp
           {/* Pricing Rules */}
           <motion.div
             variants={item}
-            className="bg-slate-800/60 rounded-xl p-6 hover:shadow-xl hover:shadow-gray-100/80 transition-all group overflow-hidden"
+            className="bg-slate-800/70 rounded-xl p-6 shadow-md hover:shadow-lg transition-all group overflow-hidden"
           >
-            <div className="flex items-center gap-2 mb-4">
-              <PhilippinePeso className="h-8 w-8 text-white" />
-              <h3 className="text-lg font-semibold text-white">Pricing</h3>
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-6">
+              <PhilippinePeso className="h-7 w-7 text-primary" />
+              <h3 className="text-xl font-semibold text-white tracking-wide">Pricing</h3>
             </div>
-            <ul className="space-y-2 text-gray-200">
+
+            {/* Normalized Pricing */}
+            <ul className="space-y-2 text-gray-200 mb-6">
               {normalizedPricing.map((p, i) => (
-                <li key={i}>
-                  {formatRange(p.startHour, p.endHour)} → ₱{p.price}
+                <li key={i} className="flex justify-between">
+                  <span>{formatRange(p.startHour, p.endHour)}</span>
+                  <span className="font-medium">₱{p.price}</span>
                 </li>
               ))}
             </ul>
+
+            <Separator className="my-4 opacity-50" />
+
+            {/* Custom Pricing */}
+            <div>
+              <h4 className="text-lg font-semibold text-white mb-3">Custom Dates</h4>
+              <CustomPricingDisplay groupedCustomPricing={groupedCustomPricing} />
+            </div>
           </motion.div>
 
           {/* Courts */}
@@ -160,6 +236,61 @@ export function OrganizationInfo({ openingHours, pricingRules, courts }: OrgProp
           </motion.div>
         </div>
       </motion.div>
+    </div>
+  )
+}
+
+// Group rules by startDate/endDate
+function groupByDate(rules: CustomPricingRule[]) {
+  const groups: Record<string, CustomPricingRule[]> = {}
+
+  rules.forEach((rule) => {
+    const key = `${rule.startDate.toISOString()}-${rule.endDate.toISOString()}`
+    if (!groups[key]) groups[key] = []
+    groups[key].push(rule)
+  })
+
+  return groups
+}
+
+function CustomPricingDisplay({
+  groupedCustomPricing,
+}: {
+  groupedCustomPricing: Record<string, CustomPricingRule[]>
+}) {
+  return (
+    <div className="space-y-6">
+      {Object.entries(groupedCustomPricing).map(([key, rules]) => {
+        const first = rules[0]
+        const startLabel = first.startDate.toLocaleDateString("en-PH", {
+          timeZone: "Asia/Manila",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+        const endLabel = first.endDate.toLocaleDateString("en-PH", {
+          timeZone: "Asia/Manila",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+
+        return (
+          <div key={key}>
+            <h3 className="text-gray-100 font-semibold">
+              {startLabel}
+              {startLabel !== endLabel && <> → {endLabel}</>}
+            </h3>
+            <ul className="space-y-2 text-gray-200">
+              {rules.map((p, i) => (
+                <li key={i}>
+                  {formatRange(p.startHour, p.endHour)} → ₱{p.price}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      })}
     </div>
   )
 }

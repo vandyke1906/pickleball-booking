@@ -674,6 +674,7 @@ export default function BookingPage({ slug }: { slug: string }) {
             courts={orgWithCourts.courts}
             openingHours={orgWithCourts.openingHours}
             pricingRules={orgWithCourts.pricingRules}
+            customPricingRules={orgWithCourts.customPricingRules}
           />
         )}
       </div>
