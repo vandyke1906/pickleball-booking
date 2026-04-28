@@ -112,9 +112,11 @@ class QueueManager {
                 onPromoted: (data) => {
                   console.info(`Promoted: ${JSON.stringify(data, null, 2)}`)
 
-                  // scheduleGroup(data).then((data) => {
-                  //   console.info(`##Scheduled: ${JSON.stringify(data, null, 2)}`)
-                  // }).catch(console.error)
+                  scheduleGroup(data)
+                    .then((data) => {
+                      console.info(`##Scheduled: ${JSON.stringify(data, null, 2)}`)
+                    })
+                    .catch(console.error)
 
                   // await this.queues[targetQueueName].add(
                   //   targetJobName,
@@ -178,32 +180,41 @@ class QueueManager {
     return parsed
   }
 
-  /**
-   * Aggregate jobs into batches of players before promoting to next queue.
-   * @param batchKey - redis key to track batch state
-   * @param payload - job payload
-   * @param batchSize - number of jobs per batch
-   * @param options - optional
-   * @param options.onPromoted - callback when batch is promoted
-   */
   async aggregateBatchPlayers<T>(
     batchKey: string,
     payload: T,
     batchSize: number,
-    options?: {
-      onPromoted?: (data: any) => void
-    },
+    options?: { onPromoted?: (data: any) => void },
   ) {
-    await this.connection.rpush(batchKey, JSON.stringify(payload)) // Push payload to the *end* of the list (FIFO)
+    const lua = `
+    local key = KEYS[1]
+    local payload = ARGV[1]
+    local batchSize = tonumber(ARGV[2])
 
-    const currentSize = await this.connection.llen(batchKey)
-    console.log(`[QueueManager] ${currentSize}/${batchSize} items in ${batchKey}`)
+    -- Push payload
+    redis.call("RPUSH", key, payload)
+    local size = redis.call("LLEN", key)
 
-    if (currentSize >= batchSize) {
-      const group = await this.connection.lrange(batchKey, 0, batchSize - 1) // Get the first N items (FIFO order)
-      const parsed = group.map((item) => JSON.parse(item))
-      await this.connection.ltrim(batchKey, batchSize, -1) // Trim list to remove those items
-      // console.log(`\n[QueueManager] Batch of ${batchSize} promoted (FIFO).\n`)
+    if size >= batchSize then
+      local group = redis.call("LRANGE", key, 0, batchSize - 1)
+      redis.call("LTRIM", key, batchSize, -1)
+      return group
+    else
+      return {}
+    end
+  `
+
+    const raw = await this.connection.eval(
+      lua,
+      1,
+      batchKey,
+      JSON.stringify(payload),
+      batchSize.toString(),
+    )
+    const result: string[] = Array.isArray(raw) ? (raw as string[]) : []
+
+    if (result.length > 0) {
+      const parsed = result.map((item) => JSON.parse(item))
       options?.onPromoted?.(parsed)
     }
   }
