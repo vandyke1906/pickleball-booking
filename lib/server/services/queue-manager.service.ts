@@ -1,5 +1,6 @@
 import { LineupQueue } from "@/.config/prisma/generated/prisma"
 import { redisUrl } from "@/lib/redis/redis"
+import { scheduleGroup } from "@/lib/server/action/openplay.action"
 import { TQueuePlayer } from "@/lib/type/openplay/openplay.type"
 import { Queue, Worker, QueueEvents, JobsOptions } from "bullmq"
 import Redis from "ioredis"
@@ -110,6 +111,9 @@ class QueueManager {
               {
                 onPromoted: (data) => {
                   console.info(`Promoted: ${JSON.stringify(data, null, 2)}`)
+                  scheduleGroup(data).then((data) => {
+                    console.info(`##Scheduled: ${JSON.stringify(data, null, 2)}`)
+                  }).catch(console.error)
                   // await this.queues[targetQueueName].add(
                   //   targetJobName,
                   //   { group: parsed },
@@ -196,10 +200,9 @@ class QueueManager {
     if (currentSize >= batchSize) {
       const group = await this.connection.lrange(batchKey, 0, batchSize - 1) // Get the first N items (FIFO order)
       const parsed = group.map((item) => JSON.parse(item))
-      options?.onPromoted?.(parsed)
-      // console.log(`\n[QueueManager] Batch of ${batchSize} promoted (FIFO).\n`)
-
       await this.connection.ltrim(batchKey, batchSize, -1) // Trim list to remove those items
+      // console.log(`\n[QueueManager] Batch of ${batchSize} promoted (FIFO).\n`)
+      options?.onPromoted?.(parsed)
     }
   }
 }

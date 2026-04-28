@@ -86,6 +86,9 @@ model LineupQueue {
 
   scheduledAt DateTime?
   endedAt     DateTime?
+  assignedCourtId     String?
+  assignedCourt       Court?   @relation(fields: [assignedCourtId], references: [id], onDelete: Cascade)
+
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -98,6 +101,7 @@ model LineupQueue {
 enum QueueStatus {
   waiting
   queued
+  scheduled
   playing
   finished
 }

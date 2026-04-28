@@ -7,6 +7,8 @@ model Court {
   organization   Organization @relation(fields: [organizationId], references: [id])
 
   openPlayCourts OpenPlayCourt[]
+  assignedQueues LineupQueue[]
+
 
   bookings  Booking[]     @relation("BookingCourts")
   createdAt DateTime      @default(now())

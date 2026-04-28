@@ -47,9 +47,6 @@ export const POST = withRateLimit(
 
         // Initialize lineup for registered players
         if (status === OpenPlayStatus.active) {
-          console.info("Initializing lineup for registered players...")
-          const lineups = await initializeLineup(tx, openPlay.id)
-
           //update ui of all clients on openplay
           EventBroadcast({
             type: BroadcastEventTypes.OPENPLAY_UPDATED,

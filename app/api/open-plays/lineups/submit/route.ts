@@ -1,10 +1,8 @@
-import { OpenPlayStatus, QueueStatus } from "@/.config/prisma/generated/prisma"
+import { OpenPlayStatus, PlayerSkill, QueueStatus } from "@/.config/prisma/generated/prisma"
 import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
-import { createLineupEntries } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
-import { QueueManager } from "@/lib/server/services/queue-manager.v1.service"
 import { NextRequest, NextResponse } from "next/server"
 
 export const POST = withRateLimit(async (req: NextRequest) => {
@@ -12,17 +10,17 @@ export const POST = withRateLimit(async (req: NextRequest) => {
     const formData = await req.formData()
     const openPlayId = formData.get("openPlayId") as string
     const code = formData.get("code") as string
+    // const skill = formData.get("skill") as PlayerSkill
 
+    // const skillExist = Object.keys(PlayerSkill).some(key => key.toLowerCase().includes(skill.toLowerCase()) )
     if (!openPlayId || !code) throw new Error("Missing required fields")
 
     const result = await prisma.$transaction(async (tx) => {
       // Find player
-      const openPlayPlayer = await tx.openPlayPlayer.findUnique({
+      const openPlayPlayer = await tx.openPlayPlayer.findFirst({
         where: {
-          openPlayId_code: {
             openPlayId,
             code: code.trim(),
-          },
         },
         include: {
           openPlay: {
@@ -55,11 +53,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       })
 
       if (existing) throw new Error("You are already in the queue")
-      await createLineupEntries(tx, [openPlayPlayer])
-
-      const manager = new QueueManager(openPlayId)
-      await manager.scheduleWaitingPlayers(tx)
-
+      //TODO add in the queue
       //update ui of all clients on openplay
       EventBroadcast({
         type: BroadcastEventTypes.OPENPLAY_UPDATED,
