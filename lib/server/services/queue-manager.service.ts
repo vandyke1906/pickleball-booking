@@ -111,9 +111,11 @@ class QueueManager {
               {
                 onPromoted: (data) => {
                   console.info(`Promoted: ${JSON.stringify(data, null, 2)}`)
-                  scheduleGroup(data).then((data) => {
-                    console.info(`##Scheduled: ${JSON.stringify(data, null, 2)}`)
-                  }).catch(console.error)
+
+                  // scheduleGroup(data).then((data) => {
+                  //   console.info(`##Scheduled: ${JSON.stringify(data, null, 2)}`)
+                  // }).catch(console.error)
+
                   // await this.queues[targetQueueName].add(
                   //   targetJobName,
                   //   { group: parsed },

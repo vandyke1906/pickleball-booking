@@ -17,7 +17,7 @@ async function createLineupEntries(
       openPlayCourtId: p.openPlayCourtId,
       scheduledAt: null,
       endedAt: null,
-      assignedCourtId: null
+      assignedCourtId: null,
     })),
   })
 }
@@ -46,7 +46,7 @@ export async function initializeLineup(tx: TPrismaTransaction, openPlayId: strin
 
   const playersWithCourt = players
     .filter((p) => skillCourtMap.has(p.skill))
-    .map((p) => ({ ...p, openPlayCourtId: skillCourtMap.get(p.skill)!  }))
+    .map((p) => ({ ...p, openPlayCourtId: skillCourtMap.get(p.skill)! }))
   if (players.length === 0) throw new Error("No available registered player!")
 
   await createLineupEntries(tx, playersWithCourt)
@@ -100,7 +100,6 @@ export async function deleteQueuedPlayers(playerIds: string[] = []) {
   }
 }
 
-
 async function getCourtAvailability(openPlayCourtId: string, tx?: TPrismaTransaction) {
   const db = tx ?? prisma
   const openPlayCourt = await db.openPlayCourt.findUnique({
@@ -110,90 +109,89 @@ async function getCourtAvailability(openPlayCourtId: string, tx?: TPrismaTransac
       courts: true,
       queues: {
         where: {
-          status: QueueStatus.scheduled
+          status: QueueStatus.scheduled,
         },
         select: {
           assignedCourtId: true,
-          endedAt: true
-        }
-      }
-    }
-  });
+          endedAt: true,
+        },
+      },
+    },
+  })
 
-  if (!openPlayCourt) throw new Error("OpenPlayCourt not found");
+  if (!openPlayCourt) throw new Error("OpenPlayCourt not found")
 
-  const courtMap: Record<string, Date> = {};
+  const courtMap: Record<string, { date: Date; isFirst: boolean }> = {}
 
-  // ✅ initialize with OpenPlay startTime
+  // initialize with OpenPlay startTime
   for (const c of openPlayCourt.courts) {
-    courtMap[c.id] = new Date(openPlayCourt.openPlay.startTime);
+    courtMap[c.id] = { date: new Date(openPlayCourt.openPlay.startTime), isFirst: true }
   }
 
-  // ✅ compute latest endedAt per court
+  // compute latest endedAt per court
   for (const q of openPlayCourt.queues) {
     if (q.assignedCourtId && q.endedAt) {
-      const current = courtMap[q.assignedCourtId];
+      const current = courtMap[q.assignedCourtId]
 
-      if (!current || q.endedAt > current) {
-        courtMap[q.assignedCourtId] = q.endedAt;
+      if (!current || q.endedAt > current.date) {
+        courtMap[q.assignedCourtId] = { date: q.endedAt, isFirst: false }
       }
     }
   }
 
-  return courtMap;
+  return courtMap
 }
 
-function getNextAvailableCourt(courtMap: Record<string, Date>) {
+function getNextAvailableCourt(courtMap: Record<string, { date: Date; isFirst: boolean }>) {
   const sorted = Object.entries(courtMap).sort(
-    (a, b) => a[1].getTime() - b[1].getTime()
-  );
-
-  const [courtId, availableAt] = sorted[0];
-
-  return { courtId, availableAt };
+    (a: any, b: any) => a[1].date.getTime() - b[1].date.getTime(),
+  )
+  const [courtId, { date, isFirst }] = sorted[0]
+  return { courtId, availableAt: date, isFirst }
 }
 
-async function getNextCourt(openPlayCourtId: string) {
-  const map = await getCourtAvailability(openPlayCourtId);
-  return getNextAvailableCourt(map);
+async function getNextCourt(openPlayCourtId: string, tx?: TPrismaTransaction) {
+  const map = await getCourtAvailability(openPlayCourtId, tx)
+  return getNextAvailableCourt(map)
 }
 
 export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
-  if (!group.length) return;
+  if (!group.length) return
 
-  const db = tx ?? prisma;
+  const db = tx ?? prisma
 
-  const openPlayCourtId = group[0].openPlayCourtId;
+  const openPlayCourtId = group[0].openPlayCourtId
 
-  // 1. Get court availability (REUSABLE)
-  const courtMap = await getCourtAvailability(openPlayCourtId, db);
+  // // 1. Get court availability (REUSABLE)
+  // const courtMap = await getCourtAvailability(openPlayCourtId, db)
 
-  // 2. Pick next available court (REUSABLE)
-  const { courtId: selectedCourtId, availableAt } =
-    getNextAvailableCourt(courtMap);
+  // // 2. Pick next available court (REUSABLE)
+  // const { courtId: selectedCourtId, availableAt } = getNextAvailableCourt(courtMap)
+
+  const { courtId: selectedCourtId, availableAt, isFirst } = await getNextCourt(openPlayCourtId, db)
 
   // 3. Load OpenPlay config (ONLY once, lightweight fetch)
   const openPlayCourt = await db.openPlayCourt.findUnique({
     where: { id: openPlayCourtId },
     include: {
-      openPlay: true
-    }
-  });
+      openPlay: true,
+    },
+  })
 
-  if (!openPlayCourt) throw new Error("OpenPlayCourt not found");
+  if (!openPlayCourt) throw new Error("OpenPlayCourt not found")
 
-  const { transitionMinutes, preparationSeconds } = openPlayCourt.openPlay;
+  const { transitionMinutes, preparationSeconds } = openPlayCourt.openPlay
 
   // 4. Compute schedule timing
-  const playDuration = transitionMinutes * 60 * 1000;
-  const buffer = preparationSeconds * 1000;
+  const playDuration = transitionMinutes * 60 * 1000
+  const buffer = preparationSeconds * 1000
 
-  const startAt = new Date(availableAt);
-  const endAt = new Date(startAt.getTime() + playDuration);
-  const nextAvailableAt = new Date(endAt.getTime() + buffer);
+  const startAt = isFirst ? new Date(availableAt) : new Date(availableAt.getTime() + buffer)
+  const endAt = new Date(startAt.getTime() + playDuration)
+  const nextAvailableAt = new Date(endAt.getTime() + buffer)
 
   // 5. Persist lineup updates (single transaction-friendly block)
-  const results = [];
+  const results = []
 
   for (const player of group) {
     const queue = await db.lineupQueue.upsert({
@@ -201,14 +199,14 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
         playerId_openPlayId_openPlayCourtId: {
           playerId: player.id,
           openPlayId: player.openPlayId,
-          openPlayCourtId: player.openPlayCourtId
-        }
+          openPlayCourtId: player.openPlayCourtId,
+        },
       },
       update: {
         assignedCourtId: selectedCourtId,
         scheduledAt: startAt,
         endedAt: endAt,
-        status: QueueStatus.scheduled
+        status: QueueStatus.scheduled,
       },
       create: {
         playerId: player.id,
@@ -217,11 +215,11 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
         assignedCourtId: selectedCourtId,
         scheduledAt: startAt,
         endedAt: endAt,
-        status: QueueStatus.scheduled
-      }
-    });
+        status: QueueStatus.scheduled,
+      },
+    })
 
-    results.push(queue);
+    results.push(queue)
   }
 
   return {
@@ -229,6 +227,6 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
     scheduledAt: startAt,
     endedAt: endAt,
     nextAvailableAt,
-    players: results
-  };
+    players: results,
+  }
 }
