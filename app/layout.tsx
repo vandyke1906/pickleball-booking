@@ -20,13 +20,13 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   title: "Pickleball Booking",
   description: "Online Pickleball Booking System",
   openGraph: {
     title: "Pickl. Digos",
     description:
       "Book your pickleball court easily. Fast, reliable, and hassle-free scheduling for players and enthusiasts.",
-    url: "https://pickleballbook.vercel.app",
     siteName: "PickleballBooking",
     images: [
       {
