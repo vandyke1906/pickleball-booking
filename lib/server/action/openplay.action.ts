@@ -83,15 +83,15 @@ export async function submitLineup(
   const player = await tx.openPlayPlayer.findUnique({
     where: { id: playerId },
     include: { openPlay: true },
-  });
-  if (!player) throw new Error("Player not found");
+  })
+  if (!player) throw new Error("Player not found")
 
   // Resolve court assignment based on skill
   const opCourt = await tx.openPlayCourt.findFirst({
     where: { openPlayId, skills: { has: player.skill } },
     select: { id: true },
-  });
-  if (!opCourt) throw new Error("No matching court for player skill");
+  })
+  if (!opCourt) throw new Error("No matching court for player skill")
 
   // Insert into lineupQueue
   await tx.lineupQueue.create({
@@ -104,13 +104,13 @@ export async function submitLineup(
       endedAt: null,
       assignedCourtId: null,
     },
-  });
+  })
 
   // Add job to manager
   await manager.addJob(QUEUE_KEYS.LINEUP_PLAYER, opCourt.id, {
     ...player,
     openPlayCourtId: opCourt.id,
-  });
+  })
 }
 
 // Check if player still has allowance based on elapsed time
@@ -257,6 +257,26 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
       },
     })
 
+    console.info("xxxxxxxxxxxxxxxxx")
+    // Only update OpenPlayPlayer if startAt or endAt is still null
+    const computedEndAt = new Date(
+      (queue.scheduledAt?.getTime() ?? startAt.getTime()) + player.totalPlayTime * 60000,
+    )
+
+    console.info(`************${JSON.stringify(player, null, 2)} -> ${startAt} = ${computedEndAt}`)
+
+    // Only update if startAt or endAt is missing
+    await db.openPlayPlayer.updateMany({
+      where: {
+        id: player.id,
+        OR: [{ startAt: null }, { endAt: null }],
+      },
+      data: {
+        startAt: queue.scheduledAt ?? startAt,
+        endAt: computedEndAt,
+      },
+    })
+
     results.push(queue)
   }
 
@@ -269,115 +289,14 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
   }
 }
 
-// export async function getOpenPlaySchedules(  openPlayId: string = "",
-//   options?: {
-//     tx?: TPrismaTransaction
-//     onGroupDone?: (game: TCurrentGame) => void
-//   }) {
-//   const db = options?.tx ?? prisma
-//   const activeOpenPlay = await db.openPlay.findUnique({
-//     where: { id: openPlayId },
-//     select: {
-//       id: true,
-//       startTime: true,
-//       endTime: true,
-//       isActive: true,
-//       isCompleted: true,
-//       startedAt: true,
-//       transitionMinutes: true,
-//       announcementMinutesBeforeTransition: true,
-//       preparationSeconds: true,
-//       organizationId: true,
-//       createdAt: true,
-//       updatedAt: true,
-//       status: true,
-//       queues: {
-//         orderBy: { createdAt: "asc" },
-//         select: {
-//           id: true,
-//           playerId: true,
-//           player: true,
-//           scheduledAt: true,
-//           endedAt: true,
-//           openPlayCourtId: true,
-//           openPlayCourt: { select: { id: true } },
-//           assignedCourtId: true,
-//           assignedCourt: { select: { id: true, name: true } },
-//         },
-//       },
-//       courts: { select: { id: true, courts: { select: { id: true, name: true } } } },
-//     },
-//   });
-
-//   if (!activeOpenPlay) 
-//     throw new Error("OpenPlay not found");
-  
-
-//   const now = new Date();
-
-//   // Current games: scheduledAt <= now and (no endedAt OR endedAt > now)
-//   const currentGames = activeOpenPlay.queues
-//     .filter((q:any) => q.scheduledAt && q.scheduledAt <= now && (!q.endedAt || q.endedAt > now))
-//     .map((q:any) => ({
-//       id: q.id,
-//       court: q.assignedCourt ?? q.openPlayCourt,
-//       players: [q.player],
-//       startTime: q.scheduledAt!,
-//       estimatedEndTime: q.endedAt ??
-//         new Date(q.scheduledAt!.getTime() + activeOpenPlay.transitionMinutes * 60000),
-//       isPreparing:
-//         q.scheduledAt &&
-//         now.getTime() < q.scheduledAt.getTime() + activeOpenPlay.preparationSeconds * 1000,
-//     }));
-
-//   // Completed games: endedAt <= now
-//   const completedGames = activeOpenPlay.queues
-//     .filter((q:any) => q.endedAt && q.endedAt <= now)
-//     .map((q:any) => ({
-//       id: q.id,
-//       court: q.assignedCourt ?? q.openPlayCourt,
-//       players: [q.player],
-//       startTime: q.scheduledAt,
-//       endedAt: q.endedAt!,
-//     }));
-
-//   // Queue: scheduledAt > now (future games)
-//   const queue = activeOpenPlay.queues.filter((q:any) => q.scheduledAt && q.scheduledAt > now);
-
-//   // Waiting players: no scheduledAt yet
-//   const waitingPlayers = activeOpenPlay.queues.filter((q:any) => !q.scheduledAt);
-
-//   // Next transition: earliest scheduledAt in the future
-//   const nextTransition =
-//     queue.length > 0
-//       ? queue.map((q:any) => q.scheduledAt).filter(Boolean).sort()[0] ?? null
-//       : null;
-
-//   // Fire callback for completed games
-//   if (options?.onGroupDone) 
-//     completedGames.forEach((game: any) => options?.onGroupDone?.(game));
-  
-
-//   return {
-//     isStarted: !!activeOpenPlay.startedAt,
-//     openPlay: activeOpenPlay,
-//     currentGames,
-//     queue,
-//     completedGames,
-//     waitingPlayers,
-//     nextTransition,
-//   };
-// }
-
-
 export async function getOpenPlaySchedules(
   openPlayId: string = "",
   options?: {
     tx?: any
     onGroupDone?: (game: TCurrentGame) => void
-  }
+  },
 ) {
-  const db = options?.tx ?? prisma;
+  const db = options?.tx ?? prisma
   const activeOpenPlay = await db.openPlay.findUnique({
     where: { id: openPlayId },
     select: {
@@ -411,11 +330,11 @@ export async function getOpenPlaySchedules(
       },
       courts: { select: { id: true, courts: { select: { id: true, name: true } } } },
     },
-  });
+  })
 
-  if (!activeOpenPlay) throw new Error("OpenPlay not found");
+  if (!activeOpenPlay) throw new Error("OpenPlay not found")
 
-  const now = new Date();
+  const now = new Date()
 
   // Map queue record into TQueuePlayer
   const toQueuePlayer = (q: any): TQueuePlayer => ({
@@ -427,71 +346,84 @@ export async function getOpenPlaySchedules(
     playerName: q.player.playerName,
     scheduledAt: q.scheduledAt,
     endedAt: q.endedAt,
-  });
+  })
 
   // Group players by court + scheduledAt
   function groupByCourtAndTime(queues: any[]): Record<string, TQueuePlayer[]> {
-    const grouped: Record<string, TQueuePlayer[]> = {};
-    queues.forEach((q:any) => {
-      if (!q.scheduledAt) return;
-      const key = `${q.assignedCourt?.id ?? q.openPlayCourt?.id}-${q.scheduledAt.getTime()}`;
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(toQueuePlayer(q));
-    });
-    return grouped;
+    const grouped: Record<string, TQueuePlayer[]> = {}
+    queues.forEach((q: any) => {
+      if (!q.scheduledAt) return
+      const key = `${q.assignedCourt?.id ?? q.openPlayCourt?.id}-${q.scheduledAt.getTime()}`
+      if (!grouped[key]) grouped[key] = []
+      grouped[key].push(toQueuePlayer(q))
+    })
+    return grouped
   }
 
   // Current games
-  const currentGames: TCurrentGame[] = [];
+  const currentGames: TCurrentGame[] = []
   const currentGrouped = groupByCourtAndTime(
-    activeOpenPlay.queues.filter((q:any) => q.scheduledAt && q.scheduledAt <= now && (!q.endedAt || q.endedAt > now))
-  );
+    activeOpenPlay.queues.filter(
+      (q: any) => q.scheduledAt && q.scheduledAt <= now && (!q.endedAt || q.endedAt > now),
+    ),
+  )
   Object.entries(currentGrouped).forEach(([key, players]) => {
-    const [courtId, timeMs] = key.split("-");
-    const scheduledAt = new Date(Number(timeMs));
-    const court = activeOpenPlay.queues.find((q:any) => (q.assignedCourt?.id ?? q.openPlayCourt?.id) === courtId);
+    const [courtId, timeMs] = key.split("-")
+    const scheduledAt = new Date(Number(timeMs))
+    const court = activeOpenPlay.queues.find(
+      (q: any) => (q.assignedCourt?.id ?? q.openPlayCourt?.id) === courtId,
+    )
     if (court) {
       currentGames.push({
         courtId,
         courtName: court.assignedCourt?.name ?? "",
         players,
         startTime: scheduledAt,
-        estimatedEndTime: new Date(scheduledAt.getTime() + activeOpenPlay.transitionMinutes * 60000),
-        isPreparing: now.getTime() < scheduledAt.getTime() + activeOpenPlay.preparationSeconds * 1000,
-      });
+        estimatedEndTime: new Date(
+          scheduledAt.getTime() + activeOpenPlay.transitionMinutes * 60000,
+        ),
+        isPreparing:
+          now.getTime() < scheduledAt.getTime() + activeOpenPlay.preparationSeconds * 1000,
+      })
     }
-  });
+  })
 
   // Completed games
-  const completedGames: TCurrentGame[] = [];
+  const completedGames: TCurrentGame[] = []
   const completedGrouped = groupByCourtAndTime(
-    activeOpenPlay.queues.filter((q:any) => q.endedAt && q.endedAt <= now)
-  );
+    activeOpenPlay.queues.filter((q: any) => q.endedAt && q.endedAt <= now),
+  )
   Object.entries(completedGrouped).forEach(([key, players]) => {
-    const [courtId, timeMs] = key.split("-");
-    const scheduledAt = new Date(Number(timeMs));
-    const court = activeOpenPlay.queues.find((q:any) => (q.assignedCourt?.id ?? q.openPlayCourt?.id) === courtId);
+    const [courtId, timeMs] = key.split("-")
+    const scheduledAt = new Date(Number(timeMs))
+    const court = activeOpenPlay.queues.find(
+      (q: any) => (q.assignedCourt?.id ?? q.openPlayCourt?.id) === courtId,
+    )
     if (court) {
       completedGames.push({
         courtId,
         courtName: court.assignedCourt?.name ?? "",
         players,
         startTime: scheduledAt,
-        estimatedEndTime: new Date(scheduledAt.getTime() + activeOpenPlay.transitionMinutes * 60000),
+        estimatedEndTime: new Date(
+          scheduledAt.getTime() + activeOpenPlay.transitionMinutes * 60000,
+        ),
         isPreparing: false,
-      });
+      })
     }
-  });
+  })
 
   // Queue (future groups)
-  const queue: TQueueGroup[] = [];
+  const queue: TQueueGroup[] = []
   const futureGrouped = groupByCourtAndTime(
-    activeOpenPlay.queues.filter((q:any) => q.scheduledAt && q.scheduledAt > now)
-  );
+    activeOpenPlay.queues.filter((q: any) => q.scheduledAt && q.scheduledAt > now),
+  )
   Object.entries(futureGrouped).forEach(([key, players], idx) => {
-    const [courtId, timeMs] = key.split("-");
-    const scheduledAt = new Date(Number(timeMs));
-    const court = activeOpenPlay.queues.find((q:any) => (q.assignedCourt?.id ?? q.openPlayCourt?.id) === courtId);
+    const [courtId, timeMs] = key.split("-")
+    const scheduledAt = new Date(Number(timeMs))
+    const court = activeOpenPlay.queues.find(
+      (q: any) => (q.assignedCourt?.id ?? q.openPlayCourt?.id) === courtId,
+    )
     if (court) {
       queue.push({
         id: `grp-${courtId}-${idx}`,
@@ -499,28 +431,28 @@ export async function getOpenPlaySchedules(
         courtName: court.assignedCourt?.name ?? "",
         players,
         scheduledAt,
-        estimatedEndTime: new Date(scheduledAt.getTime() + activeOpenPlay.transitionMinutes * 60000),
+        estimatedEndTime: new Date(
+          scheduledAt.getTime() + activeOpenPlay.transitionMinutes * 60000,
+        ),
         position: idx + 1,
-      });
+      })
     }
-  });
+  })
 
   // Waiting players: no scheduledAt yet
   const waitingPlayers: TQueuePlayer[] = activeOpenPlay.queues
-    .filter((q:any) => !q.scheduledAt && !q.endedAt)
-    .map(toQueuePlayer);
+    .filter((q: any) => !q.scheduledAt && !q.endedAt)
+    .map(toQueuePlayer)
 
   // Next transition
-  let nextTransition: Date | null = null;
+  let nextTransition: Date | null = null
   if (queue.length > 0) {
-    nextTransition = new Date(
-      Math.min(...queue.map(g => g.scheduledAt.getTime()))
-    );
+    nextTransition = new Date(Math.min(...queue.map((g) => g.scheduledAt.getTime())))
   }
 
   // Fire callback for completed games
   if (options?.onGroupDone) {
-    completedGames.forEach(game => options.onGroupDone?.(game));
+    completedGames.forEach((game) => options.onGroupDone?.(game))
   }
 
   return {
@@ -531,5 +463,5 @@ export async function getOpenPlaySchedules(
     completedGames,
     waitingPlayers,
     nextTransition,
-  };
+  }
 }

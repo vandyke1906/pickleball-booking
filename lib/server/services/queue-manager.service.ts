@@ -115,20 +115,11 @@ class QueueManager {
 
                   scheduleGroup(data)
                     .then((data) => {
-                      EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data, })
-                      console.info(`##Scheduled: ${JSON.stringify(data, null, 2)}`)
+                      EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data })
+                      console.info(`##Scheduled Group`)
+                      // console.info(`##Scheduled: ${JSON.stringify(data, null, 2)}`)
                     })
                     .catch(console.error)
-
-                  // await this.queues[targetQueueName].add(
-                  //   targetJobName,
-                  //   { group: parsed },
-                  //   {
-                  //     attempts: 3,
-                  //     backoff: { type: "exponential", delay: 5000 },
-                  //     removeOnComplete: true,
-                  //   },
-                  // )
                 },
               },
             )

@@ -30,16 +30,8 @@ export const POST = withRateLimit(
           select: { id: true },
         })
 
-        
-          console.info("Initializing lineup for registered players...")
-          const lineups = await initializeLineup(tx, openPlay.id)
-
-        // const manager = new QueueManager(openPlay.id)
-        // await manager.initializeData(tx)
-        // const { scheduledGroups } = manager.initializeSchedule()
-        // for (const group of scheduledGroups) {
-        //   if (group) await manager.lineupQueueGroupPlayers(group, tx)
-        // }
+        console.info("Initializing lineup for registered players...")
+        await initializeLineup(tx, openPlay.id)
 
         //update ui of all clients on openplay
         EventBroadcast({
