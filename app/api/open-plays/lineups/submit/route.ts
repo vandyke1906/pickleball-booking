@@ -2,6 +2,7 @@ import { OpenPlayStatus, PlayerSkill, QueueStatus } from "@/.config/prisma/gener
 import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
+import { submitLineup } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -54,6 +55,10 @@ export const POST = withRateLimit(async (req: NextRequest) => {
 
       if (existing) throw new Error("You are already in the queue")
       //TODO add in the queue
+
+      await submitLineup(tx, openPlayPlayer.id, openPlayId)
+      console.log(`Player ${openPlayPlayer.playerName} successfully added to lineup for openPlay ${openPlayId}`)
+
       //update ui of all clients on openplay
       EventBroadcast({
         type: BroadcastEventTypes.OPENPLAY_UPDATED,

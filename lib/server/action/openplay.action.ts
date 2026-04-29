@@ -3,6 +3,7 @@
 import { OpenPlayPlayer, PlayerSkill, Prisma, QueueStatus } from "@/.config/prisma/generated/prisma"
 import { prisma } from "@/lib/prisma"
 import { manager, QUEUE_KEYS } from "@/lib/server/services/queue-manager.service"
+import { TCurrentGame, TQueueGroup, TQueuePlayer } from "@/lib/type/openplay/openplay.type"
 import { TPrismaTransaction } from "@/lib/type/util.type"
 
 async function createLineupEntries(
@@ -71,6 +72,45 @@ export async function initializeLineup(tx: TPrismaTransaction, openPlayId: strin
     )
   })
   return true
+}
+
+export async function submitLineup(
+  tx: TPrismaTransaction,
+  playerId: string,
+  openPlayId: string,
+): Promise<void> {
+  // Find the player and their court assignment
+  const player = await tx.openPlayPlayer.findUnique({
+    where: { id: playerId },
+    include: { openPlay: true },
+  });
+  if (!player) throw new Error("Player not found");
+
+  // Resolve court assignment based on skill
+  const opCourt = await tx.openPlayCourt.findFirst({
+    where: { openPlayId, skills: { has: player.skill } },
+    select: { id: true },
+  });
+  if (!opCourt) throw new Error("No matching court for player skill");
+
+  // Insert into lineupQueue
+  await tx.lineupQueue.create({
+    data: {
+      openPlayId,
+      playerId: player.id,
+      status: QueueStatus.waiting,
+      openPlayCourtId: opCourt.id,
+      scheduledAt: null,
+      endedAt: null,
+      assignedCourtId: null,
+    },
+  });
+
+  // Add job to manager
+  await manager.addJob(QUEUE_KEYS.LINEUP_PLAYER, opCourt.id, {
+    ...player,
+    openPlayCourtId: opCourt.id,
+  });
 }
 
 // Check if player still has allowance based on elapsed time
@@ -162,15 +202,9 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
 
   const openPlayCourtId = group[0].openPlayCourtId
 
-  // // 1. Get court availability (REUSABLE)
-  // const courtMap = await getCourtAvailability(openPlayCourtId, db)
-
-  // // 2. Pick next available court (REUSABLE)
-  // const { courtId: selectedCourtId, availableAt } = getNextAvailableCourt(courtMap)
-
   const { courtId: selectedCourtId, availableAt, isFirst } = await getNextCourt(openPlayCourtId, db)
 
-  // 3. Load OpenPlay config (ONLY once, lightweight fetch)
+  // Load OpenPlay config (ONLY once, lightweight fetch)
   const openPlayCourt = await db.openPlayCourt.findUnique({
     where: { id: openPlayCourtId },
     include: {
@@ -182,15 +216,19 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
 
   const { transitionMinutes, preparationSeconds } = openPlayCourt.openPlay
 
-  // 4. Compute schedule timing
+  // Compute schedule timing
   const playDuration = transitionMinutes * 60 * 1000
   const buffer = preparationSeconds * 1000
 
-  const startAt = isFirst ? new Date(availableAt) : new Date(availableAt.getTime() + buffer)
+  const now = new Date()
+  const baseStartAt = isFirst ? new Date(availableAt) : new Date(availableAt.getTime() + buffer)
+  const startAt = baseStartAt > now ? baseStartAt : new Date(now.getTime() + buffer)
+
+  // const startAt = isFirst ? baseStartAt : new Date(baseStartAt.getTime() + buffer)
   const endAt = new Date(startAt.getTime() + playDuration)
   const nextAvailableAt = new Date(endAt.getTime() + buffer)
 
-  // 5. Persist lineup updates (single transaction-friendly block)
+  // Persist lineup updates (single transaction-friendly block)
   const results = []
 
   for (const player of group) {
@@ -229,4 +267,269 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
     nextAvailableAt,
     players: results,
   }
+}
+
+// export async function getOpenPlaySchedules(  openPlayId: string = "",
+//   options?: {
+//     tx?: TPrismaTransaction
+//     onGroupDone?: (game: TCurrentGame) => void
+//   }) {
+//   const db = options?.tx ?? prisma
+//   const activeOpenPlay = await db.openPlay.findUnique({
+//     where: { id: openPlayId },
+//     select: {
+//       id: true,
+//       startTime: true,
+//       endTime: true,
+//       isActive: true,
+//       isCompleted: true,
+//       startedAt: true,
+//       transitionMinutes: true,
+//       announcementMinutesBeforeTransition: true,
+//       preparationSeconds: true,
+//       organizationId: true,
+//       createdAt: true,
+//       updatedAt: true,
+//       status: true,
+//       queues: {
+//         orderBy: { createdAt: "asc" },
+//         select: {
+//           id: true,
+//           playerId: true,
+//           player: true,
+//           scheduledAt: true,
+//           endedAt: true,
+//           openPlayCourtId: true,
+//           openPlayCourt: { select: { id: true } },
+//           assignedCourtId: true,
+//           assignedCourt: { select: { id: true, name: true } },
+//         },
+//       },
+//       courts: { select: { id: true, courts: { select: { id: true, name: true } } } },
+//     },
+//   });
+
+//   if (!activeOpenPlay) 
+//     throw new Error("OpenPlay not found");
+  
+
+//   const now = new Date();
+
+//   // Current games: scheduledAt <= now and (no endedAt OR endedAt > now)
+//   const currentGames = activeOpenPlay.queues
+//     .filter((q:any) => q.scheduledAt && q.scheduledAt <= now && (!q.endedAt || q.endedAt > now))
+//     .map((q:any) => ({
+//       id: q.id,
+//       court: q.assignedCourt ?? q.openPlayCourt,
+//       players: [q.player],
+//       startTime: q.scheduledAt!,
+//       estimatedEndTime: q.endedAt ??
+//         new Date(q.scheduledAt!.getTime() + activeOpenPlay.transitionMinutes * 60000),
+//       isPreparing:
+//         q.scheduledAt &&
+//         now.getTime() < q.scheduledAt.getTime() + activeOpenPlay.preparationSeconds * 1000,
+//     }));
+
+//   // Completed games: endedAt <= now
+//   const completedGames = activeOpenPlay.queues
+//     .filter((q:any) => q.endedAt && q.endedAt <= now)
+//     .map((q:any) => ({
+//       id: q.id,
+//       court: q.assignedCourt ?? q.openPlayCourt,
+//       players: [q.player],
+//       startTime: q.scheduledAt,
+//       endedAt: q.endedAt!,
+//     }));
+
+//   // Queue: scheduledAt > now (future games)
+//   const queue = activeOpenPlay.queues.filter((q:any) => q.scheduledAt && q.scheduledAt > now);
+
+//   // Waiting players: no scheduledAt yet
+//   const waitingPlayers = activeOpenPlay.queues.filter((q:any) => !q.scheduledAt);
+
+//   // Next transition: earliest scheduledAt in the future
+//   const nextTransition =
+//     queue.length > 0
+//       ? queue.map((q:any) => q.scheduledAt).filter(Boolean).sort()[0] ?? null
+//       : null;
+
+//   // Fire callback for completed games
+//   if (options?.onGroupDone) 
+//     completedGames.forEach((game: any) => options?.onGroupDone?.(game));
+  
+
+//   return {
+//     isStarted: !!activeOpenPlay.startedAt,
+//     openPlay: activeOpenPlay,
+//     currentGames,
+//     queue,
+//     completedGames,
+//     waitingPlayers,
+//     nextTransition,
+//   };
+// }
+
+
+export async function getOpenPlaySchedules(
+  openPlayId: string = "",
+  options?: {
+    tx?: any
+    onGroupDone?: (game: TCurrentGame) => void
+  }
+) {
+  const db = options?.tx ?? prisma;
+  const activeOpenPlay = await db.openPlay.findUnique({
+    where: { id: openPlayId },
+    select: {
+      id: true,
+      startTime: true,
+      endTime: true,
+      isActive: true,
+      isCompleted: true,
+      startedAt: true,
+      transitionMinutes: true,
+      announcementMinutesBeforeTransition: true,
+      preparationSeconds: true,
+      organizationId: true,
+      createdAt: true,
+      updatedAt: true,
+      status: true,
+      queues: {
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          playerId: true,
+          player: { select: { playerName: true } },
+          scheduledAt: true,
+          endedAt: true,
+          status: true,
+          openPlayCourtId: true,
+          openPlayCourt: { select: { id: true } },
+          assignedCourtId: true,
+          assignedCourt: { select: { id: true, name: true } },
+        },
+      },
+      courts: { select: { id: true, courts: { select: { id: true, name: true } } } },
+    },
+  });
+
+  if (!activeOpenPlay) throw new Error("OpenPlay not found");
+
+  const now = new Date();
+
+  // Map queue record into TQueuePlayer
+  const toQueuePlayer = (q: any): TQueuePlayer => ({
+    id: q.id,
+    openPlayId: activeOpenPlay.id,
+    status: q.status ?? "waiting",
+    openPlayCourtId: q.openPlayCourtId,
+    playerId: q.playerId,
+    playerName: q.player.playerName,
+    scheduledAt: q.scheduledAt,
+    endedAt: q.endedAt,
+  });
+
+  // Group players by court + scheduledAt
+  function groupByCourtAndTime(queues: any[]): Record<string, TQueuePlayer[]> {
+    const grouped: Record<string, TQueuePlayer[]> = {};
+    queues.forEach((q:any) => {
+      if (!q.scheduledAt) return;
+      const key = `${q.assignedCourt?.id ?? q.openPlayCourt?.id}-${q.scheduledAt.getTime()}`;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(toQueuePlayer(q));
+    });
+    return grouped;
+  }
+
+  // Current games
+  const currentGames: TCurrentGame[] = [];
+  const currentGrouped = groupByCourtAndTime(
+    activeOpenPlay.queues.filter((q:any) => q.scheduledAt && q.scheduledAt <= now && (!q.endedAt || q.endedAt > now))
+  );
+  Object.entries(currentGrouped).forEach(([key, players]) => {
+    const [courtId, timeMs] = key.split("-");
+    const scheduledAt = new Date(Number(timeMs));
+    const court = activeOpenPlay.queues.find((q:any) => (q.assignedCourt?.id ?? q.openPlayCourt?.id) === courtId);
+    if (court) {
+      currentGames.push({
+        courtId,
+        courtName: court.assignedCourt?.name ?? "",
+        players,
+        startTime: scheduledAt,
+        estimatedEndTime: new Date(scheduledAt.getTime() + activeOpenPlay.transitionMinutes * 60000),
+        isPreparing: now.getTime() < scheduledAt.getTime() + activeOpenPlay.preparationSeconds * 1000,
+      });
+    }
+  });
+
+  // Completed games
+  const completedGames: TCurrentGame[] = [];
+  const completedGrouped = groupByCourtAndTime(
+    activeOpenPlay.queues.filter((q:any) => q.endedAt && q.endedAt <= now)
+  );
+  Object.entries(completedGrouped).forEach(([key, players]) => {
+    const [courtId, timeMs] = key.split("-");
+    const scheduledAt = new Date(Number(timeMs));
+    const court = activeOpenPlay.queues.find((q:any) => (q.assignedCourt?.id ?? q.openPlayCourt?.id) === courtId);
+    if (court) {
+      completedGames.push({
+        courtId,
+        courtName: court.assignedCourt?.name ?? "",
+        players,
+        startTime: scheduledAt,
+        estimatedEndTime: new Date(scheduledAt.getTime() + activeOpenPlay.transitionMinutes * 60000),
+        isPreparing: false,
+      });
+    }
+  });
+
+  // Queue (future groups)
+  const queue: TQueueGroup[] = [];
+  const futureGrouped = groupByCourtAndTime(
+    activeOpenPlay.queues.filter((q:any) => q.scheduledAt && q.scheduledAt > now)
+  );
+  Object.entries(futureGrouped).forEach(([key, players], idx) => {
+    const [courtId, timeMs] = key.split("-");
+    const scheduledAt = new Date(Number(timeMs));
+    const court = activeOpenPlay.queues.find((q:any) => (q.assignedCourt?.id ?? q.openPlayCourt?.id) === courtId);
+    if (court) {
+      queue.push({
+        id: `grp-${courtId}-${idx}`,
+        courtId,
+        courtName: court.assignedCourt?.name ?? "",
+        players,
+        scheduledAt,
+        estimatedEndTime: new Date(scheduledAt.getTime() + activeOpenPlay.transitionMinutes * 60000),
+        position: idx + 1,
+      });
+    }
+  });
+
+  // Waiting players: no scheduledAt yet
+  const waitingPlayers: TQueuePlayer[] = activeOpenPlay.queues
+    .filter((q:any) => !q.scheduledAt && !q.endedAt)
+    .map(toQueuePlayer);
+
+  // Next transition
+  let nextTransition: Date | null = null;
+  if (queue.length > 0) {
+    nextTransition = new Date(
+      Math.min(...queue.map(g => g.scheduledAt.getTime()))
+    );
+  }
+
+  // Fire callback for completed games
+  if (options?.onGroupDone) {
+    completedGames.forEach(game => options.onGroupDone?.(game));
+  }
+
+  return {
+    isStarted: !!activeOpenPlay.startedAt,
+    openPlay: activeOpenPlay,
+    currentGames,
+    queue,
+    completedGames,
+    waitingPlayers,
+    nextTransition,
+  };
 }

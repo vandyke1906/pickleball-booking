@@ -1,8 +1,7 @@
 import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
 import { prisma } from "@/lib/prisma"
-import { deleteQueuedPlayers } from "@/lib/server/action/openplay.action"
+import { deleteQueuedPlayers, getOpenPlaySchedules } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
-import { QueueManager } from "@/lib/server/services/queue-manager.v1.service"
 import { NextRequest, NextResponse } from "next/server"
 
 export const GET = withRateLimit(
@@ -20,7 +19,6 @@ export const GET = withRateLimit(
       if (!activeOpenPlay)
         return NextResponse.json({ message: "No active Open Play found" }, { status: 404 })
 
-      return NextResponse.json(null)
       // const manager = new QueueManager(activeOpenPlay.id)
       // await manager.initializeData()
       // const result = manager.compute({
@@ -40,7 +38,20 @@ export const GET = withRateLimit(
       //     // console.log(`Player ${player.playerName} finished`))
       //   },
       // })
-      // return NextResponse.json(result)
+
+      const result = await getOpenPlaySchedules(activeOpenPlay.id, { onGroupDone:(game) => {
+        
+        const playerIds = game.players.map((p) => p.playerId)
+          //RONIE DELETE done groups
+          deleteQueuedPlayers(playerIds)
+            .then((result) => {
+              console.info("Deleted queued players:", result.count)
+            })
+            .catch((error) => {
+              console.error("Error deleting queued players:", error)
+            })
+      }})
+      return NextResponse.json(result)
     } catch (error: any) {
       console.error(error)
       console.error("Error getting open play:", error?.message || error)

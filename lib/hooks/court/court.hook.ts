@@ -1,11 +1,12 @@
 import {
+  Booking,
+  Court,
   Organization,
   OrganizationOpeningHour,
   OrganizationOpenPlayRule,
   OrganizationPricingRule,
 } from "@/.config/prisma/generated/prisma"
 import { fetcher } from "@/lib/hooks/common.hook"
-import { Booking, Court } from "@prisma/client"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 
 type TBookingWithStringTime = Omit<Booking, "startTime" | "endTime"> & {

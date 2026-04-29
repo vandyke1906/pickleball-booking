@@ -1,5 +1,6 @@
-import { LineupQueue } from "@/.config/prisma/generated/prisma"
+import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { redisUrl } from "@/lib/redis/redis"
+import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { scheduleGroup } from "@/lib/server/action/openplay.action"
 import { TQueuePlayer } from "@/lib/type/openplay/openplay.type"
 import { Queue, Worker, QueueEvents, JobsOptions } from "bullmq"
@@ -114,6 +115,7 @@ class QueueManager {
 
                   scheduleGroup(data)
                     .then((data) => {
+                      EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data, })
                       console.info(`##Scheduled: ${JSON.stringify(data, null, 2)}`)
                     })
                     .catch(console.error)

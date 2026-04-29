@@ -77,6 +77,8 @@ export default function PickleballOpenPlayQueue() {
     refetch: refetchOpenPlayData,
   } = useActiveOpenPlayQueue(orgId)
 
+  console.info({openPlayData})
+
   //Event Listener
   useEventListener(EventBusKeys.OPENPLAY_UPDATED, () => refetchOpenPlayData())
 
