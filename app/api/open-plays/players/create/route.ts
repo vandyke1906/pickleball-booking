@@ -1,11 +1,10 @@
-import { OpenPlayStatus, PlayerSkill, QueueStatus } from "@/.config/prisma/generated/prisma"
+import { OpenPlayStatus, PlayerSkill } from "@/.config/prisma/generated/prisma"
 import { isServerAuthenticated } from "@/lib/auth/auth.server"
 import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
-import { createLineupEntries } from "@/lib/server/action/openplay.action"
+import { submitLineup } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
-import { QueueManager } from "@/lib/server/services/queue-manager.v1.service"
 import { openPlayPlayerSchema } from "@/lib/validation/open-play/open-play.validation"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -70,9 +69,10 @@ export const POST = withRateLimit(async (req: NextRequest) => {
 
       //if active open play then lineup directly
       if (openPlay && openPlay.status === OpenPlayStatus.active) {
-        // await createLineupEntries(tx, [player])
-        // const manager = new QueueManager(parsed.openPlayId)
-        // await manager.scheduleWaitingPlayers(tx)
+        await submitLineup(tx, player.id, player.openPlayId)
+        console.log(
+          `Player ${player.playerName} successfully registered and added to lineup for openPlay ${player.openPlayId}`,
+        )
 
         //update ui of all clients on openplay
         EventBroadcast({

@@ -1,12 +1,12 @@
 import { redisPublisher, redisSubscriber, SubscriberStore } from "@/lib/redis/redis"
 import { TBroadcastEvent } from "@/lib/event-broadcaster.type"
-import { randomUUID } from "crypto"
 import { pusher } from "@/lib/pusher"
+import { uuidv4 } from "zod"
 
 export async function EventBroadcast<T>(event: TBroadcastEvent<T>): Promise<void> {
   const safeEvent: TBroadcastEvent<T> = {
     ...event,
-    id: event.id ?? `evt_${randomUUID().slice(0, 8)}`,
+    id: event.id ?? `evt_${uuidv4()}`,
     timestamp: event.timestamp ?? new Date().toISOString(),
   }
 

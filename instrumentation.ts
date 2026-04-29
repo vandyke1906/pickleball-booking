@@ -7,7 +7,7 @@ export async function register() {
 
     // await intervalTest()
     // await singleTest()
-    await randomTest()
+    // await randomTest()
   }
 }
 
