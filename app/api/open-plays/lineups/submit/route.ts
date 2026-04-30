@@ -20,8 +20,8 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       // Find player
       const openPlayPlayer = await tx.openPlayPlayer.findFirst({
         where: {
-            openPlayId,
-            code: code.trim(),
+          openPlayId,
+          code: code.trim(),
         },
         include: {
           openPlay: {
@@ -40,8 +40,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
 
       // Check session time
       const now = new Date()
-      if (now > openPlayPlayer.openPlay.endTime)
-        throw new Error("Open Play session has already ended")
+      if (now > openPlayPlayer.openPlay.endTime) throw new Error("Open play has already ended")
       if (openPlayPlayer.endAt && now > openPlayPlayer.endAt)
         throw new Error("Your session has already ended")
 
@@ -49,15 +48,19 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       const existing = await tx.lineupQueue.findFirst({
         where: {
           playerId: openPlayPlayer.id,
-          status: QueueStatus.waiting,
+          openPlayId: openPlayId,
         },
       })
-
-      if (existing) throw new Error("You are already in the queue")
+      if (existing)
+        throw new Error(
+          "You already have an active queue entry. Only one lineup is allowed at a time.",
+        )
       //TODO add in the queue
 
       await submitLineup(tx, openPlayPlayer.id, openPlayId)
-      console.log(`Player ${openPlayPlayer.playerName} successfully added to lineup for openPlay ${openPlayId}`)
+      console.log(
+        `Player ${openPlayPlayer.playerName} successfully added to lineup for openPlay ${openPlayId}`,
+      )
 
       //update ui of all clients on openplay
       EventBroadcast({

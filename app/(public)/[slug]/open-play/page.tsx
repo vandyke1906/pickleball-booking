@@ -77,7 +77,7 @@ export default function PickleballOpenPlayQueue() {
     refetch: refetchOpenPlayData,
   } = useActiveOpenPlayQueue(orgId)
 
-  console.info({openPlayData})
+  console.info({ openPlayData })
 
   //Event Listener
   useEventListener(EventBusKeys.OPENPLAY_UPDATED, () => refetchOpenPlayData())
@@ -139,12 +139,11 @@ export default function PickleballOpenPlayQueue() {
   // LIVE CLOCK + COUNTDOWN (combined)
   // =====================
   useEffect(() => {
-
     const tick = () => {
       const now = new Date()
       setCurrentTime(now)
 
-      if (nextTransition){
+      if (nextTransition) {
         const diff = new Date(nextTransition).getTime() - now.getTime()
         setPrepRemaining(diff > 0 ? diff : 0)
 
@@ -219,21 +218,7 @@ export default function PickleballOpenPlayQueue() {
     const now = Date.now()
     const scheduledTime = new Date(nextGroups[0].scheduledAt).getTime()
     if (now >= scheduledTime) return
-
-    // Compute remaining time in minutes + seconds
-    const totalSeconds = Math.floor(prepRemaining / 1000)
-    const mins = Math.floor(totalSeconds / 60)
-    const secs = totalSeconds % 60
-
-    let msg = ""
-    if (mins > 0) msg += `${mins} minute${mins !== 1 ? "s" : ""}`
-    if (secs > 0) {
-      if (msg) msg += " and "
-      msg += `${secs} second${secs !== 1 ? "s" : ""}`
-    }
-
-    if (!msg) msg = "less than a second" // ✅ fallback if msg is empty
-    enqueueSpeak(`Ready in ${msg}. Please prepare.`)
+    enqueueSpeak(`Please be ready and prepare.`)
 
     readySoonAnnouncedRef.current = true
   }, [openPlay, nextGroups, prepRemaining, audioEnabled])
@@ -311,7 +296,6 @@ export default function PickleballOpenPlayQueue() {
   if (isLoading || isLoadingOrgWithCourts) return <LoadingScreen message="Loading Queue" />
   if (!openPlayData) return <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
 
-
   return (
     <div className="min-h-screen bg-[#092021] text-white font-mono flex flex-col h-screen overflow-hidden">
       {/* HEADER */}
@@ -330,8 +314,7 @@ export default function PickleballOpenPlayQueue() {
                 {formatTimeRange(openPlay?.startTime, openPlay?.endTime)}
               </span>
               <span>
-                {openPlay?.courts.length}{" "}
-                {openPlay?.courts.length === 1 ? "Court" : "Courts"} •{" "}
+                {openPlay?.courts.length} {openPlay?.courts.length === 1 ? "Court" : "Courts"} •{" "}
                 {openPlay?.transitionMinutes} minutes playing time • Max 4 players per court
               </span>
             </p>
@@ -507,15 +490,14 @@ export default function PickleballOpenPlayQueue() {
 
           {/* Marquee */}
           <div className="relative flex-1 overflow-hidden">
-
             {/* Edge fade */}
             <div className="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-black/70 to-transparent z-10" />
             <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-black/70 to-transparent z-10" />
 
             <motion.div
               className="flex w-max items-center whitespace-nowrap will-change-transform"
-              initial={{ x: "100%" }}               // 👈 always start from right
-              animate={{ x: "-50%" }}              // 👈 scroll through
+              initial={{ x: "100%" }} // 👈 always start from right
+              animate={{ x: "-50%" }} // 👈 scroll through
               transition={{
                 repeat: Infinity,
                 duration: Math.max(14, waitingPlayers.length * 3),

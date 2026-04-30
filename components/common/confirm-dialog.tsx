@@ -20,6 +20,7 @@ interface ConfirmationDialogProps {
   open: boolean
   setOpen: (open: boolean) => void
   onConfirm?: () => void
+  onCancel?: () => void
   Icon?: React.ReactNode
   variant?: "delete" | "default" | "confirm"
   isLoading?: boolean
@@ -31,6 +32,7 @@ export default function ConfirmationDialog({
   open,
   setOpen,
   onConfirm,
+  onCancel,
   Icon = <CheckCircle className="text-green-500" size={20} />,
   variant,
   isLoading = false,
@@ -55,6 +57,7 @@ export default function ConfirmationDialog({
             disabled={isLoading}
             onClick={() => {
               if (isLoading) return
+              onCancel?.()
               setOpen(false)
             }}
           >

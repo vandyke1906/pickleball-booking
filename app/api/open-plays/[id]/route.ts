@@ -47,7 +47,9 @@ export const GET = withRateLimit(
       const startedAt = openPlay.startedAt ? new Date(openPlay.startedAt) : null
 
       const courtsWithPlayers = openPlay.courts.map((court) => {
-        const eligiblePlayers = openPlay.players.filter((p) => court.skills.includes(p.skill))
+        const eligiblePlayers = openPlay.players
+          .filter((p) => court.skills.includes(p.skill))
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         return {
           ...court,
           players: eligiblePlayers,

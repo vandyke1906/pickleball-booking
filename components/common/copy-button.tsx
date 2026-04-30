@@ -5,6 +5,7 @@ import { Check, Copy } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ButtonProps } from "@base-ui/react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface CopyButtonProps extends ButtonProps {
   text?: string
@@ -45,14 +46,27 @@ export function CopyButton({ text, html, htmlRef, className }: CopyButtonProps) 
   }, [text, html, htmlRef])
 
   return (
-    <Button
-      variant="ghost"
-      size="xs"
-      className={cn("h-4 w-4", className)}
-      onClick={copyToClipboard}
-      aria-label="Copy to clipboard"
-    >
-      {hasCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-    </Button>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="xs"
+            className={cn("h-4 w-4", className)}
+            onClick={copyToClipboard}
+            aria-label="Copy player code"
+          >
+            {hasCopied ? (
+              <Check className="h-4 w-4 text-green-500" />
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{hasCopied ? "Copied!" : "Copy player code"}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   )
 }

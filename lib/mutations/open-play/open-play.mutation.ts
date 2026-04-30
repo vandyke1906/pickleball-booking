@@ -149,6 +149,21 @@ async function startActiveOpenPlay(id: string) {
 
   return res.json()
 }
+
+async function reorderOpenPlayPlayers(playerIds: string[]) {
+  const res = await fetch(`/api/open-plays/players/reorder`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ playerIds: playerIds }),
+  })
+
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error?.error || "Reorder failed")
+  }
+
+  return res.json()
+}
 // endOf API functions
 
 export function useCreateOrUpdateOpenPlay() {
@@ -171,15 +186,6 @@ export function useCreateOrUpdateOpenPlay() {
       toast.error("Open Play failed", {
         description: "An error occurred. Please contact the administrator.",
       })
-      // if (error instanceof Error && "issues" in error) {
-      //   const zodErr = error as any
-      //   toast.error("Validation failed", {
-      //     description: zodErr.issues.map((e: any) => e.message).join(", "),
-      //   })
-      //   return
-      // }
-
-      // toast.error("Open Play failed", { description: (error as Error).message })
     },
 
     onSuccess: () => {
@@ -497,7 +503,6 @@ export function useStartActiveOpenPlay() {
       if (previousOpenPlay) {
         queryClient.setQueryData(["open-play-start", id], (old: any) => ({
           ...old,
-          status: status,
         }))
       }
 
@@ -519,6 +524,44 @@ export function useStartActiveOpenPlay() {
 
     onSettled: (_data, _error) => {
       queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
+    },
+
+    retry: 1,
+  })
+}
+
+export function useReorderOpenPlayPlayers(openPlayId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationKey: ["reorder-open-play-players"],
+    mutationFn: (playerIds: string[]) => reorderOpenPlayPlayers(playerIds),
+
+    onMutate: async () => {
+      await queryClient.cancelQueries({
+        queryKey: qKeyOpenPlays.detail(openPlayId),
+      })
+      const previousPlayers = queryClient.getQueryData(qKeyOpenPlays.detail(openPlayId))
+      return { previousPlayers }
+    },
+
+    onError: (error, _values, context) => {
+      if (context?.previousPlayers)
+        queryClient.setQueryData(["open-play-players", openPlayId], context.previousPlayers)
+
+      toast.error("Reorder failed", { description: (error as Error).message })
+    },
+
+    onSuccess: () => {
+      toast.success("Reorder Successful", {
+        description: "Player order has been updated.",
+      })
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: qKeyOpenPlays.detail(openPlayId),
+      })
     },
 
     retry: 1,

@@ -10,10 +10,10 @@ model OpenPlay {
   preparationSeconds                  Int            @default(20)
   announcementMinutesBeforeTransition Int            @default(5)
   status                              OpenPlayStatus @default(pending)
-  
+
   queues  LineupQueue[]
   players OpenPlayPlayer[] @relation("OpenPlayPlayers")
-  courts OpenPlayCourt[]
+  courts  OpenPlayCourt[]
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
@@ -32,19 +32,18 @@ model OpenPlayCourt {
 
   openPlayId String
   openPlay   OpenPlay @relation(fields: [openPlayId], references: [id], onDelete: Cascade)
-  
-  courts         Court[]
-  skills         PlayerSkill[]
-  status QueueStatus @default(waiting)
 
-  queues    LineupQueue[] @relation("LineupQueues")
-  
+  courts Court[]
+  skills PlayerSkill[]
+  status QueueStatus   @default(waiting)
+
+  queues LineupQueue[] @relation("LineupQueues")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([openPlayId])
 }
-
 
 model OpenPlayPlayer {
   id         String   @id @default(cuid())
@@ -53,7 +52,7 @@ model OpenPlayPlayer {
 
   code          String
   playerName    String
-  skill         PlayerSkill @default(beginner)
+  skill         PlayerSkill   @default(beginner)
   contactNumber String?
   emailAddress  String?
   registeredAt  DateTime      @default(now())
@@ -62,12 +61,14 @@ model OpenPlayPlayer {
   totalPlayTime Int       @default(180) // in minutes default 30 minutes
   startAt       DateTime?
   endAt         DateTime?
+  order         Int       @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([openPlayId, skill, code])
   @@index([skill])
+  @@index([openPlayId])
 }
 
 model LineupQueue {
@@ -81,14 +82,13 @@ model LineupQueue {
 
   status QueueStatus @default(waiting)
 
-  openPlayCourtId     String
-  openPlayCourt       OpenPlayCourt   @relation("LineupQueues", fields: [openPlayCourtId], references: [id], onDelete: Cascade)
+  openPlayCourtId String
+  openPlayCourt   OpenPlayCourt @relation("LineupQueues", fields: [openPlayCourtId], references: [id], onDelete: Cascade)
 
-  scheduledAt DateTime?
-  endedAt     DateTime?
-  assignedCourtId     String?
-  assignedCourt       Court?   @relation(fields: [assignedCourtId], references: [id], onDelete: Cascade)
-
+  scheduledAt     DateTime?
+  endedAt         DateTime?
+  assignedCourtId String?
+  assignedCourt   Court?    @relation(fields: [assignedCourtId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

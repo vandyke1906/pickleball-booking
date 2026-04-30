@@ -14,6 +14,8 @@ import { CSS } from "@dnd-kit/utilities"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { CopyButton } from "@/components/common/copy-button"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 type Props = {
   group: any
@@ -43,16 +45,21 @@ export default function DraggablePlayersList({
 
     if (!over || active.id === over.id) return
 
+    let newOrder: any[] = []
+
     setPlayers((items) => {
       const oldIndex = items.findIndex((i) => i.id === active.id)
       const newIndex = items.findIndex((i) => i.id === over.id)
 
-      const newOrder = arrayMove(items, oldIndex, newIndex)
-
-      onReorder?.(newOrder)
+      newOrder = arrayMove(items, oldIndex, newIndex).map((item, index) => ({
+        ...item,
+        order: index + 1,
+      }))
 
       return newOrder
     })
+
+    onReorder?.(newOrder)
   }
 
   return (
@@ -103,7 +110,6 @@ function SortablePlayerRow({
 
   return (
     <div
-      ref={setNodeRef}
       style={style}
       {...attributes}
       className={`flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 shadow-sm gap-2 ${
@@ -111,19 +117,30 @@ function SortablePlayerRow({
       }`}
     >
       {/* DRAG AREA */}
-      <div
-        {...listeners}
-        className="flex flex-col sm:flex-row sm:items-center flex-1 gap-2 cursor-grab active:cursor-grabbing"
-      >
+      <div className="flex flex-col sm:flex-row sm:items-center flex-1 gap-2">
         {/* Numbering Circle */}
         <div className="flex items-center gap-3 sm:mr-4">
-          <div className="w-7 h-7 flex items-center justify-center rounded-full bg-primary text-white text-xs font-semibold">
-            {index + 1}
-          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  ref={setNodeRef}
+                  {...listeners}
+                  className="w-7 h-7 flex items-center justify-center rounded-full bg-primary text-white text-xs font-semibold  cursor-grab active:cursor-grabbing"
+                >
+                  {index + 1}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Drag to move player</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           {/* Code */}
           <div className="text-sm">
             code: <span className="font-semibold text-primary">{player.code}</span>
+            <CopyButton text={player.code} html={`strong>${player.code}</strong>`} />
           </div>
         </div>
 

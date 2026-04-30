@@ -52,8 +52,19 @@ export const POST = withRateLimit(async (req: NextRequest) => {
     const createdPlayer = await prisma.$transaction(async (tx) => {
       const openPlay = await tx.openPlay.findUnique({
         where: { id: parsed.openPlayId },
-        select: { id: true, status: true, courts: { select: { id: true, skills: true } } },
+        select: {
+          id: true,
+          status: true,
+          courts: { select: { id: true, skills: true } },
+          _count: {
+            select: {
+              players: true,
+            },
+          },
+        },
       })
+
+      const nextOrder = (openPlay?._count.players ?? 0) + 1
 
       const player = await tx.openPlayPlayer.create({
         data: {
@@ -64,6 +75,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
           emailAddress: parsed.emailAddress || null,
           totalPlayTime: parsed.totalPlayTime || 0,
           skill: parsed.skill,
+          order: nextOrder,
         },
       })
 

@@ -28,7 +28,7 @@ export async function initializeLineup(tx: TPrismaTransaction, openPlayId: strin
   const [players, openPlaycourts] = await Promise.all([
     tx.openPlayPlayer.findMany({
       where: { openPlayId },
-      orderBy: { registeredAt: "asc" }, // enforce registration order
+      orderBy: { order: "asc" }, // enforce registration order
     }),
     tx.openPlayCourt.findMany({
       where: { openPlayId },
@@ -257,12 +257,10 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
       },
     })
 
-    console.info("xxxxxxxxxxxxxxxxx")
     // Only update OpenPlayPlayer if startAt or endAt is still null
     const computedEndAt = new Date(
       (queue.scheduledAt?.getTime() ?? startAt.getTime()) + player.totalPlayTime * 60000,
     )
-
     console.info(`************${JSON.stringify(player, null, 2)} -> ${startAt} = ${computedEndAt}`)
 
     // Only update if startAt or endAt is missing

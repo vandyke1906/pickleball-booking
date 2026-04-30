@@ -116,8 +116,6 @@ class QueueManager {
                   scheduleGroup(data)
                     .then((data) => {
                       EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data })
-                      console.info(`##Scheduled Group`)
-                      // console.info(`##Scheduled: ${JSON.stringify(data, null, 2)}`)
                     })
                     .catch(console.error)
                 },

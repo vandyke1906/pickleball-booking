@@ -29,6 +29,7 @@ import {
   useCreateOpenPlayPlayer,
   useDeleteOpenPlay,
   useDeleteOpenPlayPlayer,
+  useReorderOpenPlayPlayers,
   useStartActiveOpenPlay,
   useStatusUpdateOpenPlay,
   useUpdateOpenPlayPlayer,
@@ -74,9 +75,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { CopyButton } from "@/components/common/copy-button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import DraggablePlayersList from "@/app/(admin)/admin/(component)/draggable-player-list"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 const dialogConfig: any = {
   [OpenPlayStatus.active]: {
@@ -106,9 +107,7 @@ export default function OpenPlayPage() {
   const rawParam = params.id ?? ""
   const id = Array.isArray(rawParam) ? rawParam[0] : (rawParam ?? "")
 
-  const { data: openPlay, isLoading, isError, error } = useOpenPlay(id)
-
-  console.info({ openPlay })
+  const { data: openPlay, isLoading, isError, refetch } = useOpenPlay(id)
 
   const [openEditOpenPlayDialog, setOpenEditOpenPlayDialog] = useState(false)
   const [confirmDeleteOpenPlayDialogOpen, setConfirmDeleteOpenPlayDialogOpen] = useState(false)
@@ -117,6 +116,8 @@ export default function OpenPlayPage() {
   const [confirmDeletePlayerDialogOpen, setConfirmDeletePlayerDialogOpen] = useState(false)
   const [playerToDelete, setPlayerToDelete] = useState<any>(null)
   const [confirmStartNow, setConfirmStartNow] = useState(false)
+  const [reOrderPlayerList, setReOrderPlayerList] = useState([])
+  const [confirmReOrder, setConfirmReOrder] = useState(false)
 
   const updateStatusMutation = useStatusUpdateOpenPlay()
   const startActiveOpenPlayMutation = useStartActiveOpenPlay()
@@ -125,6 +126,7 @@ export default function OpenPlayPage() {
   const createMutation = useCreateOpenPlayPlayer()
   const updateMutation = useUpdateOpenPlayPlayer()
   const deleteMutation = useDeleteOpenPlayPlayer()
+  const reorderMutation = useReorderOpenPlayPlayers(openPlay?.id ?? "")
 
   const form = useForm<OpenPlayPlayerPayload>({
     resolver: zodResolver(openPlayPlayerSchema),
@@ -268,6 +270,18 @@ export default function OpenPlayPage() {
       },
     )
   }
+
+  const handeReOrderPlayers = () => {
+    if (!openPlay?.id || !openPlay.isActive) return
+
+    reorderMutation.mutate(reOrderPlayerList, {
+      onSuccess: () => {
+        setReOrderPlayerList([])
+        setConfirmReOrder(false)
+      },
+    })
+  }
+
   const initialOpenPlayData = openPlay
     ? {
         id: openPlay.id,
@@ -291,7 +305,40 @@ export default function OpenPlayPage() {
     updateMutation.isPending ||
     deleteMutation.isPending ||
     startActiveOpenPlayMutation.isPending
+
   const isOpenPlayActive = openPlay?.isActive && openPlay.status === OpenPlayStatus.active
+  const isEmptyPlayers = (openPlay?.players || []).length === 0
+
+  const rawStartDropdownMenu = (
+    <DropdownMenuItem
+      className="text-[var(--primary)]"
+      disabled={updateStatusMutation.isPending || isEmptyPlayers}
+      onClick={() => {
+        setConfirmStartNow(true)
+      }}
+    >
+      {updateStatusMutation.isPending ? (
+        <Spinner data-icon="inline-start" />
+      ) : (
+        <Clock className="text-[var(--primary)]" />
+      )}
+      Start Now
+    </DropdownMenuItem>
+  )
+
+  const startDropdownMenu = isEmptyPlayers ? (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">{rawStartDropdownMenu}</span>
+        </TooltipTrigger>
+
+        <TooltipContent>Add at least one player</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  ) : (
+    rawStartDropdownMenu
+  )
 
   return (
     <div className="p-6 w-full">
@@ -346,22 +393,9 @@ export default function OpenPlayPage() {
                         Activate
                       </DropdownMenuItem>
                     )}
-                    {!openPlay?.startedAt && openPlay?.status === OpenPlayStatus.active && (
-                      <DropdownMenuItem
-                        className="text-[var(--primary)]"
-                        disabled={updateStatusMutation.isPending}
-                        onClick={() => {
-                          setConfirmStartNow(true)
-                        }}
-                      >
-                        {updateStatusMutation.isPending ? (
-                          <Spinner data-icon="inline-start" />
-                        ) : (
-                          <Clock className="text-[var(--primary)]" />
-                        )}
-                        Start Now
-                      </DropdownMenuItem>
-                    )}
+                    {!openPlay?.startedAt &&
+                      openPlay?.status === OpenPlayStatus.active &&
+                      startDropdownMenu}
                     {!!openPlay?.startedAt && openPlay?.status === OpenPlayStatus.active && (
                       <DropdownMenuItem
                         className="text-[var(--primary)]"
@@ -763,7 +797,7 @@ export default function OpenPlayPage() {
             </TabsList>
 
             {openPlay?.formatted?.courts.map((group: any) => (
-              <TabsContent key={group.id} value={group.skills.join(" | ")}>
+              <TabsContent key={`${confirmReOrder}-${group.id}`} value={group.skills.join(" | ")}>
                 <Card>
                   <CardHeader>
                     <CardTitle>
@@ -796,55 +830,13 @@ export default function OpenPlayPage() {
                           PlayerSkillLabels={PlayerSkillLabels}
                           PlayerSkill={PlayerSkill}
                           onReorder={(newOrder: any) => {
-                            console.log("New order:", newOrder)
+                            // console.log("New order:", newOrder)
+                            const playerIds = newOrder.map((p: any) => p.id)
+                            console.info({ playerIds })
+                            setReOrderPlayerList(playerIds)
+                            setConfirmReOrder(true)
                           }}
                         />
-                        {/* {group.players && group.players.length > 0 ? (
-                          group.players.map((player: any, index: number) => (
-                            <div
-                              key={index}
-                              className="flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 shadow-sm gap-2"
-                            >
-                              <div className="sm:mr-4 min-w-[80px] text-sm">
-                                code:{" "}
-                                <span className="font-semibold text-primary ">
-                                  <CopyButton
-                                    text={player.code}
-                                    html={`strong>${player.code}</strong>`}
-                                  />
-                                  {player.code}
-                                </span>
-                              </div>
-                              <div className="sm:flex-1 text-sm font-medium">
-                                {player.playerName}
-                                <Badge variant="outline">
-                                  {PlayerSkillLabels[player.skill as PlayerSkill]}
-                                </Badge>
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                ({player.totalPlayTime || "N/A"} minutes Play Time)
-                              </div>
-                              <div className="flex gap-2">
-                                <Button
-                                  size="xs"
-                                  variant="outline"
-                                  onClick={() => onEditPlayer(player)}
-                                >
-                                  Edit
-                                </Button>
-                                <Button
-                                  size="xs"
-                                  variant="destructive"
-                                  onClick={() => onDeletePlayer(player)}
-                                >
-                                  Delete
-                                </Button>
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <span className="text-muted-foreground">No players registered.</span>
-                        )} */}
                       </div>
                     </div>
                   </CardContent>
@@ -921,6 +913,20 @@ export default function OpenPlayPage() {
           setOpen={setConfirmStartNow}
           isLoading={startActiveOpenPlayMutation.isPending}
           onConfirm={handleStartOpenPlayNow}
+        />
+      )}
+
+      {/* Confirm to reorder players */}
+      {openPlay && (
+        <ConfirmationDialog
+          title="Reorder Players"
+          variant="confirm"
+          Icon={<Clock className="text-green-700" size={20} />}
+          description={`Are you sure you want to reorder players?`}
+          open={confirmReOrder}
+          setOpen={setConfirmReOrder}
+          isLoading={reorderMutation.isPending}
+          onConfirm={handeReOrderPlayers}
         />
       )}
     </div>
