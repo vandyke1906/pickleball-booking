@@ -36,7 +36,6 @@ export const GET = withRateLimit(
       })
       return NextResponse.json(result)
     } catch (error: any) {
-      console.error(error)
       console.error("Error getting open play:", error?.message || error)
       return NextResponse.json({ error: "Failed to get open play" }, { status: 500 })
     }

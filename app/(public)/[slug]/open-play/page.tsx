@@ -72,6 +72,11 @@ export default function PickleballOpenPlayQueue() {
   const speechQueueRef = useRef<string[]>([])
   const prevDiffRef = useRef<number>(Infinity)
 
+  const readySoonAnnouncedRef = useRef(false)
+  const startWarningAnnouncedRef = useRef<Set<string>>(new Set())
+  const lastAnnouncedRef = useRef<string | null>(null)
+  const lastRefetchRef = useRef<number>(0)
+
   const processQueue = () => {
     if (isSpeakingRef.current) return
     if (speechQueueRef.current.length === 0) return
@@ -94,10 +99,6 @@ export default function PickleballOpenPlayQueue() {
     speechQueueRef.current.push(text)
     processQueue()
   }
-
-  const readySoonAnnouncedRef = useRef(false)
-  const startWarningAnnouncedRef = useRef<Set<string>>(new Set())
-  const lastAnnouncedRef = useRef<string | null>(null)
 
   // =====================
   // SAFE DATA NORMALIZATION (IMPORTANT FIX)
@@ -152,20 +153,23 @@ export default function PickleballOpenPlayQueue() {
 
         if (diff <= 0) {
           refetchOpenPlayData?.()
+          lastRefetchRef.current = nextTransitionValue.getTime()
         }
       }
 
       const games = currentGamesRef.current
       if (games?.length) {
-        const hasCompleted = games.some((game) => game.estimatedEndTime.getTime() <= now.getTime())
+        const completedGame = games.find((game) => game.estimatedEndTime.getTime() <= now.getTime())
 
-        if (hasCompleted) refetchOpenPlayData?.()
+        if (completedGame && lastRefetchRef.current !== completedGame.estimatedEndTime.getTime()) {
+          refetchOpenPlayData?.()
+          lastRefetchRef.current = completedGame.estimatedEndTime.getTime()
+        }
       }
     }
 
     tick()
     const interval = setInterval(tick, 1000)
-
     return () => clearInterval(interval)
   }, [])
 
