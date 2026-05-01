@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { CopyButton } from "@/components/common/copy-button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { formatTimeOnly, formatToPHDateTime } from "@/lib/utils"
+import { Skeleton } from "@/components/ui/skeleton"
 
 type Props = {
   group: any
@@ -25,6 +26,7 @@ type Props = {
   PlayerSkillLabels: any
   PlayerSkill: any
   onReorder?: (players: any[]) => void
+  isLoading?: boolean
 }
 
 export default function DraggablePlayersList({
@@ -34,6 +36,7 @@ export default function DraggablePlayersList({
   PlayerSkillLabels,
   PlayerSkill,
   onReorder,
+  isLoading = false,
 }: Props) {
   const [players, setPlayers] = useState<any[]>([])
 
@@ -67,7 +70,14 @@ export default function DraggablePlayersList({
     <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={players.map((p) => p.id)} strategy={verticalListSortingStrategy}>
         <div className="space-y-2 text-sm">
-          {players.length ? (
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center space-x-2">
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            ))
+          ) : players.length ? (
             players.map((player, index) => (
               <SortablePlayerRow
                 key={player.id}
