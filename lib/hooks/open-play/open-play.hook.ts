@@ -168,9 +168,15 @@ export function useActiveOpenPlayQueue(organizationId: string) {
     queryKey: qKeyOpenPlays.activeQueue(organizationId),
     queryFn: () => fetcher(url),
     enabled: typeof organizationId === "string" && organizationId.trim().length > 0,
-    // staleTime: 1000 * 30,
-    // gcTime: 1000 * 60 * 10,
-    // refetchInterval: 5000,
+
+    // CACHE CONTROL
+    staleTime: Infinity, // never becomes stale
+    gcTime: 1000 * 60 * 60 * 24, // keep cache for 24 hours
+
+    // PREVENT AUTO REFETCH
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
   })
 
   return {
