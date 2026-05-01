@@ -76,16 +76,13 @@ export default function PickleballOpenPlayQueue() {
   const startWarningAnnouncedRef = useRef<Set<string>>(new Set())
   const lastAnnouncedRef = useRef<string | null>(null)
   const lastRefetchRef = useRef<number>(0)
+  const hasCancelledRef = useRef(false)
 
   const processQueue = () => {
-    //  Guard: only process if queue is available
     if (!isQueueAvailable) {
-      window.speechSynthesis.cancel()
-      speechQueueRef.current = [] // clear queue if data is invalid
-      isSpeakingRef.current = false
+      stopSpeaking()
       return
     }
-
     if (isSpeakingRef.current) return
     if (speechQueueRef.current.length === 0) return
 
@@ -103,9 +100,18 @@ export default function PickleballOpenPlayQueue() {
   }
 
   const enqueueSpeak = (text: string) => {
-    if (!isQueueAvailable) return
+    if (!isQueueAvailable) {
+      stopSpeaking()
+      return
+    }
     speechQueueRef.current.push(text)
     processQueue()
+  }
+
+  const stopSpeaking = () => {
+    window.speechSynthesis.cancel()
+    speechQueueRef.current = []
+    isSpeakingRef.current = false
   }
 
   // =====================
@@ -153,25 +159,39 @@ export default function PickleballOpenPlayQueue() {
       const now = toPhilippineTime(new Date())
       setCurrentTime(now)
 
-      const nextTransitionValue = nextTransitionRef.current
-      if (nextTransitionValue) {
-        const diff = nextTransitionValue.getTime() - now.getTime()
+      if (isQueueAvailable) {
+        hasCancelledRef.current = false
+        const nextTransitionValue = nextTransitionRef.current
+        if (nextTransitionValue) {
+          const diff = nextTransitionValue.getTime() - now.getTime()
 
-        setPrepRemaining(diff > 0 ? diff : 0)
+          setPrepRemaining(diff > 0 ? diff : 0)
 
-        if (diff <= 0) {
-          refetchOpenPlayData?.()
-          lastRefetchRef.current = nextTransitionValue.getTime()
+          if (diff <= 0) {
+            refetchOpenPlayData?.()
+            lastRefetchRef.current = nextTransitionValue.getTime()
+          }
         }
-      }
 
-      const games = currentGamesRef.current
-      if (games?.length) {
-        const completedGame = games.find((game) => game.estimatedEndTime.getTime() <= now.getTime())
+        const games = currentGamesRef.current
+        if (games?.length) {
+          const completedGame = games.find(
+            (game) => game.estimatedEndTime.getTime() <= now.getTime(),
+          )
 
-        if (completedGame && lastRefetchRef.current !== completedGame.estimatedEndTime.getTime()) {
-          refetchOpenPlayData?.()
-          lastRefetchRef.current = completedGame.estimatedEndTime.getTime()
+          if (
+            completedGame &&
+            lastRefetchRef.current !== completedGame.estimatedEndTime.getTime()
+          ) {
+            refetchOpenPlayData?.()
+            lastRefetchRef.current = completedGame.estimatedEndTime.getTime()
+          }
+        }
+      } else {
+        if (!hasCancelledRef.current) {
+          //  Guard: only process if queue is available
+          stopSpeaking()
+          hasCancelledRef.current = true
         }
       }
     }
@@ -179,7 +199,7 @@ export default function PickleballOpenPlayQueue() {
     tick()
     const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
-  }, [])
+  }, [isQueueAvailable])
 
   // =====================
   // AUTO ANNOUNCE NEXT GROUPS (multi-court)
