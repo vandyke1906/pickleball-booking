@@ -15,7 +15,7 @@ export const POST = withRateLimit(
       const { id } = await params
 
       const formData = await request.formData()
-      const status = formData.get("status") as OpenPlayStatus
+      const status = (formData.get("status") || OpenPlayStatus.pending) as OpenPlayStatus
       if (!id) return NextResponse.json({ success: false, message: "Please provide open play id!" })
 
       const updatedOpenPlay = await prisma.$transaction(async (tx) => {
@@ -42,12 +42,17 @@ export const POST = withRateLimit(
           data: {
             isActive: status === OpenPlayStatus.active,
             status: status,
+            isCompleted: status === OpenPlayStatus.completed,
           },
         })
 
-        // Initialize lineup for registered players
-        if (status === OpenPlayStatus.active) {
-          //update ui of all clients on openplay
+        if (status === OpenPlayStatus.completed) {
+          await tx.lineupQueue.deleteMany({
+            where: { openPlayId: openPlay.id },
+          })
+        }
+
+        if (status === OpenPlayStatus.active || status === OpenPlayStatus.completed) {
           EventBroadcast({
             type: BroadcastEventTypes.OPENPLAY_UPDATED,
             data: openPlay,

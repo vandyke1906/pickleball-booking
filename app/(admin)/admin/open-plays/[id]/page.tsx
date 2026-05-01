@@ -832,7 +832,6 @@ export default function OpenPlayPage() {
                           onReorder={(newOrder: any) => {
                             // console.log("New order:", newOrder)
                             const playerIds = newOrder.map((p: any) => p.id)
-                            console.info({ playerIds })
                             setReOrderPlayerList(playerIds)
                             setConfirmReOrder(true)
                           }}

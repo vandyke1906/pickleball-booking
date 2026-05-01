@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CopyButton } from "@/components/common/copy-button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { formatTimeOnly, formatToPHDateTime } from "@/lib/utils"
 
 type Props = {
   group: any
@@ -154,8 +155,23 @@ function SortablePlayerRow({
         </div>
 
         {/* Play time */}
-        <div className="text-sm text-muted-foreground">
-          ({player.totalPlayTime || "N/A"} minutes Play Time)
+        <div className="text-xs text-muted-foreground space-y-0.5">
+          <div>
+            <span className="font-medium">Play Time:</span> {player.totalPlayTime ?? "N/A"} min
+          </div>
+
+          <div className="flex gap-2 flex-wrap">
+            <span>
+              <span className="font-medium">Start:</span> {formatTimeOnly(player.startAt)}
+            </span>
+
+            <span className="text-muted-foreground/60">•</span>
+
+            <span>
+              <span className="font-medium">End:</span>{" "}
+              {formatTimeOnly(player.endAt ?? player.startAt)}
+            </span>
+          </div>
         </div>
       </div>
 

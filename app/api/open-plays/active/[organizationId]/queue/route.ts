@@ -24,11 +24,10 @@ export const GET = withRateLimit(
       const result = await getOpenPlaySchedules(activeOpenPlay.id, {
         onGroupDone: (game) => {
           const playerIds = game.players.map((p) => p.playerId)
-          //RONIE DELETE done groups
           deleteQueuedPlayers(playerIds)
             .then((result) => {
               console.info("Deleted queued players:", result.count)
-              EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: game })
+              EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: activeOpenPlay })
             })
             .catch((error) => {
               console.error("Error deleting queued players:", error)

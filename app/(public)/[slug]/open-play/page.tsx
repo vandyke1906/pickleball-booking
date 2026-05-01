@@ -75,9 +75,8 @@ export default function PickleballOpenPlayQueue() {
     data: openPlayData,
     isLoading,
     refetch: refetchOpenPlayData,
+    isError,
   } = useActiveOpenPlayQueue(orgId)
-
-  console.info({ openPlayData })
 
   //Event Listener
   useEventListener(EventBusKeys.OPENPLAY_UPDATED, () => refetchOpenPlayData())
@@ -135,29 +134,53 @@ export default function PickleballOpenPlayQueue() {
       nextTransition && new Date(q.scheduledAt).getTime() === new Date(nextTransition).getTime(),
   )
 
+  const currentGamesRef = useRef(currentGames)
+  const nextTransitionRef = useRef(nextTransition)
+
+  useEffect(() => {
+    currentGamesRef.current = currentGames
+  }, [currentGames])
+
+  useEffect(() => {
+    nextTransitionRef.current = nextTransition
+  }, [nextTransition])
+
   // =====================
-  // LIVE CLOCK + COUNTDOWN (combined)
+  // LIVE CLOCK + COUNTDOWN + GAME COMPLETION CHECK
   // =====================
   useEffect(() => {
     const tick = () => {
       const now = new Date()
       setCurrentTime(now)
 
-      if (nextTransition) {
-        const diff = new Date(nextTransition).getTime() - now.getTime()
+      const nextTransitionValue = nextTransitionRef.current
+      if (nextTransitionValue) {
+        const diff = new Date(nextTransitionValue).getTime() - now.getTime()
+
         setPrepRemaining(diff > 0 ? diff : 0)
 
         if (diff <= 0) {
-          refetchOpenPlayData()
+          refetchOpenPlayData?.()
+        }
+      }
+
+      const games = currentGamesRef.current
+      if (games?.length) {
+        const hasCompleted = games.some(
+          (game) => new Date(game.estimatedEndTime).getTime() <= now.getTime(),
+        )
+
+        if (hasCompleted) {
+          refetchOpenPlayData?.()
         }
       }
     }
 
-    tick() // run immediately
+    tick()
     const interval = setInterval(tick, 1000)
 
     return () => clearInterval(interval)
-  }, [nextTransition, refetchOpenPlayData])
+  }, [])
 
   // =====================
   // AUTO ANNOUNCE NEXT GROUPS (multi-court)
@@ -294,7 +317,7 @@ export default function PickleballOpenPlayQueue() {
   }, [audioEnabled, queue])
 
   if (isLoading || isLoadingOrgWithCourts) return <LoadingScreen message="Loading Queue" />
-  if (!openPlayData) return <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
+  if (!openPlayData || isError) return <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
 
   return (
     <div className="min-h-screen bg-[#092021] text-white font-mono flex flex-col h-screen overflow-hidden">
