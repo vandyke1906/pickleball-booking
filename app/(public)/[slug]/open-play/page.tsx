@@ -80,6 +80,7 @@ export default function PickleballOpenPlayQueue() {
   const processQueue = () => {
     //  Guard: only process if queue is available
     if (!isQueueAvailable) {
+      window.speechSynthesis.cancel()
       speechQueueRef.current = [] // clear queue if data is invalid
       isSpeakingRef.current = false
       return
