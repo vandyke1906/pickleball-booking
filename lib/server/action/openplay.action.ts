@@ -223,8 +223,6 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
   const now = new Date()
   const baseStartAt = isFirst ? new Date(availableAt) : new Date(availableAt.getTime() + buffer)
   const startAt = baseStartAt > now ? baseStartAt : new Date(now.getTime() + buffer)
-
-  // const startAt = isFirst ? baseStartAt : new Date(baseStartAt.getTime() + buffer)
   const endAt = new Date(startAt.getTime() + playDuration)
   const nextAvailableAt = new Date(endAt.getTime() + buffer)
 
