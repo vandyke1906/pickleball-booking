@@ -351,11 +351,11 @@ export default function OpenPlayPage() {
             </div>
             <ButtonGroup>
               <Button
-                // disabled={isPendingMutations || isOpenPlayActive}
+                disabled={isPendingMutations || isOpenPlayActive}
                 className="w-full sm:w-auto"
                 variant="outline"
                 onClick={() => {
-                  // if (isPendingMutations || isOpenPlayActive) return
+                  if (isPendingMutations || isOpenPlayActive) return
                   setOpenEditOpenPlayDialog(true)
                 }}
               >
@@ -394,6 +394,7 @@ export default function OpenPlayPage() {
                       </DropdownMenuItem>
                     )}
                     {!openPlay?.startedAt &&
+                      openPlay?.isActive &&
                       openPlay?.status === OpenPlayStatus.active &&
                       startDropdownMenu}
                     {!!openPlay?.startedAt && openPlay?.status === OpenPlayStatus.active && (

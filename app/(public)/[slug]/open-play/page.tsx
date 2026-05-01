@@ -78,6 +78,13 @@ export default function PickleballOpenPlayQueue() {
   const lastRefetchRef = useRef<number>(0)
 
   const processQueue = () => {
+    //  Guard: only process if queue is available
+    if (!isQueueAvailable) {
+      speechQueueRef.current = [] // clear queue if data is invalid
+      isSpeakingRef.current = false
+      return
+    }
+
     if (isSpeakingRef.current) return
     if (speechQueueRef.current.length === 0) return
 
