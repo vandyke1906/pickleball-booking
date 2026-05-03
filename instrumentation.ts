@@ -4,5 +4,6 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     console.info("[Startup] Initializing Redis Connection...")
     await initRedis()
+    await import("@/lib/server/services/queue-manager.service")
   }
 }

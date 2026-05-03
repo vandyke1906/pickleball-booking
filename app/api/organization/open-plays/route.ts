@@ -33,7 +33,7 @@ export const GET = withRateLimit(async (request: Request) => {
     }
 
     // Sorting
-    let orderBy: any[] = [{ isActive: "desc" }]
+    let orderBy: any[] = [{ startTime: "desc" }]
     const sortStr = searchParams.get("sort")
     if (sortStr) {
       const sort = JSON.parse(sortStr)

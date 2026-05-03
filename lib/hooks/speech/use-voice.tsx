@@ -30,8 +30,10 @@ export const useVoice = () => {
     onSpeaking?: (val: boolean) => void,
     options?: { rate?: number; pitch?: number; volume?: number },
   ) => {
-    if (!("speechSynthesis" in window)) return
-    window.speechSynthesis.cancel()
+    if (!("speechSynthesis" in window)) {
+      console.warn("Speech synthesis not supported")
+      return
+    }
 
     let count = 0
 
@@ -39,7 +41,7 @@ export const useVoice = () => {
       if (count >= announcementRepeats) return
 
       const utterance = new SpeechSynthesisUtterance(text)
-      utterance.voice = selectedVoice
+      utterance.voice = selectedVoice || voices[0]
       utterance.rate = options?.rate ?? 1.1
       utterance.pitch = options?.pitch ?? 1.1
       utterance.volume = options?.volume ?? 0.9
@@ -53,7 +55,6 @@ export const useVoice = () => {
         }
       }
 
-      speechRef.current = utterance
       window.speechSynthesis.speak(utterance)
     }
 

@@ -120,7 +120,7 @@ export default function OpenPlayPage() {
   const [confirmReOrder, setConfirmReOrder] = useState(false)
 
   const updateStatusMutation = useStatusUpdateOpenPlay()
-  const startActiveOpenPlayMutation = useStartActiveOpenPlay()
+  // const startActiveOpenPlayMutation = useStartActiveOpenPlay()
   const deleteOpenPlayMutation = useDeleteOpenPlay()
 
   const createMutation = useCreateOpenPlayPlayer()
@@ -258,21 +258,21 @@ export default function OpenPlayPage() {
     )
   }
 
-  const handleStartOpenPlayNow = () => {
-    if (!openPlay?.id || !openPlay.isActive) return
+  // const handleStartOpenPlayNow = () => {
+  //   if (!openPlay?.id || !openPlay.isActive) return
 
-    startActiveOpenPlayMutation.mutate(
-      { id: openPlay.id },
-      {
-        onSuccess: () => {
-          setConfirmStartNow(false)
-        },
-      },
-    )
-  }
+  //   startActiveOpenPlayMutation.mutate(
+  //     { id: openPlay.id },
+  //     {
+  //       onSuccess: () => {
+  //         setConfirmStartNow(false)
+  //       },
+  //     },
+  //   )
+  // }
 
   const handeReOrderPlayers = () => {
-    if (!openPlay?.id || !openPlay.isActive) return
+    if (!openPlay?.id || openPlay.status !== OpenPlayStatus.active) return
 
     reorderMutation.mutate(reOrderPlayerList, {
       onSuccess: () => {
@@ -303,10 +303,10 @@ export default function OpenPlayPage() {
     deleteOpenPlayMutation.isPending ||
     createMutation.isPending ||
     updateMutation.isPending ||
-    deleteMutation.isPending ||
-    startActiveOpenPlayMutation.isPending
+    deleteMutation.isPending
+  // startActiveOpenPlayMutation.isPending
 
-  const isOpenPlayActive = openPlay?.isActive && openPlay.status === OpenPlayStatus.active
+  const isOpenPlayActive = openPlay?.isActive ?? false
   const isEmptyPlayers = (openPlay?.players || []).length === 0
 
   const rawStartDropdownMenu = (
@@ -393,10 +393,10 @@ export default function OpenPlayPage() {
                         Activate
                       </DropdownMenuItem>
                     )}
-                    {!openPlay?.startedAt &&
+                    {/* {!openPlay?.startedAt &&
                       openPlay?.isActive &&
                       openPlay?.status === OpenPlayStatus.active &&
-                      startDropdownMenu}
+                      startDropdownMenu} */}
                     {!!openPlay?.startedAt && openPlay?.status === OpenPlayStatus.active && (
                       <DropdownMenuItem
                         className="text-[var(--primary)]"
@@ -903,7 +903,7 @@ export default function OpenPlayPage() {
       />
 
       {/* Confirm to start active openplay */}
-      {openPlay && (
+      {/* {openPlay && (
         <ConfirmationDialog
           title="Start Now"
           variant="confirm"
@@ -914,7 +914,7 @@ export default function OpenPlayPage() {
           isLoading={startActiveOpenPlayMutation.isPending}
           onConfirm={handleStartOpenPlayNow}
         />
-      )}
+      )} */}
 
       {/* Confirm to reorder players */}
       {openPlay && (

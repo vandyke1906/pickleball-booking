@@ -14,7 +14,7 @@ export const GET = withRateLimit(
         return NextResponse.json({ success: false, message: "Please provide organization id!" })
 
       const activeOpenPlay = await prisma.openPlay.findFirst({
-        where: { organizationId, status: OpenPlayStatus.active, isActive: true },
+        where: { organizationId, status: OpenPlayStatus.active },
         select: { id: true },
       })
 

@@ -15,7 +15,7 @@ export const POST = withRateLimit(
       const { id } = await params
       if (!id) return NextResponse.json({ success: false, message: "Please provide open play id!" })
       const openPlay = await prisma.openPlay.findUnique({
-        where: { id, status: OpenPlayStatus.active, isActive: true },
+        where: { id, status: OpenPlayStatus.active },
       })
       if (!openPlay)
         return NextResponse.json({ success: false, message: "Active open play not found!" })

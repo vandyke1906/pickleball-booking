@@ -20,29 +20,26 @@ export const POST = withRateLimit(
 
       const updatedOpenPlay = await prisma.$transaction(async (tx) => {
         if (status === OpenPlayStatus.active) {
-          // Complete any currently active Open Play
           await tx.openPlay.updateMany({
             where: {
               organizationId: session.user.organizationId,
               status: OpenPlayStatus.active,
             },
             data: {
-              isActive: false,
               status: OpenPlayStatus.completed,
             },
           })
-
-          // Clear lineup queues for completed sessions
-          await tx.lineupQueue.deleteMany()
+          await tx.lineupQueue.deleteMany() // Clear lineup queues
         }
 
         // Activate the selected Open Play
         const openPlay = await tx.openPlay.update({
           where: { id },
           data: {
-            isActive: status === OpenPlayStatus.active,
+            // isActive: status === OpenPlayStatus.active,
             status: status,
             isCompleted: status === OpenPlayStatus.completed,
+            startedAt: status === OpenPlayStatus.active ? new Date() : null,
           },
         })
 
@@ -53,6 +50,9 @@ export const POST = withRateLimit(
         }
 
         if (status === OpenPlayStatus.active || status === OpenPlayStatus.completed) {
+          if (status === OpenPlayStatus.active) {
+            await initializeLineup(tx, openPlay.id)
+          }
           EventBroadcast({
             type: BroadcastEventTypes.OPENPLAY_UPDATED,
             data: openPlay,

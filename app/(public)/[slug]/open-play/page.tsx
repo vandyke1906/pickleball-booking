@@ -68,33 +68,33 @@ export default function PickleballOpenPlayQueue() {
   const [audioEnabled, setAudioEnabled] = useState(true)
   const [prepRemaining, setPrepRemaining] = useState(0)
 
-  const isSpeakingRef = useRef(false)
   const speechQueueRef = useRef<string[]>([])
-  const prevDiffRef = useRef<number>(Infinity)
-
-  const readySoonAnnouncedRef = useRef(false)
+  const manualAnnouncedRef = useRef<Set<string>>(new Set())
   const startWarningAnnouncedRef = useRef<Set<string>>(new Set())
   const lastAnnouncedRef = useRef<string | null>(null)
   const lastRefetchRef = useRef<number>(0)
   const hasCancelledRef = useRef(false)
+  const speakingRef = useRef(false)
 
   const processQueue = () => {
     if (!isQueueAvailable) {
       stopSpeaking()
       return
     }
-    if (isSpeakingRef.current) return
+
+    // ✅ bail if already speaking or queue empty
+    if (speakingRef.current) return
     if (speechQueueRef.current.length === 0) return
 
     const text = speechQueueRef.current.shift()
     if (!text) return
 
-    isSpeakingRef.current = true
+    speakingRef.current = true
 
     speak(text, 1, 2, (speaking: boolean) => {
       if (!speaking) {
-        isSpeakingRef.current = false
-        processQueue()
+        speakingRef.current = false
+        processQueue() // continue with next item only after finishing
       }
     })
   }
@@ -104,14 +104,23 @@ export default function PickleballOpenPlayQueue() {
       stopSpeaking()
       return
     }
+
+    // prevent duplicate enqueues
+    if (speechQueueRef.current.includes(text)) {
+      return
+    }
+
     speechQueueRef.current.push(text)
-    processQueue()
+
+    if (!speakingRef.current) {
+      processQueue()
+    }
   }
 
   const stopSpeaking = () => {
     window.speechSynthesis.cancel()
     speechQueueRef.current = []
-    isSpeakingRef.current = false
+    speakingRef.current = false
   }
 
   // =====================
@@ -202,26 +211,31 @@ export default function PickleballOpenPlayQueue() {
   }, [isQueueAvailable])
 
   // =====================
-  // AUTO ANNOUNCE NEXT GROUPS (multi-court)
+  // AUTO ANNOUNCE NEXT GROUPS (multi-court, with lead time)
   // =====================
   useEffect(() => {
-    if (!audioEnabled || !queue || queue.length === 0) return
-    if (!nextTransition) return
+    if (!audioEnabled || !openPlayData?.queue?.length || !nextTransition) return
+
+    const leadMinutes = openPlayData.openPlay?.announcementMinutesBeforeTransition ?? 0
+    const leadMs = leadMinutes * 60 * 1000
 
     const now = toPhilippineTime(new Date()).getTime()
     const last = (window as any).lastAnnounceTime || 0
-
-    // Normalize nextTransition to string key
     const transitionKey = nextTransition.toISOString()
 
-    // Only announce once per transition slot, throttle to avoid repeats
-    if (lastAnnouncedRef.current === transitionKey && now - last < GUARD_MS) return
+    // ✅ Only announce once per transition slot
+    if (lastAnnouncedRef.current === transitionKey) return
+    if (now - last < GUARD_MS) return
 
-    // Find all groups scheduled at the upcoming transition
-    const upcomingGroups = queue.filter((q) => {
-      const t = q.scheduledAt.getTime()
-      const nt = nextTransition.getTime()
-      return Math.abs(t - nt) <= GUARD_MS
+    // ✅ Trigger announcement when within lead time window
+    const transitionTime = nextTransition.getTime()
+    const diff = transitionTime - now
+    if (diff > leadMs) return // too early, wait until within lead window
+
+    // ✅ Find all groups scheduled at the upcoming transition
+    const upcomingGroups = openPlayData.queue.filter((q) => {
+      const t = toPhilippineTime(q.scheduledAt).getTime()
+      return Math.abs(t - transitionTime) <= GUARD_MS
     })
 
     if (!upcomingGroups.length) return
@@ -236,105 +250,31 @@ export default function PickleballOpenPlayQueue() {
     enqueueSpeak(`Attention please. Next players: ${groupedMessage}.`)
     lastAnnouncedRef.current = transitionKey
     ;(window as any).lastAnnounceTime = now
-  }, [queue, nextTransition, audioEnabled])
+  }, [audioEnabled, nextTransition, openPlayData?.openPlay?.announcementMinutesBeforeTransition])
 
   // =====================
-  // READY SOON (fixed)
-  // =====================
-  useEffect(() => {
-    if (!audioEnabled || !nextGroups.length || !openPlay?.preparationSeconds || !prepRemaining)
-      return
-
-    // Convert preparationSeconds → ms
-    const PREPARATION_MS = openPlay.preparationSeconds * 1000
-
-    // Only trigger when within the preparation window
-    if (prepRemaining > PREPARATION_MS) {
-      readySoonAnnouncedRef.current = false
-      return
-    }
-
-    if (readySoonAnnouncedRef.current) return
-
-    //Guard: skip if current time is already past the scheduled start
-    const now = toPhilippineTime(new Date()).getTime()
-    const scheduledTime = nextGroups[0].scheduledAt.getTime()
-    if (now >= scheduledTime) return
-    enqueueSpeak(`Please be ready and prepare.`)
-
-    readySoonAnnouncedRef.current = true
-  }, [openPlay, nextGroups, prepRemaining, audioEnabled])
-
-  // =====================
-  // START WARNING (using nextGroups)
-  // =====================
-  useEffect(() => {
-    if (!audioEnabled || !openPlay?.announcementMinutesBeforeTransition) return
-    if (!nextTransition || !nextGroups || nextGroups.length === 0) return
-
-    const warningMs = openPlay.announcementMinutesBeforeTransition * 60_000
-    const now = toPhilippineTime(new Date()).getTime()
-    const diff = nextTransition.getTime() - now
-
-    // Reset if we're still outside the window
-    if (diff > warningMs) {
-      startWarningAnnouncedRef.current.clear()
-      prevDiffRef.current = diff
-      return
-    }
-
-    // Only trigger when crossing into the window
-    if (prevDiffRef.current > warningMs && diff <= warningMs) {
-      nextGroups.forEach((group) => {
-        const key = `warn-${group.id}-${nextTransition.toISOString()}`
-        if (startWarningAnnouncedRef.current.has(key)) return
-
-        const names = group.players.map((p: any) => p.playerName).join(", ") || "all players"
-        const groupedNames = `${names} on ${group.courtName}`
-
-        const scheduledTime = group.scheduledAt.getTime()
-        const now = toPhilippineTime(new Date()).getTime()
-        if (now >= scheduledTime) return
-        enqueueSpeak(
-          `Attention please. Next game at ${timeText(
-            group.scheduledAt,
-          )}. Players: ${groupedNames}. Please prepare for the next game.`,
-        )
-
-        startWarningAnnouncedRef.current.add(key)
-      })
-    }
-
-    prevDiffRef.current = diff
-  }, [nextTransition, audioEnabled, nextGroups, openPlay])
-
-  // =====================
-  // MANUAL ANNOUNCEMENT (nextGroups)
+  // MANUAL ANNOUNCEMENT (using openPlayData.queue)
   // =====================
   const handleManualAnnouncement = useCallback(() => {
-    if (!audioEnabled || !queue || queue.length === 0) return
+    if (!audioEnabled || !openPlayData?.queue || openPlayData.queue.length === 0) return
 
-    // Find the earliest upcoming scheduled time
-    const soonestTime = Math.min(...queue.map((q) => q.scheduledAt.getTime()))
-    const now = toPhilippineTime(new Date()).getTime()
+    const nextScheduledGroup = [...openPlayData.queue].sort(
+      (a, b) =>
+        toPhilippineTime(a.scheduledAt).getTime() - toPhilippineTime(b.scheduledAt).getTime(),
+    )[0]
 
-    // Skip if already past scheduled start
-    if (now >= soonestTime) return
+    if (!nextScheduledGroup) return
 
-    // Get all groups scheduled at that earliest time (multi-court support)
-    const upcomingGroups = queue.filter((q) => q.scheduledAt.getTime() === soonestTime)
+    const names =
+      nextScheduledGroup.players.map((p: any) => p.playerName).join(", ") || "all players"
+    const groupedNames = `${names} on ${nextScheduledGroup.courtName}`
 
-    upcomingGroups.forEach((group) => {
-      const names = group.players.map((p: any) => p.playerName).join(", ") || "all players"
-      const groupedNames = `${names} on ${group.courtName}`
-
-      enqueueSpeak(
-        `Attention please. Next game at ${timeText(
-          group.scheduledAt,
-        )}. Players: ${groupedNames}. Please proceed after the current game.`,
-      )
-    })
-  }, [audioEnabled, queue])
+    enqueueSpeak(
+      `Attention please. Next game at ${timeText(
+        nextScheduledGroup.scheduledAt,
+      )}. Players: ${groupedNames}. Please proceed after the current game.`,
+    )
+  }, [audioEnabled, openPlayData?.queue])
 
   if (isLoading || isLoadingOrgWithCourts) return <LoadingScreen message="Loading Queue" />
   if (!isQueueAvailable) return <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
@@ -528,7 +468,7 @@ export default function PickleballOpenPlayQueue() {
         <footer className="bg-black/70 backdrop-blur-md border-t border-emerald-600/40 px-6 py-3 flex items-center gap-4 overflow-hidden">
           {/* Label */}
           <span className="text-emerald-400 font-semibold text-sm md:text-base whitespace-nowrap">
-            Waiting players
+            Waiting players <Badge variant="warning">{waitingPlayers.length ?? 0}</Badge>
           </span>
 
           {/* Marquee */}
@@ -580,6 +520,16 @@ export default function PickleballOpenPlayQueue() {
           onOpenChange={setOpenLineupDialog}
         />
       )}
+
+      <button onClick={() => speak("Hello world, testing speech")}>Test Speech</button>
+
+      <DebugOverlay
+        openPlayData={openPlayData}
+        speechQueueRef={speechQueueRef}
+        lastAnnouncedRef={lastAnnouncedRef}
+        startWarningAnnouncedRef={startWarningAnnouncedRef}
+        manualAnnouncedRef={manualAnnouncedRef}
+      />
     </div>
   )
 }
@@ -692,12 +642,48 @@ function OpenPlayUnavailable({
               Retry
             </button>
           )}
-
-          <div className="text-xs text-emerald-300/50">
-            Please check your connection or try again later
-          </div>
         </div>
       </motion.div>
+    </div>
+  )
+}
+
+function DebugOverlay({
+  openPlayData,
+  speechQueueRef,
+  isSpeakingRef,
+  lastAnnouncedRef,
+  startWarningAnnouncedRef,
+  manualAnnouncedRef,
+}: any) {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        bottom: 0,
+        right: 0,
+        background: "rgba(0,0,0,0.8)",
+        color: "white",
+        padding: "12px",
+        fontSize: "12px",
+        maxWidth: "300px",
+        zIndex: 9999,
+        borderTopLeftRadius: "8px",
+      }}
+    >
+      <h4 style={{ margin: "0 0 8px 0" }}>🔍 Debug Overlay</h4>
+      <div>Queue length: {speechQueueRef.current.length}</div>
+      <div>Last announced: {lastAnnouncedRef.current}</div>
+      <div>Start warnings: {Array.from(startWarningAnnouncedRef.current).join(", ")}</div>
+      <div>Manual announced: {Array.from(manualAnnouncedRef.current).join(", ")}</div>
+      <div>
+        Next scheduled group:{" "}
+        {openPlayData?.queue?.[0]
+          ? `${openPlayData.queue[0].players.map((p: any) => p.playerName).join(", ")} on ${
+              openPlayData.queue[0].courtName
+            }`
+          : "None"}
+      </div>
     </div>
   )
 }

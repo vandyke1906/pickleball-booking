@@ -64,7 +64,7 @@ export async function initializeLineup(tx: TPrismaTransaction, openPlayId: strin
         if (r.status === "fulfilled") {
           const job = r.value
           const { data } = job
-          return `Job ${idx + 1}: player=${data.playerName} on openPlayCourtId=${data.openPlayCourtId}, status=fulfilled`
+          return `Job ${idx + 1}: player=${data.playerName} on openPlayCourtId=${data.openPlayCourtId}, status=${r.status}`
         } else {
           return `Job ${idx + 1}: status=failed, reason=${r.reason}`
         }
@@ -299,7 +299,6 @@ export async function getOpenPlaySchedules(
       id: true,
       startTime: true,
       endTime: true,
-      isActive: true,
       isCompleted: true,
       startedAt: true,
       transitionMinutes: true,

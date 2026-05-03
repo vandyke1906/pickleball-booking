@@ -28,11 +28,11 @@ class QueueManager {
       this.events[queueName] = new QueueEvents(queueName, { connection: this.connection })
 
       this.events[queueName].on("waiting", ({ jobId }) => {
-        // console.info(`[${queueName}] Job received and waiting: ${jobId}`)
+        console.info(`[${queueName}] Job received and waiting: ${jobId}`)
       })
 
       this.events[queueName].on("completed", ({ jobId }) => {
-        // console.info(`[${queueName}] Job completed: ${jobId}`)
+        console.info(`[${queueName}] Job completed: ${jobId}`)
       })
       this.events[queueName].on("failed", ({ jobId, failedReason }) => {
         console.error(`[${queueName}] Job failed: ${jobId}`, failedReason)

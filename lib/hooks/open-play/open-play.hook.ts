@@ -53,7 +53,6 @@ export type TOpenPlay = OpenPlay & {
     announcementMinutesBeforeTransition: number
     status: OpenPlayStatus
     courts: OpenPlayCourt[]
-    isActive: boolean
     date: string
     startedAt?: string
     startTime: string
