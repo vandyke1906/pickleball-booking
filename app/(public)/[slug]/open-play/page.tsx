@@ -523,13 +523,13 @@ export default function PickleballOpenPlayQueue() {
 
       <button onClick={() => speak("Hello world, testing speech")}>Test Speech</button>
 
-      <DebugOverlay
+      {/* <DebugOverlay
         openPlayData={openPlayData}
         speechQueueRef={speechQueueRef}
         lastAnnouncedRef={lastAnnouncedRef}
         startWarningAnnouncedRef={startWarningAnnouncedRef}
         manualAnnouncedRef={manualAnnouncedRef}
-      />
+      /> */}
     </div>
   )
 }
