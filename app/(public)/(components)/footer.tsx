@@ -1,10 +1,9 @@
 "use client"
 
-import { Mail, Phone, MapPin } from "lucide-react"
+import { Mail, Phone, MapPin, Timer } from "lucide-react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import BlurInText from "@/components/animated/blur-in-text"
-import TextGenerateEffect from "@/components/animated/typewriter"
 
 const container = {
   hidden: { opacity: 0 },
@@ -13,7 +12,7 @@ const container = {
     transition: { staggerChildren: 0.12, delayChildren: 0.25 },
   },
 }
-export function Footer() {
+export function Footer({ slug }: { slug: string }) {
   return (
     <footer className=" text-slate-300">
       <div className="max-w-7xl mx-auto px-5 sm:px-8 pt-16 pb-12">
@@ -87,6 +86,12 @@ export function Footer() {
                         <span>@pickl.digos</span>
                       </Link>
                     </span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <Link href={`/${slug}/open-play`} className="flex gap-3 font-semibold">
+                      <Timer className="h-5 w-5 text-white" />
+                      <span>Open Play Display Board</span>
+                    </Link>
                   </li>
                 </ul>
               </BlurInText>

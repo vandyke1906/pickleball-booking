@@ -20,7 +20,7 @@ export default function OrganizationPublicPage() {
     <div className="relative z-10">
       <Hero slug={slug} />
       <Features />
-      <Footer />
+      <Footer slug={slug} />
       <FBMessengerChat />
     </div>
   )
