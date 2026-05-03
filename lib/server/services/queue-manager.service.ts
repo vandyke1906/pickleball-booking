@@ -110,14 +110,15 @@ class QueueManager {
               player, // payload
               4,
               {
-                onPromoted: (data) => {
+                onPromoted: async (data) => {
                   console.info(`Promoted: ${JSON.stringify(data, null, 2)}`)
 
-                  scheduleGroup(data)
-                    .then((data) => {
-                      EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data })
-                    })
-                    .catch(console.error)
+                  try {
+                    await scheduleGroup(data)
+                    EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data })
+                  } catch (error: any) {
+                    console.error(`Schedule group error: ${error?.message || error}`)
+                  }
                 },
               },
             )
@@ -175,7 +176,7 @@ class QueueManager {
     batchKey: string,
     payload: T,
     batchSize: number,
-    options?: { onPromoted?: (data: any) => void },
+    options?: { onPromoted?: (data: any) => Promise<void> },
   ) {
     const lua = `
     local key = KEYS[1]
@@ -206,7 +207,7 @@ class QueueManager {
 
     if (result.length > 0) {
       const parsed = result.map((item) => JSON.parse(item))
-      options?.onPromoted?.(parsed)
+      await options?.onPromoted?.(parsed)
     }
   }
 }
