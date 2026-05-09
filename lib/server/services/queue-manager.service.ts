@@ -113,7 +113,18 @@ class QueueManager {
               4,
               {
                 onPromoted: async (data) => {
-                  console.info(`Promoted: ${JSON.stringify(data, null, 2)}`)
+                  console.info(
+                    `Promoted: ${JSON.stringify(
+                      data.map((d: any) => ({
+                        name: d.playerName,
+                        startAt: d.startAt,
+                        endAt: d.endAt,
+                        openPlayGroupId: d.openPlayGroupId,
+                      })),
+                      null,
+                      2,
+                    )}`,
+                  )
 
                   try {
                     await scheduleGroup(data)

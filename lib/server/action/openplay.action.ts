@@ -283,14 +283,12 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
   }
 }
 
-export async function scheduleGroupsIncrementally(
-  groups: any[][],
-  openPlayId: string,
-  tx?: TPrismaTransaction,
-) {
+export async function scheduleGroupsIncrementally(groups: any[], tx?: TPrismaTransaction) {
   if (!groups.length) return []
 
   const db = tx ?? prisma
+
+  const openPlayId = groups[0].openPlayId
 
   // Lock per openPlayId to prevent concurrent scheduling
   return manager.withLock(`lock:openplay:${openPlayId}`, 5000, async () => {
