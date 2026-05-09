@@ -402,116 +402,117 @@ export default function PickleballOpenPlayQueue() {
               {courts.map((court) => (
                 <div
                   key={court.id}
-                  className="border border-dashed border-gray-500 rounded-lg bg-[#C1D5B8] p-4 flex flex-col h-full"
+                  className="border border-dashed border-gray-500 rounded-2xl bg-[#C1D5B8] p-4 md:p-6 flex flex-col h-full"
                 >
                   {/* Court header */}
-                  <div className="flex flex-col items-center justify-center bg-[#7FA477] p-2 rounded-md mb-4">
-                    <div className="text-5xl font-black text-primary uppercase">{court.name}</div>
-                    <div className="text-md font-semibold">Schedule</div>
+                  <div className="flex flex-col items-center justify-center bg-[#7FA477] p-2 md:p-3 rounded-xl mb-4">
+                    <div className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tight">
+                      {court.name}
+                    </div>
                   </div>
 
                   {/* Current and Next games */}
                   <div className="flex-1 flex flex-col gap-4">
                     {/* Current Game */}
                     <div className="flex-1 flex flex-col">
-                      <div className="text-lg font-bold uppercase text-primary mb-2 flex items-center justify-center gap-1">
+                      <div className="text-md md:text-2xl font-black uppercase text-primary mb-2 flex items-center justify-center gap-1 tracking-wide">
                         Current Game
                       </div>
 
-                      {/* Schedule info */}
                       {court.currentGame ? (
-                        <div className="text-xs text-gray-700 mb-1 text-center">
-                          {new Date(court.currentGame.startTime).toLocaleTimeString("en-PH", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}{" "}
-                          -{" "}
-                          {new Date(court.currentGame.estimatedEndTime).toLocaleTimeString(
-                            "en-PH",
-                            {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            },
-                          )}
+                        <div className="text-xs md:text-sm lg:text-base text-gray-700 mb-2 text-center font-semibold">
+                          {timeText(court.currentGame.startTime)} -{" "}
+                          {timeText(court.currentGame.estimatedEndTime)}
                         </div>
                       ) : null}
 
-                      <div className="flex-1 overflow-y-auto space-y-1">
+                      <div className="flex-1 overflow-y-auto">
                         {court.currentGame?.players?.length ? (
-                          court.currentGame.players.map((player) => {
-                            const [firstName, ...restNames] = player.playerName.split(" ")
-                            return (
-                              <div
-                                key={player.id}
-                                className="flex items-center justify-between text-xs bg-white/50 px-2 py-1 rounded"
-                              >
-                                <div className="flex flex-col leading-none">
-                                  <span className="font-black text-lg text-primary uppercase">
-                                    {firstName}
-                                  </span>
-                                  {restNames.length > 0 && (
-                                    <span className="text-xs text-primary/80">
-                                      {restNames.join(" ")}
-                                    </span>
-                                  )}
-                                </div>
-                                {player.skill && (
-                                  <span className="text-primary/70">
-                                    {PlayerSkillLabels[player.skill as PlayerSkill]}
-                                  </span>
-                                )}
-                              </div>
-                            )
-                          })
+                          <div className="rounded-xl bg-white/70 p-3 shadow-sm border border-white/40">
+                            <div className="flex flex-col gap-2">
+                              {court.currentGame.players.map((player) => {
+                                const [firstName, ...restNames] = player.playerName.split(" ")
+                                return (
+                                  <div
+                                    key={player.id}
+                                    className="flex items-center justify-between"
+                                  >
+                                    <div className="flex flex-col leading-none min-w-0">
+                                      <span className="font-black text-lg md:text-xl lg:text-2xl text-primary uppercase tracking-tight truncate">
+                                        {firstName}
+                                      </span>
+                                      {restNames.length > 0 && (
+                                        <span className="text-xs md:text-sm text-primary/80 font-semibold truncate">
+                                          {restNames.join(" ")}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {player.skill && (
+                                      <span className="text-xs md:text-sm font-bold text-primary/70 whitespace-nowrap ml-2">
+                                        {PlayerSkillLabels[player.skill as PlayerSkill]}
+                                      </span>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
                         ) : (
-                          <div className="text-xs text-gray-600">No current game</div>
+                          <div className="flex items-center justify-center h-full text-xs md:text-sm text-gray-600 font-medium">
+                            No current game
+                          </div>
                         )}
                       </div>
                     </div>
 
                     {/* Next Game */}
                     <div className="flex-1 flex flex-col">
-                      <div className="text-lg font-bold uppercase text-primary mb-2 flex items-center justify-center gap-1">
+                      <div className="text-md md:text-2xl font-black uppercase text-primary mb-2 flex items-center justify-center gap-1 tracking-wide">
                         Next Game
                       </div>
 
-                      {/* Schedule info */}
                       {court.nextGame ? (
-                        <div className="text-xs text-gray-700 mb-1 text-center">
+                        <div className="text-xs md:text-sm lg:text-base text-gray-700 mb-2 text-center font-semibold">
                           {timeText(court.nextGame.scheduledAt)} -{" "}
                           {timeText(court.nextGame.estimatedEndTime)}
                         </div>
                       ) : null}
 
-                      <div className="flex-1 overflow-y-auto space-y-1">
+                      <div className="flex-1 overflow-y-auto">
                         {court.nextGame?.players?.length ? (
-                          court.nextGame.players.map((player) => {
-                            const [firstName, ...restNames] = player.playerName.split(" ")
-                            return (
-                              <div
-                                key={player.id}
-                                className="flex items-center justify-between text-xs bg-white/50 px-2 py-1 rounded"
-                              >
-                                <div className="flex flex-col leading-none">
-                                  <span className="font-black text-lg text-primary uppercase">
-                                    {firstName}
-                                  </span>
-                                  {restNames.length > 0 && (
-                                    <span className="text-xs text-primary/80">
-                                      {restNames.join(" ")}
-                                    </span>
-                                  )}
-                                </div>
-                                {player.skill && (
-                                  <span className="text-primary/70">
-                                    {PlayerSkillLabels[player.skill as PlayerSkill]}
-                                  </span>
-                                )}
-                              </div>
-                            )
-                          })
+                          <div className="rounded-xl bg-white/70 p-3 shadow-sm border border-white/40">
+                            <div className="flex flex-col gap-2">
+                              {court.nextGame.players.map((player) => {
+                                const [firstName, ...restNames] = player.playerName.split(" ")
+                                return (
+                                  <div
+                                    key={player.id}
+                                    className="flex items-center justify-between"
+                                  >
+                                    <div className="flex flex-col leading-none min-w-0">
+                                      <span className="font-black text-lg md:text-xl lg:text-2xl text-primary uppercase tracking-tight truncate">
+                                        {firstName}
+                                      </span>
+                                      {restNames.length > 0 && (
+                                        <span className="text-xs md:text-sm text-primary/80 font-semibold truncate">
+                                          {restNames.join(" ")}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {player.skill && (
+                                      <span className="text-xs md:text-sm font-bold text-primary/70 whitespace-nowrap ml-2">
+                                        {PlayerSkillLabels[player.skill as PlayerSkill]}
+                                      </span>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
                         ) : (
-                          <div className="text-xs text-gray-600">No next game scheduled</div>
+                          <div className="flex items-center justify-center h-full text-xs md:text-sm text-gray-600 font-medium">
+                            No next game scheduled
+                          </div>
                         )}
                       </div>
                     </div>
