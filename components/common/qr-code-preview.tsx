@@ -7,6 +7,7 @@ import { QrCode } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface QrCodePreviewProps {
   title?: string
@@ -23,9 +24,18 @@ export default function QrCodePreview({ value, title }: QrCodePreviewProps) {
   return (
     <>
       {/* Trigger Button */}
-      <Button variant="ghost" size="icon" onClick={() => setOpen(true)}>
-        <QrCode className="h-6 w-6 text-primary" />
-      </Button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" onClick={() => setOpen(true)}>
+              <QrCode className="h-6 w-6 text-primary" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>View Registration QR Code</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       {/* Modal */}
       <Dialog open={open} onOpenChange={setOpen}>

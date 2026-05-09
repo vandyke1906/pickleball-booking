@@ -80,6 +80,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import DraggablePlayersList from "@/app/(admin)/admin/(component)/draggable-player-list"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import QrCodePreview from "@/components/common/qr-code-preview"
+import RegistrationCodePreview from "@/components/common/registration-codes-preview"
 
 const dialogConfig: any = {
   [OpenPlayStatus.active]: {
@@ -122,13 +123,14 @@ export default function OpenPlayPage() {
   const [confirmReOrder, setConfirmReOrder] = useState(false)
 
   const updateStatusMutation = useStatusUpdateOpenPlay()
-  // const startActiveOpenPlayMutation = useStartActiveOpenPlay()
   const deleteOpenPlayMutation = useDeleteOpenPlay()
 
   const createPlayerMutation = useCreateOpenPlayPlayer()
   const updatePlayerMutation = useUpdateOpenPlayPlayer()
   const deletePlayerMutation = useDeleteOpenPlayPlayer()
   const reorderPlayerMutation = useReorderOpenPlayPlayers(openPlay?.id ?? "")
+
+  console.info({ openPlay })
 
   const form = useForm<OpenPlayPlayerPayload>({
     resolver: zodResolver(openPlayPlayerSchema),
@@ -140,9 +142,6 @@ export default function OpenPlayPage() {
       skill: PlayerSkill.beginner,
     },
   })
-
-  //watch
-  const playerSkill = form.watch("skill")
 
   const [confirmOpenPlay, setConfirmOpenPlay] = useState<{
     open: boolean
@@ -159,16 +158,6 @@ export default function OpenPlayPage() {
       form.reset({ openPlayId: id })
     }
   }, [openPlayerFormDialog, id])
-
-  // const getAssignedCourtPerSkill = useMemo(() => {
-  //   if (!openPlay || !playerSkill) return []
-
-  //   const courts = openPlay.courts
-  //     .filter((c: any) => c.skills.includes(playerSkill))
-  //     .flatMap((c: any) => (c.courts || []).map((court: any) => court.name))
-
-  //   return [...new Set(courts)]
-  // }, [openPlay, playerSkill])
 
   if (isLoading) {
     return <Loading text="Loading Open Play..." className="p-6 min-h-[200px]" />
@@ -256,19 +245,6 @@ export default function OpenPlayPage() {
     )
   }
 
-  // const handleStartOpenPlayNow = () => {
-  //   if (!openPlay?.id || !openPlay.isActive) return
-
-  //   startActiveOpenPlayMutation.mutate(
-  //     { id: openPlay.id },
-  //     {
-  //       onSuccess: () => {
-  //         setConfirmStartNow(false)
-  //       },
-  //     },
-  //   )
-  // }
-
   const handeReOrderPlayers = () => {
     if (!openPlay?.id || openPlay.status !== OpenPlayStatus.active) return
 
@@ -341,12 +317,16 @@ export default function OpenPlayPage() {
       <Card className="w-full shadow-md rounded-2xl">
         <CardHeader>
           <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <span className="font-semibold text-lg">Open Play Details</span>
               <QrCodePreview
                 title="Registration QR Code"
                 value={`${process.env.NEXT_PUBLIC_SITE_URL}/open-play/registration/${openPlay?.id}`}
               />
+              <RegistrationCodePreview
+                codes={(openPlay?.registrationCodes || []).map((rc) => rc.code)}
+              />
+
               <BadgeStatus status={openPlay?.status as any} />
             </div>
             <ButtonGroup>

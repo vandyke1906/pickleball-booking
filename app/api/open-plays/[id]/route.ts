@@ -36,6 +36,7 @@ export const GET = withRateLimit(
               skills: true,
             },
           },
+          registrationCodes: { select: { id: true, code: true } },
         },
       })
 

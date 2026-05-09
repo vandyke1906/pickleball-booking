@@ -1,5 +1,4 @@
 import { OpenPlayStatus, PlayerSkill } from "@/.config/prisma/generated/prisma"
-import { isServerAuthenticated } from "@/lib/auth/auth.server"
 import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"

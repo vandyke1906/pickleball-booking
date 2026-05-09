@@ -64,7 +64,7 @@ export function CopyButton({ text, html, htmlRef, className }: CopyButtonProps) 
           </Button>
         </TooltipTrigger>
         <TooltipContent>
-          <p>{hasCopied ? "Copied!" : "Copy player code"}</p>
+          <p>{hasCopied ? "Copied!" : "Copy Code"}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

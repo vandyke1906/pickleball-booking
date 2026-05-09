@@ -71,6 +71,7 @@ export type TOpenPlay = OpenPlay & {
   groups: (OpenPlayGroup & { players: OpenPlayPlayer })[]
   courts: Court[]
   players: OpenPlayPlayer[]
+  registrationCodes: { id: true; code: string }[]
 }
 
 export type TQueueResponse = {
