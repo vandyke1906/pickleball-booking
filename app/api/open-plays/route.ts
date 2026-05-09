@@ -16,14 +16,14 @@ export const POST = withRateLimit(async (req: NextRequest) => {
   const duration = Number(formData.get("duration"))
   const transitionMinutes = Number(formData.get("transitionMinutes"))
   const preparationSeconds = Number(formData.get("preparationSeconds"))
-  const courtSkills = JSON.parse(formData.get("courtSkills") as string)
+  const courtIds = JSON.parse(formData.get("courtIds") as string)
+  const groupSkills = JSON.parse(formData.get("groupSkills") as string)
 
   const { start, end } = makeBookingDate(date, startTime, duration)
   console.info("[Open Play] Details: ", { date, startTime, duration })
   console.info("[Open Play] UTC Date Equivalent: ", { start, end })
 
   try {
-    const courtIds = courtSkills.flatMap((c: any) => c.courtIds)
     const result = await prisma.$transaction(async (tx) => {
       const whereClauseConflict: any = {
         courts: { some: { id: { in: courtIds } } },
@@ -33,7 +33,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       }
       if (id) whereClauseConflict.NOT = { id }
       const conflicts = await tx.openPlay.findMany({ where: whereClauseConflict })
-      if (conflicts.length > 0) throw new Error("One or more courts already scheduled")
+      if (conflicts.length > 0) throw new Error("One or more open plays already scheduled")
 
       if (id) {
         const updated = await tx.openPlay.update({
@@ -44,15 +44,19 @@ export const POST = withRateLimit(async (req: NextRequest) => {
             transitionMinutes,
             preparationSeconds,
             courts: {
+              set: [],
+              connect: courtIds.map((id: string) => ({ id })),
+            },
+            groups: {
               deleteMany: {},
-              create: courtSkills.map((c: any) => ({
-                courts: { connect: c.courtIds.map((id: string) => ({ id })) },
+              create: groupSkills.map((c: any) => ({
                 skills: { set: c.skills },
               })),
             },
           },
           include: {
             courts: true,
+            groups: true,
           },
         })
 
@@ -65,14 +69,14 @@ export const POST = withRateLimit(async (req: NextRequest) => {
             endTime: end,
             transitionMinutes: transitionMinutes,
             preparationSeconds: preparationSeconds,
-            courts: {
-              create: courtSkills.map((c: any) => ({
-                courts: { connect: c.courtIds.map((id: string) => ({ id })) },
+            courts: { connect: courtIds.map((id: string) => ({ id })) },
+            groups: {
+              create: groupSkills.map((c: any) => ({
                 skills: { set: c.skills },
               })),
             },
           },
-          include: { courts: true },
+          include: { courts: true, groups: true },
         })
 
         return created

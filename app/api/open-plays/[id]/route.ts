@@ -27,13 +27,13 @@ export const GET = withRateLimit(
           courts: {
             select: {
               id: true,
+              name: true,
+            },
+          },
+          groups: {
+            select: {
+              id: true,
               skills: true,
-              courts: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
             },
           },
         },
@@ -45,12 +45,12 @@ export const GET = withRateLimit(
       const end = new Date(openPlay.endTime)
       const startedAt = openPlay.startedAt ? new Date(openPlay.startedAt) : null
 
-      const courtsWithPlayers = openPlay.courts.map((court) => {
+      const groupWithPlayers = openPlay.groups.map((group) => {
         const eligiblePlayers = openPlay.players
-          .filter((p) => court.skills.includes(p.skill))
+          .filter((p) => group.skills.includes(p.skill))
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
         return {
-          ...court,
+          ...group,
           players: eligiblePlayers,
         }
       })
@@ -62,7 +62,7 @@ export const GET = withRateLimit(
           preparationSeconds: openPlay.preparationSeconds,
           announcementMinutesBeforeTransition: openPlay.announcementMinutesBeforeTransition,
           status: openPlay.status,
-          courts: courtsWithPlayers,
+          groups: groupWithPlayers,
           startedAt: startedAt ? formatTimeOnly(startedAt.toISOString()) : null,
           date: formatToPHDateString(start),
           startTime: formatTimeOnly(start.toISOString()),

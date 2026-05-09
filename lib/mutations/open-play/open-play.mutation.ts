@@ -22,7 +22,8 @@ async function createOrUpdateOpenPlay(payload: OpenPlayPayload) {
   formData.append("duration", parsed.duration.toString())
   formData.append("transitionMinutes", parsed.transitionMinutes.toString())
   formData.append("preparationSeconds", parsed.preparationSeconds.toString())
-  formData.append("courtSkills", JSON.stringify(parsed.courtSkills))
+  formData.append("courtIds", JSON.stringify(parsed.courtIds))
+  formData.append("groupSkills", JSON.stringify(parsed.groupSkills))
 
   const response = await fetch("/api/open-plays", {
     method: "POST",
@@ -52,8 +53,6 @@ async function createOpenPlayPlayer(payload: OpenPlayPlayerPayload) {
   formData.append("openPlayId", parsed.openPlayId)
   formData.append("playerName", parsed.playerName)
   formData.append("code", parsed.code ?? "")
-  formData.append("contactNumber", parsed.contactNumber ?? "")
-  formData.append("emailAddress", parsed.emailAddress ?? "")
   formData.append("totalPlayTime", parsed.totalPlayTime.toString())
   formData.append("skill", parsed.skill)
 

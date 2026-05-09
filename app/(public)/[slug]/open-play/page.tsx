@@ -55,6 +55,8 @@ export default function PickleballOpenPlayQueue() {
     isError,
   } = useActiveOpenPlayQueue(orgId)
 
+  console.info({ openPlayData })
+
   //Event Listener
   useEventListener(EventBusKeys.OPENPLAY_UPDATED, () => refetchOpenPlayData())
 
@@ -297,7 +299,7 @@ export default function PickleballOpenPlayQueue() {
                 {formatTimeRange(openPlay?.startTime, openPlay?.endTime)}
               </span>
               <span>
-                {openPlay?.courts.length} {openPlay?.courts.length === 1 ? "Court" : "Courts"} •{" "}
+                {/* {openPlay?.courts.length} {openPlay?.courts.length === 1 ? "Court" : "Courts"} •{" "} */}
                 {openPlay?.transitionMinutes} minutes playing time • Max 4 players per court
               </span>
             </p>

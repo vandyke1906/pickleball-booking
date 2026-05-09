@@ -18,8 +18,6 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       openPlayId: formData.get("openPlayId") as string,
       playerName: formData.get("playerName") as string,
       code: (formData.get("code") as string) || "",
-      contactNumber: (formData.get("contactNumber") as string) || "",
-      emailAddress: (formData.get("emailAddress") as string) || "",
       totalPlayTime: Number(formData.get("totalPlayTime")),
       skill: (formData.get("skill") as PlayerSkill) || "",
     }
@@ -30,9 +28,8 @@ export const POST = withRateLimit(async (req: NextRequest) => {
     // Check for unique code per OpenPlay
     const existing = await prisma.openPlayPlayer.findUnique({
       where: {
-        openPlayId_skill_code: {
+        openPlayId_code: {
           openPlayId: parsed.openPlayId,
-          skill: parsed.skill,
           code: parsed.code,
         },
       },
@@ -42,20 +39,19 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       return NextResponse.json(
         {
           success: false,
-          error: "Player code already exists for this open play",
+          error: "Player code already exists for this open play. Please choose a different code.",
         },
         { status: 400 },
       )
 
     // Create player
-
     const createdPlayer = await prisma.$transaction(async (tx) => {
       const openPlay = await tx.openPlay.findUnique({
         where: { id: parsed.openPlayId },
         select: {
           id: true,
           status: true,
-          courts: { select: { id: true, skills: true } },
+          groups: { select: { id: true, skills: true } },
           _count: {
             select: {
               players: true,
@@ -71,8 +67,6 @@ export const POST = withRateLimit(async (req: NextRequest) => {
           openPlayId: parsed.openPlayId,
           playerName: parsed.playerName,
           code: parsed.code,
-          contactNumber: parsed.contactNumber,
-          emailAddress: parsed.emailAddress || null,
           totalPlayTime: parsed.totalPlayTime || 0,
           skill: parsed.skill,
           order: nextOrder,

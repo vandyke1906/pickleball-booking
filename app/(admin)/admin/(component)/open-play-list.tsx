@@ -96,40 +96,44 @@ export default function OpenPlaysList() {
         cell: ({ row }) => {
           return (
             <div className="flex flex-wrap gap-2">
-              {(row.original.courts || []).map((playCourt: any) => (
-                <div
-                  key={playCourt.id}
-                  className="flex flex-col border rounded-md p-2 mb-2 space-y-1"
-                >
-                  {/* Courts */}
-                  <div className="flex flex-wrap gap-1">
-                    {(playCourt.courts || []).map((court: any) => (
-                      <Badge variant="default" key={court.id} className="text-xs px-2 py-0.5">
-                        {court.name}
-                      </Badge>
-                    ))}
-                  </div>
-
-                  {/* Skills */}
-                  {playCourt.skills?.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {playCourt.skills.map((skill: any) => (
-                        <Badge key={skill} variant="outline" className="text-xs px-2 py-0.5">
-                          {PlayerSkillLabels[skill as PlayerSkill]}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              {(row.original.courts || []).map((court: any) => (
+                <Badge variant="default" key={court.id} className="text-xs px-2 py-0.5">
+                  {court.name}
+                </Badge>
+                // </div>
               ))}
+
+              {(row.original.groups || []).map((group, index) => {
+                return (
+                  <div
+                    key={group.id}
+                    className="flex flex-col border rounded-md p-2 space-y-2 w-full"
+                  >
+                    {/* Group Label */}
+                    <div className="text-xs font-semibold text-muted-foreground">
+                      Group {index + 1}
+                    </div>
+
+                    {/* Skills */}
+                    {group.skills?.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {group.skills.map((skill: any) => (
+                          <Badge key={skill} variant="outline" className="text-xs px-2 py-0.5">
+                            {PlayerSkillLabels[skill as PlayerSkill]}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
             //
           )
         },
         meta: {
-          label: "Courts with Skills",
-          variant: "multiSelect",
+          label: "Courts and Skills",
           options: [],
           exportValue: (row) => row.courts.map((c: any) => c.name).join(", "),
           widthMode: "percent",

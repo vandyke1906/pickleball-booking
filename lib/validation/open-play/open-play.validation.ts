@@ -9,10 +9,10 @@ export const openPlaySchema = z.object({
   duration: z.number().min(1).max(16),
   transitionMinutes: z.number({ error: "Transition minutes is required" }).min(1),
   preparationSeconds: z.number().min(1),
-  courtSkills: z
+  courtIds: z.array(z.string()).nonempty("At least one court must be selected"),
+  groupSkills: z
     .array(
       z.object({
-        courtIds: z.array(z.string()).min(1, "At least one court must be selected"),
         skills: z.array(z.enum(PlayerSkill)).min(1, "At least one skill must be selected"),
       }),
     )
@@ -23,9 +23,12 @@ export type OpenPlayPayload = z.infer<typeof openPlaySchema>
 export const openPlayPlayerSchema = z.object({
   openPlayId: z.string().min(1, "Open Play ID is required"),
   playerName: z.string().min(2, "Player name must be at least 2 characters").max(100),
-  contactNumber: z.string().min(1, "Contact number is required"),
-  emailAddress: z.email({ message: "Invalid email address" }),
-  code: z.string().min(1, "Player code is required"),
+  code: z
+    .string()
+    .min(1, "Player code is required")
+    .max(20, "Player code must be at most 20 characters")
+    .regex(/^\S+$/, "Player code must not contain spaces")
+    .transform((val) => val.toUpperCase()),
   totalPlayTime: z.number().min(1),
   skill: z.enum(PlayerSkill, { error: "Invalid skill" }),
 })

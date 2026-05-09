@@ -1,7 +1,7 @@
 import {
   Court,
   OpenPlay,
-  OpenPlayCourt,
+  OpenPlayGroup,
   OpenPlayPlayer,
   OpenPlayStatus,
 } from "@/.config/prisma/generated/prisma"
@@ -36,7 +36,11 @@ export const qKeyOpenPlays = {
     [...qKeyOpenPlays.all, "active", organizationId] as const,
 } as const
 
-export type TOpenPlayData = OpenPlay & { courts: string[]; players: string[] }
+export type TOpenPlayData = OpenPlay & {
+  courts: string[]
+  groups: OpenPlayGroup[]
+  players: string[]
+}
 
 type OpenPlayListParams = {
   organizationId?: string
@@ -52,7 +56,7 @@ export type TOpenPlay = OpenPlay & {
     preparationSeconds: number
     announcementMinutesBeforeTransition: number
     status: OpenPlayStatus
-    courts: OpenPlayCourt[]
+    groups: OpenPlayGroup[]
     date: string
     startedAt?: string
     startTime: string
@@ -64,14 +68,15 @@ export type TOpenPlay = OpenPlay & {
       endTime: string
     }
   }
-  courts: (OpenPlayCourt & { players: OpenPlayPlayer; courts: Court[] })[]
+  groups: (OpenPlayGroup & { players: OpenPlayPlayer })[]
+  courts: Court[]
   players: OpenPlayPlayer[]
 }
 
 export type TQueueResponse = {
   isStarted: boolean
   openPlay: Partial<OpenPlay> & {
-    courts: (OpenPlayCourt & { courts: Court[] })[]
+    groups: (OpenPlayGroup & { courts: Court[] })[]
     players: OpenPlayPlayer[]
   }
   currentGames: TCurrentGame[]

@@ -1,7 +1,6 @@
 model OpenPlay {
   id String @id @default(cuid())
 
-  // isActive                            Boolean        @default(false)
   startedAt                           DateTime?
   isCompleted                         Boolean        @default(false)
   startTime                           DateTime
@@ -13,7 +12,8 @@ model OpenPlay {
 
   queues  LineupQueue[]
   players OpenPlayPlayer[] @relation("OpenPlayPlayers")
-  courts  OpenPlayCourt[]
+  courts  Court[]
+  groups  OpenPlayGroup[]
 
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
@@ -21,19 +21,17 @@ model OpenPlay {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // @@index([isActive])
   @@index([startTime, endTime])
   @@index([startTime, status])
   @@index([organizationId, status])
 }
 
-model OpenPlayCourt {
+model OpenPlayGroup {
   id String @id @default(cuid())
 
   openPlayId String
   openPlay   OpenPlay @relation(fields: [openPlayId], references: [id], onDelete: Cascade)
 
-  courts Court[]
   skills PlayerSkill[]
   status QueueStatus   @default(waiting)
 
@@ -43,6 +41,7 @@ model OpenPlayCourt {
   updatedAt DateTime @updatedAt
 
   @@index([openPlayId])
+	@@map("OpenPlayCourt")
 }
 
 model OpenPlayPlayer {
@@ -66,7 +65,7 @@ model OpenPlayPlayer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([openPlayId, skill, code])
+  @@unique([openPlayId, code])
   @@index([skill])
   @@index([openPlayId])
 }
@@ -82,8 +81,8 @@ model LineupQueue {
 
   status QueueStatus @default(waiting)
 
-  openPlayCourtId String
-  openPlayCourt   OpenPlayCourt @relation("LineupQueues", fields: [openPlayCourtId], references: [id], onDelete: Cascade)
+  openPlayGroupId String
+  openPlayGroup   OpenPlayGroup @relation("LineupQueues", fields: [openPlayGroupId], references: [id], onDelete: Cascade)
 
   scheduledAt     DateTime?
   endedAt         DateTime?
@@ -93,7 +92,7 @@ model LineupQueue {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([playerId, openPlayId, openPlayCourtId])
+  @@unique([playerId, openPlayId, openPlayGroupId])
   @@index([status])
   @@index([playerId])
 }

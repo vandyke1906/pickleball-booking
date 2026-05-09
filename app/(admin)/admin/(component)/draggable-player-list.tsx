@@ -172,14 +172,15 @@ function SortablePlayerRow({
 
           <div className="flex gap-2 flex-wrap">
             <span>
-              <span className="font-medium">Start:</span> {formatTimeOnly(player.startAt)}
+              <span className="font-medium">Start:</span>{" "}
+              {player.startAt && formatTimeOnly(player.startAt)}
             </span>
 
             <span className="text-muted-foreground/60">•</span>
 
             <span>
               <span className="font-medium">End:</span>{" "}
-              {formatTimeOnly(player.endAt ?? player.startAt)}
+              {player.endAt && formatTimeOnly(player.endAt)}
             </span>
           </div>
         </div>

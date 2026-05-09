@@ -6,8 +6,14 @@ export const bookingSchema = z.object({
   startTime: z.string().regex(/^\d{2}:\d{2}$/, "Start time must be HH:mm"),
   duration: z.number().min(1).max(16),
   courtIds: z.array(z.string()).min(1, "At least one court must be selected"),
-  fullName: z.string().min(2, "Full name is required"),
-  contactNumber: z.string().min(1, "Contact number is required"),
+  fullName: z
+    .string()
+    .min(2, "Full name is required")
+    .max(50, "Full name must be at most 50 characters"),
+  contactNumber: z
+    .string()
+    .min(1, "Contact number is required")
+    .max(20, "Contact number must be at most 20 characters"),
   emailAddress: z.email({ message: "Invalid email address" }),
   proofOfPayment: z
     .instanceof(File, { message: "Proof of payment file is required" })
@@ -22,8 +28,11 @@ export const adminBookingSchema = z.object({
   startTime: z.string().regex(/^\d{2}:\d{2}$/, "Start time must be HH:mm"),
   duration: z.number().min(1).max(16),
   courtIds: z.array(z.string()).min(1, "At least one court must be selected"),
-  fullName: z.string().min(2, "Full name is required"),
-  contactNumber: z.string().optional(),
+  fullName: z
+    .string()
+    .min(2, "Full name is required")
+    .max(50, "Full name must be at most 50 characters"),
+  contactNumber: z.string().max(20, "Contact number must be at most 20 characters").optional(),
   emailAddress: z.string().optional(),
 })
 export type AdminBookingPayload = z.infer<typeof adminBookingSchema>

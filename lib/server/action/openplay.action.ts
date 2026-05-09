@@ -8,14 +8,14 @@ import { TPrismaTransaction } from "@/lib/type/util.type"
 
 async function createLineupEntries(
   tx: TPrismaTransaction,
-  openPlayPlayersWithCourt: (OpenPlayPlayer & { openPlayCourtId: string })[],
+  openPlayPlayersWithGroup: (OpenPlayPlayer & { openPlayGroupId: string })[],
 ): Promise<Prisma.BatchPayload> {
   return await tx.lineupQueue.createMany({
-    data: openPlayPlayersWithCourt.map((p) => ({
+    data: openPlayPlayersWithGroup.map((p) => ({
       openPlayId: p.openPlayId,
       playerId: p.id,
       status: QueueStatus.waiting,
-      openPlayCourtId: p.openPlayCourtId,
+      openPlayGroupId: p.openPlayGroupId,
       scheduledAt: null,
       endedAt: null,
       assignedCourtId: null,
@@ -25,36 +25,36 @@ async function createLineupEntries(
 
 // Initialize lineup for all registered players of an OpenPlay
 export async function initializeLineup(tx: TPrismaTransaction, openPlayId: string) {
-  const [players, openPlaycourts] = await Promise.all([
+  const [players, openPlayGroups] = await Promise.all([
     tx.openPlayPlayer.findMany({
       where: { openPlayId },
       orderBy: { order: "asc" }, // enforce registration order
     }),
-    tx.openPlayCourt.findMany({
+    tx.openPlayGroup.findMany({
       where: { openPlayId },
-      select: { id: true, skills: true, courts: { select: { id: true, name: true } } },
+      select: { id: true, skills: true },
     }),
   ])
 
-  const skillCourtMap = new Map<PlayerSkill, string>()
+  const skillGroupMap = new Map<PlayerSkill, string>()
 
-  for (const opCourt of openPlaycourts) {
-    manager.clearBatch(`batch:${opCourt.id}`)
-    for (const skill of opCourt.skills) {
-      skillCourtMap.set(skill, opCourt.id)
+  for (const group of openPlayGroups) {
+    manager.clearBatch(`batch:${group.id}`)
+    for (const skill of group.skills) {
+      skillGroupMap.set(skill, group.id)
     }
   }
 
-  const playersWithCourt = players
-    .filter((p) => skillCourtMap.has(p.skill))
-    .map((p) => ({ ...p, openPlayCourtId: skillCourtMap.get(p.skill)! }))
+  const playersGroup = players
+    .filter((p) => skillGroupMap.has(p.skill))
+    .map((p) => ({ ...p, openPlayGroupId: skillGroupMap.get(p.skill)! }))
   if (players.length === 0) throw new Error("No available registered player!")
 
-  await createLineupEntries(tx, playersWithCourt)
+  await createLineupEntries(tx, playersGroup)
 
   const jobs: Promise<any>[] = []
-  for (const player of playersWithCourt) {
-    jobs.push(manager.addJob(QUEUE_KEYS.LINEUP_PLAYER, player.openPlayCourtId, player))
+  for (const player of playersGroup) {
+    jobs.push(manager.addJob(QUEUE_KEYS.LINEUP_PLAYER, player.openPlayGroupId, player))
   }
 
   Promise.allSettled(jobs).then((results) => {
@@ -64,7 +64,7 @@ export async function initializeLineup(tx: TPrismaTransaction, openPlayId: strin
         if (r.status === "fulfilled") {
           const job = r.value
           const { data } = job
-          return `Job ${idx + 1}: player=${data.playerName} on openPlayCourtId=${data.openPlayCourtId}, status=${r.status}`
+          return `Job ${idx + 1}: player=${data.playerName} on openPlayGroupId=${data.openPlayGroupId}, status=${r.status}`
         } else {
           return `Job ${idx + 1}: status=failed, reason=${r.reason}`
         }
@@ -87,11 +87,11 @@ export async function submitLineup(
   if (!player) throw new Error("Player not found")
 
   // Resolve court assignment based on skill
-  const opCourt = await tx.openPlayCourt.findFirst({
+  const opGroup = await tx.openPlayGroup.findFirst({
     where: { openPlayId, skills: { has: player.skill } },
     select: { id: true },
   })
-  if (!opCourt) throw new Error("No matching court for player skill")
+  if (!opGroup) throw new Error("No matching group for player skill")
 
   // Insert into lineupQueue
   await tx.lineupQueue.create({
@@ -99,7 +99,7 @@ export async function submitLineup(
       openPlayId,
       playerId: player.id,
       status: QueueStatus.waiting,
-      openPlayCourtId: opCourt.id,
+      openPlayGroupId: opGroup.id,
       scheduledAt: null,
       endedAt: null,
       assignedCourtId: null,
@@ -107,9 +107,9 @@ export async function submitLineup(
   })
 
   // Add job to manager
-  await manager.addJob(QUEUE_KEYS.LINEUP_PLAYER, opCourt.id, {
+  await manager.addJob(QUEUE_KEYS.LINEUP_PLAYER, opGroup.id, {
     ...player,
-    openPlayCourtId: opCourt.id,
+    openPlayGroupId: opGroup.id,
   })
 }
 
@@ -140,13 +140,13 @@ export async function deleteQueuedPlayers(playerIds: string[] = []) {
   }
 }
 
-async function getCourtAvailability(openPlayCourtId: string, tx?: TPrismaTransaction) {
+async function getCourtAvailability(openPlayId: string, tx?: TPrismaTransaction) {
   const db = tx ?? prisma
-  const openPlayCourt = await db.openPlayCourt.findUnique({
-    where: { id: openPlayCourtId },
+
+  const openPlay = await db.openPlay.findUnique({
+    where: { id: openPlayId },
     include: {
-      openPlay: true,
-      courts: true,
+      courts: { select: { id: true } },
       queues: {
         where: {
           status: QueueStatus.scheduled,
@@ -159,17 +159,17 @@ async function getCourtAvailability(openPlayCourtId: string, tx?: TPrismaTransac
     },
   })
 
-  if (!openPlayCourt) throw new Error("OpenPlayCourt not found")
+  if (!openPlay) throw new Error("OpenPlay not found")
 
   const courtMap: Record<string, { date: Date; isFirst: boolean }> = {}
 
   // initialize with OpenPlay startTime
-  for (const c of openPlayCourt.courts) {
-    courtMap[c.id] = { date: new Date(openPlayCourt.openPlay.startTime), isFirst: true }
+  for (const c of openPlay.courts) {
+    courtMap[c.id] = { date: new Date(openPlay.startTime), isFirst: true }
   }
 
   // compute latest endedAt per court
-  for (const q of openPlayCourt.queues) {
+  for (const q of openPlay.queues) {
     if (q.assignedCourtId && q.endedAt) {
       const current = courtMap[q.assignedCourtId]
 
@@ -190,8 +190,8 @@ function getNextAvailableCourt(courtMap: Record<string, { date: Date; isFirst: b
   return { courtId, availableAt: date, isFirst }
 }
 
-async function getNextCourt(openPlayCourtId: string, tx?: TPrismaTransaction) {
-  const map = await getCourtAvailability(openPlayCourtId, tx)
+async function getNextCourt(openPlayId: string, tx?: TPrismaTransaction) {
+  const map = await getCourtAvailability(openPlayId, tx)
   return getNextAvailableCourt(map)
 }
 
@@ -200,21 +200,18 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
 
   const db = tx ?? prisma
 
-  const openPlayCourtId = group[0].openPlayCourtId
+  const openPlayId = group[0].openPlayId
 
-  const { courtId: selectedCourtId, availableAt, isFirst } = await getNextCourt(openPlayCourtId, db)
+  const { courtId: selectedCourtId, availableAt, isFirst } = await getNextCourt(openPlayId, db)
 
   // Load OpenPlay config (ONLY once, lightweight fetch)
-  const openPlayCourt = await db.openPlayCourt.findUnique({
-    where: { id: openPlayCourtId },
-    include: {
-      openPlay: true,
-    },
+  const openPlay = await db.openPlay.findUnique({
+    where: { id: openPlayId },
   })
 
-  if (!openPlayCourt) throw new Error("OpenPlayCourt not found")
+  if (!openPlay) throw new Error("OpenPlay not found")
 
-  const { transitionMinutes, preparationSeconds } = openPlayCourt.openPlay
+  const { transitionMinutes, preparationSeconds } = openPlay
 
   // Compute schedule timing
   const playDuration = transitionMinutes * 60 * 1000
@@ -232,10 +229,10 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
   for (const player of group) {
     const queue = await db.lineupQueue.upsert({
       where: {
-        playerId_openPlayId_openPlayCourtId: {
+        playerId_openPlayId_openPlayGroupId: {
           playerId: player.id,
           openPlayId: player.openPlayId,
-          openPlayCourtId: player.openPlayCourtId,
+          openPlayGroupId: player.openPlayGroupId,
         },
       },
       update: {
@@ -247,7 +244,7 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
       create: {
         playerId: player.id,
         openPlayId: player.openPlayId,
-        openPlayCourtId: player.openPlayCourtId,
+        openPlayGroupId: player.openPlayGroupId,
         assignedCourtId: selectedCourtId,
         scheduledAt: startAt,
         endedAt: endAt,
@@ -317,13 +314,13 @@ export async function getOpenPlaySchedules(
           scheduledAt: true,
           endedAt: true,
           status: true,
-          openPlayCourtId: true,
-          openPlayCourt: { select: { id: true } },
+          openPlayGroupId: true,
+          openPlayGroup: { select: { id: true } },
           assignedCourtId: true,
           assignedCourt: { select: { id: true, name: true } },
         },
       },
-      courts: { select: { id: true, courts: { select: { id: true, name: true } } } },
+      courts: { select: { id: true, name: true } },
     },
   })
 
@@ -336,7 +333,7 @@ export async function getOpenPlaySchedules(
     id: q.id,
     openPlayId: activeOpenPlay.id,
     status: q.status ?? "waiting",
-    openPlayCourtId: q.openPlayCourtId,
+    openPlayGroupId: q.openPlayGroupId,
     playerId: q.playerId,
     playerName: q.player.playerName,
     scheduledAt: q.scheduledAt,
@@ -348,7 +345,7 @@ export async function getOpenPlaySchedules(
     const grouped: Record<string, TQueuePlayer[]> = {}
     queues.forEach((q: any) => {
       if (!q.scheduledAt) return
-      const key = `${q.assignedCourt?.id ?? q.openPlayCourt?.id}-${q.scheduledAt.getTime()}`
+      const key = `${q.assignedCourt?.id ?? q.openPlayGroup?.id}-${q.scheduledAt.getTime()}`
       if (!grouped[key]) grouped[key] = []
       grouped[key].push(toQueuePlayer(q))
     })

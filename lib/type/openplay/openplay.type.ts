@@ -4,7 +4,7 @@ export type TQueuePlayer = {
   id: string
   openPlayId: string
   status: string
-  openPlayCourtId: string
+  openPlayGroupId: string
   playerId: string
   playerName: string
   scheduledAt?: Date | null

@@ -43,6 +43,7 @@ import {
   ChevronDownIcon,
   Clock,
   Pencil,
+  QrCode,
   TrashIcon,
   X,
 } from "lucide-react"
@@ -78,6 +79,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import DraggablePlayersList from "@/app/(admin)/admin/(component)/draggable-player-list"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import QrCodePreview from "@/components/common/qr-code-preview"
 
 const dialogConfig: any = {
   [OpenPlayStatus.active]: {
@@ -123,23 +125,23 @@ export default function OpenPlayPage() {
   // const startActiveOpenPlayMutation = useStartActiveOpenPlay()
   const deleteOpenPlayMutation = useDeleteOpenPlay()
 
-  const createMutation = useCreateOpenPlayPlayer()
-  const updateMutation = useUpdateOpenPlayPlayer()
-  const deleteMutation = useDeleteOpenPlayPlayer()
-  const reorderMutation = useReorderOpenPlayPlayers(openPlay?.id ?? "")
+  const createPlayerMutation = useCreateOpenPlayPlayer()
+  const updatePlayerMutation = useUpdateOpenPlayPlayer()
+  const deletePlayerMutation = useDeleteOpenPlayPlayer()
+  const reorderPlayerMutation = useReorderOpenPlayPlayers(openPlay?.id ?? "")
 
   const form = useForm<OpenPlayPlayerPayload>({
     resolver: zodResolver(openPlayPlayerSchema),
     defaultValues: {
       openPlayId: id,
       playerName: "",
-      contactNumber: "",
-      emailAddress: "",
       code: "",
       totalPlayTime: 3 * 60,
       skill: PlayerSkill.beginner,
     },
   })
+
+  console.info({ openPlay })
 
   //watch
   const playerSkill = form.watch("skill")
@@ -160,15 +162,15 @@ export default function OpenPlayPage() {
     }
   }, [openPlayerFormDialog, id])
 
-  const getAssignedCourtPerSkill = useMemo(() => {
-    if (!openPlay || !playerSkill) return []
+  // const getAssignedCourtPerSkill = useMemo(() => {
+  //   if (!openPlay || !playerSkill) return []
 
-    const courts = openPlay.courts
-      .filter((c: any) => c.skills.includes(playerSkill))
-      .flatMap((c: any) => (c.courts || []).map((court: any) => court.name))
+  //   const courts = openPlay.courts
+  //     .filter((c: any) => c.skills.includes(playerSkill))
+  //     .flatMap((c: any) => (c.courts || []).map((court: any) => court.name))
 
-    return [...new Set(courts)]
-  }, [openPlay, playerSkill])
+  //   return [...new Set(courts)]
+  // }, [openPlay, playerSkill])
 
   if (isLoading) {
     return <Loading text="Loading Open Play..." className="p-6 min-h-[200px]" />
@@ -180,7 +182,7 @@ export default function OpenPlayPage() {
 
   const onSubmit = (values: OpenPlayPlayerPayload) => {
     if (editingPlayer) {
-      updateMutation.mutate(
+      updatePlayerMutation.mutate(
         { id: editingPlayer.id, payload: values },
         {
           onSuccess: () => {
@@ -191,13 +193,11 @@ export default function OpenPlayPage() {
         },
       )
     } else {
-      createMutation.mutate(values, {
+      createPlayerMutation.mutate(values, {
         onSuccess: () => {
           form.reset({
             openPlayId: id,
             playerName: "",
-            contactNumber: "",
-            emailAddress: "",
             code: "",
             totalPlayTime: 3 * 60,
             skill: PlayerSkill.beginner,
@@ -234,7 +234,7 @@ export default function OpenPlayPage() {
 
   const handleDeletePlayer = () => {
     if (!playerToDelete.id) return
-    deleteMutation.mutate(
+    deletePlayerMutation.mutate(
       { id: playerToDelete.id, openPlayId: id },
       {
         onSuccess: () => {
@@ -274,7 +274,7 @@ export default function OpenPlayPage() {
   const handeReOrderPlayers = () => {
     if (!openPlay?.id || openPlay.status !== OpenPlayStatus.active) return
 
-    reorderMutation.mutate(reOrderPlayerList, {
+    reorderPlayerMutation.mutate(reOrderPlayerList, {
       onSuccess: () => {
         setReOrderPlayerList([])
         setConfirmReOrder(false)
@@ -290,10 +290,8 @@ export default function OpenPlayPage() {
         duration: openPlay?.formatted?.duration,
         transitionMinutes: openPlay?.transitionMinutes,
         preparationSeconds: openPlay?.preparationSeconds,
-        courtSkills: openPlay.courts.map((c) => ({
-          courtIds: c.courts.map((c) => c.id),
-          skills: c.skills,
-        })),
+        courtIds: openPlay.courts.map((c) => c.id),
+        groupSkills: openPlay.groups.map((g) => ({ skills: g.skills })),
       }
     : undefined
 
@@ -301,12 +299,12 @@ export default function OpenPlayPage() {
   const isPendingMutations =
     updateStatusMutation.isPending ||
     deleteOpenPlayMutation.isPending ||
-    createMutation.isPending ||
-    updateMutation.isPending ||
-    deleteMutation.isPending
+    createPlayerMutation.isPending ||
+    updatePlayerMutation.isPending ||
+    deletePlayerMutation.isPending
   // startActiveOpenPlayMutation.isPending
 
-  const isOpenPlayActive = openPlay?.isActive ?? false
+  const isOpenPlayActive = openPlay?.status === OpenPlayStatus.active
   const isEmptyPlayers = (openPlay?.players || []).length === 0
 
   const rawStartDropdownMenu = (
@@ -347,6 +345,10 @@ export default function OpenPlayPage() {
           <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <span className="font-semibold text-lg">Open Play Details</span>
+              <QrCodePreview
+                title="Registration QR Code"
+                value={`${process.env.NEXT_PUBLIC_SITE_URL}/open-play/registration/${openPlay?.id}`}
+              />
               <BadgeStatus status={openPlay?.status as any} />
             </div>
             <ButtonGroup>
@@ -497,24 +499,33 @@ export default function OpenPlayPage() {
             <p className="text-sm text-muted-foreground">Courts</p>
             <div className="flex flex-wrap gap-2">
               {openPlay?.courts?.length ? (
-                openPlay.courts.map((playCourt: any) => (
-                  <div
-                    key={playCourt.id}
-                    className="flex flex-col border rounded-md p-2 mb-2 space-y-1"
-                  >
-                    {/* Courts */}
-                    <div className="flex flex-wrap gap-1">
-                      {(playCourt.courts || []).map((court: any) => (
-                        <Badge variant="default" key={court.id} className="text-xs px-2 py-0.5">
-                          {court.name}
-                        </Badge>
-                      ))}
+                openPlay.courts.map((court: any) => (
+                  <Badge variant="default" key={court.id} className="text-xs px-2 py-0.5">
+                    {court.name}
+                  </Badge>
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground">No courts assigned</span>
+              )}
+            </div>
+          </div>
+
+          {/* Groups */}
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">Groups</p>
+            <div className="flex flex-wrap gap-2">
+              {openPlay?.groups?.length ? (
+                openPlay.groups.map((group, index) => (
+                  <div key={group.id} className="flex flex-col border rounded-md p-2 space-y-2">
+                    {/* Group Label */}
+                    <div className="text-xs font-semibold text-muted-foreground">
+                      Group {index + 1}
                     </div>
 
                     {/* Skills */}
-                    {playCourt.skills?.length > 0 && (
+                    {group.skills?.length > 0 && (
                       <div className="flex flex-wrap gap-1">
-                        {playCourt.skills.map((skill: any) => (
+                        {group.skills.map((skill: any) => (
                           <Badge key={skill} variant="outline" className="text-xs px-2 py-0.5">
                             {PlayerSkillLabels[skill as PlayerSkill]}
                           </Badge>
@@ -524,7 +535,7 @@ export default function OpenPlayPage() {
                   </div>
                 ))
               ) : (
-                <span className="text-sm text-muted-foreground">No courts assigned</span>
+                <span className="text-sm text-muted-foreground">No groups assigned</span>
               )}
             </div>
           </div>
@@ -614,7 +625,7 @@ export default function OpenPlayPage() {
                   key={editingPlayer?.id || "new-player"}
                 >
                   <fieldset
-                    disabled={createMutation.isPending || updateMutation.isPending}
+                    disabled={createPlayerMutation.isPending || updatePlayerMutation.isPending}
                     className="space-y-6"
                   >
                     <DialogHeader>
@@ -638,45 +649,11 @@ export default function OpenPlayPage() {
                         )}
                       </div>
 
-                      {/* Contact Number */}
-                      <div className="space-y-2">
-                        <Label>Contact Number</Label>
-                        <Input
-                          placeholder="e.g. 09123456789"
-                          {...form.register("contactNumber")}
-                          onBlur={(e) => {
-                            const value = e.target.value.trim()
-                            form.setValue("contactNumber", value)
-                            const currentCode = form.getValues("code")
-                            if (!currentCode) form.setValue("code", value)
-                          }}
-                        />
-                        {form.formState.errors.contactNumber && (
-                          <p className="text-sm text-red-600">
-                            {form.formState.errors.contactNumber.message}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Email */}
-                      <div className="space-y-2">
-                        <Label>Email Address</Label>
-                        <Input
-                          type="email"
-                          placeholder="Enter email (optional)"
-                          {...form.register("emailAddress")}
-                        />
-                        {form.formState.errors.emailAddress && (
-                          <p className="text-sm text-red-600">
-                            {form.formState.errors.emailAddress.message}
-                          </p>
-                        )}
-                      </div>
-
                       {/* Player Code */}
                       <div className="space-y-2">
                         <Label>Player Code</Label>
                         <Input
+                          className="uppercase"
                           placeholder="Auto-generated or custom code"
                           {...form.register("code")}
                         />
@@ -748,7 +725,7 @@ export default function OpenPlayPage() {
 
                       {/* Assigned Courts */}
                       <div className="rounded w-full flex flex-wrap gap-2">
-                        {getAssignedCourtPerSkill.length > 0 ? (
+                        {/* {getAssignedCourtPerSkill.length > 0 ? (
                           getAssignedCourtPerSkill.map((court) => (
                             <Badge key={court} variant="default" className="px-3 py-1">
                               {court}
@@ -759,7 +736,7 @@ export default function OpenPlayPage() {
                             No courts assigned on {PlayerSkillLabels[form.watch("skill")]} skill
                             level
                           </span>
-                        )}
+                        )} */}
                       </div>
                     </div>
 
@@ -767,12 +744,11 @@ export default function OpenPlayPage() {
                       <Button
                         type="submit"
                         disabled={
-                          createMutation.isPending ||
-                          updateMutation.isPending ||
-                          !Boolean(getAssignedCourtPerSkill.length)
+                          createPlayerMutation.isPending || updatePlayerMutation.isPending
+                          // !Boolean(getAssignedCourtPerSkill.length)
                         }
                       >
-                        {createMutation.isPending || updateMutation.isPending
+                        {createPlayerMutation.isPending || updatePlayerMutation.isPending
                           ? "Submitting..."
                           : editingPlayer
                             ? "Update Player"
@@ -786,18 +762,18 @@ export default function OpenPlayPage() {
           </div>
 
           <Tabs
-            defaultValue={openPlay?.formatted?.courts[0]?.skills.join(" | ") ?? ""}
+            defaultValue={openPlay?.formatted?.groups[0]?.skills.join(" | ") ?? ""}
             className="w-full"
           >
             <TabsList>
-              {openPlay?.formatted?.courts.map((group) => (
+              {openPlay?.formatted?.groups.map((group) => (
                 <TabsTrigger key={group.id} value={group.skills.join(" | ")}>
                   {group.skills.map((skill: PlayerSkill) => PlayerSkillLabels[skill]).join(" | ")}
                 </TabsTrigger>
               ))}
             </TabsList>
 
-            {openPlay?.formatted?.courts.map((group: any) => (
+            {openPlay?.formatted?.groups.map((group: any) => (
               <TabsContent key={`${confirmReOrder}-${group.id}`} value={group.skills.join(" | ")}>
                 <Card>
                   <CardHeader>
@@ -814,14 +790,6 @@ export default function OpenPlayPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-col gap-4">
-                      <div className="flex flex-wrap gap-2">
-                        {group.courts.map((court: any) => (
-                          <Badge key={court.id} variant="default">
-                            {court.name}
-                          </Badge>
-                        ))}
-                      </div>
-
                       {/* Players */}
                       <div className="space-y-2 text-sm">
                         <DraggablePlayersList
@@ -870,7 +838,7 @@ export default function OpenPlayPage() {
           description={`Are you sure you want to delete player "${playerToDelete.playerName}"?`}
           open={confirmDeletePlayerDialogOpen}
           setOpen={setConfirmDeletePlayerDialogOpen}
-          isLoading={deleteMutation.isPending}
+          isLoading={deletePlayerMutation.isPending}
           onConfirm={handleDeletePlayer}
         />
       )}
@@ -902,20 +870,6 @@ export default function OpenPlayPage() {
         onConfirm={handleConfirmUpdateStatus}
       />
 
-      {/* Confirm to start active openplay */}
-      {/* {openPlay && (
-        <ConfirmationDialog
-          title="Start Now"
-          variant="confirm"
-          Icon={<Clock className="text-green-700" size={20} />}
-          description={`Are you sure you want to start timer of current Open Play?`}
-          open={confirmStartNow}
-          setOpen={setConfirmStartNow}
-          isLoading={startActiveOpenPlayMutation.isPending}
-          onConfirm={handleStartOpenPlayNow}
-        />
-      )} */}
-
       {/* Confirm to reorder players */}
       {openPlay && (
         <ConfirmationDialog
@@ -925,7 +879,7 @@ export default function OpenPlayPage() {
           description={`Are you sure you want to reorder players?`}
           open={confirmReOrder}
           setOpen={setConfirmReOrder}
-          isLoading={reorderMutation.isPending}
+          isLoading={reorderPlayerMutation.isPending}
           onConfirm={handeReOrderPlayers}
         />
       )}

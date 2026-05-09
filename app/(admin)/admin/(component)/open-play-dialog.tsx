@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { CalendarDays, Clock, Loader2 } from "lucide-react"
+import { CalendarDays, Clock, Loader2, Trash2 } from "lucide-react"
 import { format, startOfDay } from "date-fns"
 import {
   calculateDuration,
@@ -55,6 +55,8 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
 
   const mutation = useCreateOrUpdateOpenPlay()
 
+  console.info({ initialData })
+
   const form = useForm<OpenPlayPayload>({
     resolver: zodResolver(openPlaySchema),
     defaultValues: {
@@ -64,7 +66,8 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
       duration: initialData?.duration || 1,
       transitionMinutes: initialData?.transitionMinutes || 0,
       preparationSeconds: initialData?.preparationSeconds || 0,
-      courtSkills: initialData?.courtSkills || [],
+      courtIds: initialData?.courtIds || [],
+      groupSkills: initialData?.groupSkills || [],
     },
   })
 
@@ -156,7 +159,8 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
         duration: initialData?.duration || 1,
         transitionMinutes: initialData?.transitionMinutes || 0,
         preparationSeconds: initialData?.preparationSeconds || 0,
-        courtSkills: initialData?.courtSkills || [],
+        courtIds: initialData?.courtIds || [],
+        groupSkills: initialData?.groupSkills || [],
       })
     }
   }, [open, initialData])
@@ -313,125 +317,108 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
                   </div>
 
                   {/* Courts */}
-                  <div className="lg:col-span-2 space-y-2">
+                  <div className="rounded w-full space-y-2 col-span-2">
+                    <Label className="font-semibold text-slate-700">Courts</Label>
+                    <MultiCombobox
+                      placeholder="Select courts..."
+                      variant="default"
+                      options={(orgWithCourts?.courts || []).map((court: any) => ({
+                        value: court.id,
+                        label: court.name,
+                      }))}
+                      value={form.watch("courtIds") || []}
+                      onValueChange={(selected) => {
+                        form.setValue("courtIds", selected, { shouldValidate: true })
+                      }}
+                    />
+                    {form.formState.errors.courtIds && (
+                      <p className="text-xs text-red-600">
+                        {form.formState.errors.courtIds.message as string}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Group Skills */}
+                  <div className="rounded w-full space-y-2 col-span-2 mt-4">
                     <div className="flex items-center justify-between">
-                      <Label className="font-semibold text-slate-700">Court Details</Label>
+                      <Label className="font-semibold text-slate-700">Skill Groups</Label>
                       <Button
                         type="button"
+                        variant="warning"
+                        size="sm"
                         onClick={() => {
-                          const current = form.getValues("courtSkills") || []
-                          form.setValue("courtSkills", [...current, { courtIds: [], skills: [] }])
+                          const current = form.getValues("groupSkills") || []
+                          form.setValue("groupSkills", [...current, { skills: [] }])
                         }}
                       >
-                        + Add Court Selection
+                        + Add Group
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      You can assign multiple courts with skills at once by checking more than one
-                      option.
-                    </p>
 
-                    <div className="max-h-60 overflow-y-auto space-y-3">
-                      {/* COURT SKILLS BUILDER */}
-                      <div className="space-y-2">
-                        {form.watch("courtSkills")?.map((entry, index) => (
-                          <div
-                            key={index}
-                            className="flex items-start justify-between border rounded-md p-2 space-x-2"
-                          >
-                            <div className="flex-1 space-y-2">
-                              {/* Court selection */}
-                              <MultiCombobox
-                                placeholder="Courts..."
-                                variant="default"
-                                options={(orgWithCourts?.courts || [])
-                                  .filter((court: any) => {
-                                    const allSelectedCourtIds =
-                                      form
-                                        .watch("courtSkills")
-                                        ?.flatMap((cs: any) => cs.courtIds) || []
-                                    return (
-                                      !allSelectedCourtIds.includes(court.id) ||
-                                      entry.courtIds.includes(court.id)
-                                    )
-                                  })
-                                  .map((court: any) => ({
-                                    value: court.id,
-                                    label: court.name,
-                                  }))}
-                                value={entry.courtIds}
-                                onValueChange={(selected) => {
-                                  const current = form.getValues("courtSkills") || []
-                                  const updated = current.map((cs, i) =>
-                                    i === index ? { ...cs, courtIds: selected } : cs,
+                    <div className="space-y-3">
+                      {form.watch("groupSkills")?.map((entry, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between border rounded-md p-2 space-x-2"
+                        >
+                          <div className="flex-1 space-y-2 items-center">
+                            <MultiCombobox
+                              placeholder="Skills..."
+                              options={Object.entries(PlayerSkillLabels)
+                                .filter(([key]) => {
+                                  const allSelectedSkills =
+                                    form
+                                      .watch("groupSkills")
+                                      ?.flatMap((cs: any) => cs.skills as PlayerSkill[]) || []
+                                  return (
+                                    !allSelectedSkills.includes(key as PlayerSkill) ||
+                                    entry.skills.includes(key as PlayerSkill)
                                   )
-                                  form.setValue("courtSkills", updated, { shouldValidate: true })
-                                }}
-                              />
-
-                              {/* Skills selection */}
-                              <MultiCombobox
-                                placeholder="Skills..."
-                                options={Object.entries(PlayerSkillLabels)
-                                  .filter(([key]) => {
-                                    const allSelectedSkills =
-                                      form
-                                        .watch("courtSkills")
-                                        ?.flatMap((cs: any) => cs.skills as PlayerSkill[]) || []
-                                    return (
-                                      !allSelectedSkills.includes(key as PlayerSkill) ||
-                                      entry.skills.includes(key as PlayerSkill)
-                                    )
-                                  })
-                                  .map(([key, label]) => ({
-                                    value: key,
-                                    label,
-                                  }))}
-                                value={entry.skills}
-                                onValueChange={(selected) => {
-                                  const current = form.getValues("courtSkills") || []
-                                  const updated = current.map((cs, i) =>
-                                    i === index ? { ...cs, skills: selected as PlayerSkill[] } : cs,
-                                  )
-                                  form.setValue("courtSkills", updated, { shouldValidate: true })
-                                }}
-                                maxVisibleItems={3}
-                              />
-
-                              {/* Per-entry error */}
-                              {form.formState.errors.courtSkills?.[index] && (
-                                <p className="text-xs text-red-600">
-                                  {form.formState.errors.courtSkills[index]?.courtIds?.message ||
-                                    form.formState.errors.courtSkills[index]?.skills?.message}
-                                </p>
-                              )}
-                            </div>
-
-                            {/* Remove action */}
-                            <button
-                              type="button"
-                              className="text-xs text-red-600 hover:underline ml-2"
-                              onClick={() => {
-                                const current = form.getValues("courtSkills") || []
-                                const updated = current.filter((_, i) => i !== index)
-                                form.setValue("courtSkills", updated, { shouldValidate: true })
+                                })
+                                .map(([key, label]) => ({
+                                  value: key,
+                                  label,
+                                }))}
+                              value={entry.skills}
+                              onValueChange={(selected) => {
+                                const current = form.getValues("groupSkills") || []
+                                const updated = current.map((gs, i) =>
+                                  i === index ? { ...gs, skills: selected as PlayerSkill[] } : gs,
+                                )
+                                form.setValue("groupSkills", updated, { shouldValidate: true })
                               }}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                              maxVisibleItems={3}
+                            />
 
-                      {form.formState.errors.courtSkills && (
-                        <p className="text-sm text-red-600">
-                          {form.formState.errors.courtSkills.message}
-                        </p>
-                      )}
+                            {/* Per-group error */}
+                            {form.formState.errors.groupSkills?.[index] && (
+                              <p className="text-xs text-red-600">
+                                {form.formState.errors.groupSkills[index]?.skills?.message}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Remove group */}
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="xs"
+                            className="text-xs hover:underline ml-2"
+                            onClick={() => {
+                              const current = form.getValues("groupSkills") || []
+                              const updated = current.filter((_, i) => i !== index)
+                              form.setValue("groupSkills", updated, { shouldValidate: true })
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
                     </div>
-                    {(!dateString || !startTime) && (
-                      <p className="text-xs text-slate-500 mt-2">
-                        Please select a date and time to enable court selection.
+
+                    {form.formState.errors.groupSkills && (
+                      <p className="text-sm text-red-600">
+                        {form.formState.errors.groupSkills.message}
                       </p>
                     )}
                   </div>

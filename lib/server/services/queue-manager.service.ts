@@ -106,7 +106,7 @@ class QueueManager {
             console.log(`[Worker:${queueName}] Player ${player.playerName} joined lineup`)
 
             await this.aggregateBatchPlayers(
-              `batch:${player.openPlayCourtId}`, // redis batch key
+              `batch:${player.openPlayGroupId}`, // redis batch key
               player, // payload
               4,
               {
