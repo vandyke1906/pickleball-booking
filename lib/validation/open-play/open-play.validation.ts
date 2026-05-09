@@ -39,3 +39,17 @@ export const openPlayLineupSchema = z.object({
   code: z.string().min(1, "Player code is required"),
 })
 export type OpenPlayLineupPayload = z.infer<typeof openPlayLineupSchema>
+
+//for regisration with players
+export const openPlayPlayerRegistrationSchema = openPlayPlayerSchema
+  .omit({
+    totalPlayTime: true,
+  })
+  .extend({
+    registrationCode: z
+      .string()
+      .length(6, "Registration code must be exactly 6 characters")
+      .regex(/^\S+$/, "Registration code must not contain spaces")
+      .transform((val) => val.toUpperCase()),
+  })
+export type OpenPlayPlayerRegistrationPayload = z.infer<typeof openPlayPlayerRegistrationSchema>

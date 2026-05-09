@@ -18,12 +18,24 @@ model OpenPlay {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id])
 
+  registrationCodes RegistrationCode[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([startTime, endTime])
   @@index([startTime, status])
   @@index([organizationId, status])
+}
+model RegistrationCode {
+  id          String   @id @default(cuid())
+  code        String   
+  openPlayId  String
+  openPlay    OpenPlay @relation(fields: [openPlayId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([openPlayId, code])
 }
 
 model OpenPlayGroup {

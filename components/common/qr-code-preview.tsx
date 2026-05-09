@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import QRCode from "react-qr-code"
 import { QrCode } from "lucide-react"
 
@@ -15,6 +15,10 @@ interface QrCodePreviewProps {
 
 export default function QrCodePreview({ value, title }: QrCodePreviewProps) {
   const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (open) console.info({ value })
+  }, [open])
 
   return (
     <>

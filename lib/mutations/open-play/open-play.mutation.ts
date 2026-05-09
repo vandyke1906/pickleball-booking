@@ -5,6 +5,8 @@ import {
   openPlayLineupSchema,
   OpenPlayPayload,
   OpenPlayPlayerPayload,
+  OpenPlayPlayerRegistrationPayload,
+  openPlayPlayerRegistrationSchema,
   openPlayPlayerSchema,
   openPlaySchema,
 } from "@/lib/validation/open-play/open-play.validation"
@@ -162,6 +164,37 @@ async function reorderOpenPlayPlayers(playerIds: string[]) {
   }
 
   return res.json()
+}
+
+async function registerOpenPlayPlayer(payload: OpenPlayPlayerRegistrationPayload) {
+  const parsed = openPlayPlayerRegistrationSchema.parse(payload)
+  const formData = new FormData()
+  formData.append("openPlayId", parsed.openPlayId)
+  formData.append("registrationCode", parsed.registrationCode ?? "")
+  formData.append("playerName", parsed.playerName)
+  formData.append("code", parsed.code ?? "")
+  formData.append("skill", parsed.skill)
+
+  try {
+    const response = await fetch("/api/open-plays/players/register", {
+      method: "POST",
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData?.error || "Player registration failed")
+    }
+
+    const data = await response.json()
+    return data
+  } catch (err) {
+    if (err instanceof Error) {
+      console.error("Open Play Player registration error:", err.message)
+      throw err
+    }
+    throw new Error("Unexpected error registering player")
+  }
 }
 // endOf API functions
 
@@ -561,6 +594,66 @@ export function useReorderOpenPlayPlayers(openPlayId: string) {
       queryClient.invalidateQueries({
         queryKey: qKeyOpenPlays.detail(openPlayId),
       })
+    },
+
+    retry: 1,
+  })
+}
+
+export function useRegisterOpenPlayPlayer() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationKey: ["register-open-play-player"],
+    mutationFn: registerOpenPlayPlayer,
+
+    onMutate: async (newPlayer) => {
+      await queryClient.cancelQueries({ queryKey: ["open-play", newPlayer.openPlayId] })
+
+      const previousOpenPlay = queryClient.getQueryData(["open-play", newPlayer.openPlayId])
+
+      if (previousOpenPlay) {
+        queryClient.setQueryData(["open-play", newPlayer.openPlayId], (old: any) => ({
+          ...old,
+          players: [
+            ...(old?.players || []),
+            {
+              ...newPlayer,
+              id: "temp-id",
+            },
+          ],
+        }))
+      }
+
+      return { previousOpenPlay }
+    },
+
+    onError: (error, values, context) => {
+      if (context?.previousOpenPlay) {
+        queryClient.setQueryData(["open-play", values.openPlayId], context.previousOpenPlay)
+      }
+
+      if (error instanceof Error && "issues" in error) {
+        const zodErr = error as any
+        toast.error("Validation failed", {
+          description: zodErr.issues.map((e: any) => e.message).join(", "),
+        })
+        return
+      }
+
+      toast.error("Player registration failed", {
+        description: (error as Error).message,
+      })
+    },
+
+    onSuccess: () => {
+      toast.success("Player Registered", {
+        description: "The player has been added to the open play.",
+      })
+    },
+
+    onSettled: (_data, _error) => {
+      queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
     },
 
     retry: 1,

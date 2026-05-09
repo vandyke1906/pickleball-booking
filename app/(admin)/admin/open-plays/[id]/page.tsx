@@ -141,8 +141,6 @@ export default function OpenPlayPage() {
     },
   })
 
-  console.info({ openPlay })
-
   //watch
   const playerSkill = form.watch("skill")
 

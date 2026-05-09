@@ -3,6 +3,14 @@ import { prisma } from "@/lib/prisma"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { makeBookingDate } from "@/lib/utils"
 import { NextRequest, NextResponse } from "next/server"
+import { customAlphabet } from "nanoid"
+
+const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+const nanoid = customAlphabet(alphabet, 6)
+
+export function generateRegistrationCode(): string {
+  return nanoid().toUpperCase()
+}
 
 //CREATE OR UPDATE
 export const POST = withRateLimit(async (req: NextRequest) => {
@@ -73,6 +81,11 @@ export const POST = withRateLimit(async (req: NextRequest) => {
             groups: {
               create: groupSkills.map((c: any) => ({
                 skills: { set: c.skills },
+              })),
+            },
+            registrationCodes: {
+              create: Array.from({ length: 50 }, () => ({
+                code: generateRegistrationCode(),
               })),
             },
           },
