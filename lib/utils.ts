@@ -403,3 +403,9 @@ export const PlayerSkillLabels: Record<PlayerSkill, string> = {
   [PlayerSkill.intermediate]: "Intermediate",
   [PlayerSkill.advanced]: "Advanced",
 }
+
+export const normalizeToPhilippineTimeSeconds = (date: Date) => {
+  const d = toPhilippineTime(date)
+  d.setMilliseconds(0)
+  return d.getTime()
+}

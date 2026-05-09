@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { manager, QUEUE_KEYS } from "@/lib/server/services/queue-manager.service"
 import { TCurrentGame, TQueueGroup, TQueuePlayer } from "@/lib/type/openplay/openplay.type"
 import { TPrismaTransaction } from "@/lib/type/util.type"
+import { formatTimeOnly } from "@/lib/utils"
 
 async function createLineupEntries(
   tx: TPrismaTransaction,
@@ -256,7 +257,7 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
     const computedEndAt = new Date(
       (queue.scheduledAt?.getTime() ?? startAt.getTime()) + player.totalPlayTime * 60000,
     )
-    console.info(`************${JSON.stringify(player, null, 2)} -> ${startAt} = ${computedEndAt}`)
+    // console.info(`************${JSON.stringify(player.null, 2)} -> ${startAt} = ${computedEndAt}`)
 
     // Only update if startAt or endAt is missing
     await db.openPlayPlayer.updateMany({
@@ -279,6 +280,374 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
     endedAt: endAt,
     nextAvailableAt,
     players: results,
+  }
+}
+
+export async function scheduleGroupsIncrementally(
+  groups: any[][],
+  openPlayId: string,
+  tx?: TPrismaTransaction,
+) {
+  if (!groups.length) return []
+
+  const db = tx ?? prisma
+
+  // Lock per openPlayId to prevent concurrent scheduling
+  return manager.withLock(`lock:openplay:${openPlayId}`, 5000, async () => {
+    // Load initial court availability
+    let courtMap = await getCourtAvailability(openPlayId, db)
+
+    const results: any[] = []
+
+    for (const group of groups) {
+      if (!group.length) continue
+
+      // Pick next available court from the *current* map
+      const { courtId, availableAt, isFirst } = getNextAvailableCourt(courtMap)
+
+      // Load OpenPlay config once
+      const openPlay = await db.openPlay.findUnique({ where: { id: openPlayId } })
+      if (!openPlay) throw new Error("OpenPlay not found")
+
+      const { transitionMinutes, preparationSeconds } = openPlay
+      const playDuration = transitionMinutes * 60 * 1000
+      const buffer = preparationSeconds * 1000
+
+      const now = new Date()
+      const baseStartAt = isFirst ? new Date(availableAt) : new Date(availableAt.getTime() + buffer)
+      const startAt = baseStartAt > now ? baseStartAt : new Date(now.getTime() + buffer)
+      const endAt = new Date(startAt.getTime() + playDuration)
+      const nextAvailableAt = new Date(endAt.getTime() + buffer)
+
+      // Persist lineup updates
+      const scheduledPlayers = []
+      for (const player of group) {
+        const queue = await db.lineupQueue.upsert({
+          where: {
+            playerId_openPlayId_openPlayGroupId: {
+              playerId: player.id,
+              openPlayId: player.openPlayId,
+              openPlayGroupId: player.openPlayGroupId,
+            },
+          },
+          update: {
+            assignedCourtId: courtId,
+            scheduledAt: startAt,
+            endedAt: endAt,
+            status: QueueStatus.scheduled,
+          },
+          create: {
+            playerId: player.id,
+            openPlayId: player.openPlayId,
+            openPlayGroupId: player.openPlayGroupId,
+            assignedCourtId: courtId,
+            scheduledAt: startAt,
+            endedAt: endAt,
+            status: QueueStatus.scheduled,
+          },
+        })
+
+        await db.openPlayPlayer.updateMany({
+          where: { id: player.id, OR: [{ startAt: null }, { endAt: null }] },
+          data: { startAt: queue.scheduledAt ?? startAt, endAt },
+        })
+
+        scheduledPlayers.push(queue)
+      }
+
+      results.push({ courtId, scheduledAt: startAt, endedAt: endAt, players: scheduledPlayers })
+
+      // ✅ Update courtMap incrementally
+      courtMap[courtId] = { date: nextAvailableAt, isFirst: false }
+    }
+
+    return results
+  })
+}
+
+export async function getNewOpenPlaySchedules(
+  openPlayId: string = "",
+  options?: {
+    tx?: any
+    onGroupDone?: (game: TCurrentGame) => Promise<void>
+  },
+) {
+  const db = options?.tx ?? prisma
+  const activeOpenPlay = await db.openPlay.findUnique({
+    where: { id: openPlayId },
+    select: {
+      id: true,
+      startedAt: true,
+      startTime: true,
+      endTime: true,
+      transitionMinutes: true,
+      preparationSeconds: true,
+      groups: { select: { id: true, skills: true, status: true } },
+      queues: {
+        orderBy: { scheduledAt: "asc" },
+        select: {
+          id: true,
+          playerId: true,
+          player: { select: { playerName: true, skill: true } },
+          scheduledAt: true,
+          endedAt: true,
+          status: true,
+          openPlayGroupId: true,
+          assignedCourtId: true,
+          assignedCourt: { select: { id: true, name: true } },
+        },
+      },
+      courts: { select: { id: true, name: true } },
+    },
+  })
+
+  if (!activeOpenPlay) throw new Error("OpenPlay not found")
+
+  const now = new Date()
+
+  const toQueuePlayer = (q: any): TQueuePlayer => ({
+    id: q.id,
+    openPlayId: activeOpenPlay.id,
+    status: q.status ?? "waiting",
+    playerId: q.playerId,
+    playerName: q.player.playerName,
+    skill: q.player.skill as PlayerSkill,
+    openPlayGroupId: q.openPlayGroupId,
+    scheduledAt: q.scheduledAt,
+    endedAt: q.endedAt,
+    courtName: q.assignedCourt?.name,
+  })
+
+  const waitingGroups: {
+    groupId: string
+    skills: PlayerSkill[]
+    status: QueueStatus
+    players: TQueuePlayer[]
+  }[] = []
+
+  // Build courts with currentGame and nextGame
+  const courtsWithGames = activeOpenPlay.courts.map((court) => {
+    const courtQueues = activeOpenPlay.queues.filter((q) => q.assignedCourtId === court.id)
+
+    const groupsByTime: Record<number, any[]> = {}
+    courtQueues.forEach((q) => {
+      if (!q.scheduledAt) return
+      const key = q.scheduledAt.getTime()
+      if (!groupsByTime[key]) groupsByTime[key] = []
+      groupsByTime[key].push(q)
+    })
+
+    const times = Object.keys(groupsByTime)
+      .map(Number)
+      .sort((a, b) => a - b)
+
+    let currentGame: TCurrentGame | null = null
+    const currentTime = times.find(
+      (t) => t <= now.getTime() && groupsByTime[t].some((q) => !q.endedAt || q.endedAt > now),
+    )
+    if (currentTime) {
+      currentGame = {
+        courtId: court.id,
+        courtName: court.name,
+        players: groupsByTime[currentTime].map(toQueuePlayer),
+        startTime: new Date(currentTime),
+        estimatedEndTime: new Date(currentTime + activeOpenPlay.transitionMinutes * 60000),
+        isPreparing: now.getTime() < currentTime + activeOpenPlay.preparationSeconds * 1000,
+      }
+    }
+
+    let nextGame: TQueueGroup | null = null
+    const nextTime = times.find((t) => t > now.getTime())
+    if (nextTime) {
+      nextGame = {
+        id: `grp-${court.id}-${nextTime}`,
+        courtId: court.id,
+        courtName: court.name,
+        players: groupsByTime[nextTime].map(toQueuePlayer),
+        scheduledAt: new Date(nextTime),
+        estimatedEndTime: new Date(nextTime + activeOpenPlay.transitionMinutes * 60000),
+        position: 1,
+      }
+    }
+
+    // Waiting groups for this court
+    const excludedIds = new Set([
+      ...(currentTime ? groupsByTime[currentTime].map((q) => q.id) : []),
+      ...(nextTime ? groupsByTime[nextTime].map((q) => q.id) : []),
+    ])
+    const remaining = courtQueues.filter((q) => !excludedIds.has(q.id))
+
+    const groupedByGroup: Record<string, TQueuePlayer[]> = {}
+    remaining.forEach((q) => {
+      if (!q.openPlayGroupId) return
+      if (!groupedByGroup[q.openPlayGroupId]) groupedByGroup[q.openPlayGroupId] = []
+      groupedByGroup[q.openPlayGroupId].push(toQueuePlayer(q))
+    })
+
+    Object.entries(groupedByGroup).forEach(([groupId, players]) => {
+      const groupMeta = activeOpenPlay.groups.find((g) => g.id === groupId)
+      waitingGroups.push({
+        groupId,
+        skills: groupMeta?.skills ?? [],
+        status: groupMeta?.status ?? "waiting",
+        players,
+      })
+    })
+
+    return {
+      id: court.id,
+      name: court.name,
+      currentGame,
+      nextGame,
+    }
+  })
+
+  // Add unscheduled players into waitingGroups
+  const unscheduled = activeOpenPlay.queues.filter((q) => !q.scheduledAt && !q.endedAt)
+  const unscheduledByGroup: Record<string, TQueuePlayer[]> = {}
+  unscheduled.forEach((q) => {
+    if (!q.openPlayGroupId) return
+    if (!unscheduledByGroup[q.openPlayGroupId]) unscheduledByGroup[q.openPlayGroupId] = []
+    unscheduledByGroup[q.openPlayGroupId].push(toQueuePlayer(q))
+  })
+  Object.entries(unscheduledByGroup).forEach(([groupId, players]) => {
+    const groupMeta = activeOpenPlay.groups.find((g) => g.id === groupId)
+    waitingGroups.push({
+      groupId,
+      skills: groupMeta?.skills ?? [],
+      status: groupMeta?.status ?? "waiting",
+      players,
+    })
+  })
+
+  // Add groups with no players at all
+  activeOpenPlay.groups.forEach((g) => {
+    const hasPlayers = activeOpenPlay.queues.some((q) => q.openPlayGroupId === g.id)
+    if (!hasPlayers) {
+      waitingGroups.push({
+        groupId: g.id,
+        skills: g.skills,
+        status: g.status,
+        players: [],
+      })
+    }
+  })
+
+  // Build full queue list (future groups across all courts)
+  function groupByCourtAndTime(queues: any[]): Record<string, TQueuePlayer[]> {
+    const grouped: Record<string, TQueuePlayer[]> = {}
+    queues.forEach((q: any) => {
+      if (!q.scheduledAt) return
+      const key = `${q.assignedCourt?.id ?? q.openPlayGroup?.id}-${q.scheduledAt.getTime()}`
+      if (!grouped[key]) grouped[key] = []
+      grouped[key].push(toQueuePlayer(q))
+    })
+    return grouped
+  }
+
+  const queue: TQueueGroup[] = []
+  const futureGrouped = groupByCourtAndTime(
+    activeOpenPlay.queues.filter((q: any) => q.scheduledAt && q.scheduledAt > now),
+  )
+  Object.entries(futureGrouped).forEach(([key, players], idx) => {
+    const [courtId, timeMs] = key.split("-")
+    const scheduledAt = new Date(Number(timeMs))
+    const court = activeOpenPlay.queues.find(
+      (q: any) => (q.assignedCourt?.id ?? q.openPlayCourt?.id) === courtId,
+    )
+    if (court) {
+      queue.push({
+        id: `grp-${courtId}-${idx}`,
+        courtId,
+        courtName: court.assignedCourt?.name ?? "",
+        players,
+        scheduledAt,
+        estimatedEndTime: new Date(
+          scheduledAt.getTime() + activeOpenPlay.transitionMinutes * 60000,
+        ),
+        position: idx + 1,
+      })
+    }
+  })
+
+  //for completed games
+  const currentGames: TCurrentGame[] = []
+  const currentGrouped = groupByCourtAndTime(
+    activeOpenPlay.queues.filter(
+      (q: any) => q.scheduledAt && q.scheduledAt <= now && (!q.endedAt || q.endedAt > now),
+    ),
+  )
+  Object.entries(currentGrouped).forEach(([key, players]) => {
+    const [courtId, timeMs] = key.split("-")
+    const scheduledAt = new Date(Number(timeMs))
+    const court = activeOpenPlay.queues.find(
+      (q: any) => (q.assignedCourt?.id ?? q.openPlayCourt?.id) === courtId,
+    )
+    if (court) {
+      currentGames.push({
+        courtId,
+        courtName: court.assignedCourt?.name ?? "",
+        players,
+        startTime: scheduledAt,
+        estimatedEndTime: new Date(
+          scheduledAt.getTime() + activeOpenPlay.transitionMinutes * 60000,
+        ),
+        isPreparing:
+          now.getTime() < scheduledAt.getTime() + activeOpenPlay.preparationSeconds * 1000,
+      })
+    }
+  })
+
+  // Completed games
+  const completedGames: TCurrentGame[] = []
+  const completedGrouped = groupByCourtAndTime(
+    activeOpenPlay.queues.filter((q: any) => q.endedAt && q.endedAt <= now),
+  )
+  Object.entries(completedGrouped).forEach(([key, players]) => {
+    const [courtId, timeMs] = key.split("-")
+    const scheduledAt = new Date(Number(timeMs))
+    const court = activeOpenPlay.queues.find(
+      (q: any) => (q.assignedCourt?.id ?? q.openPlayCourt?.id) === courtId,
+    )
+    if (court) {
+      completedGames.push({
+        courtId,
+        courtName: court.assignedCourt?.name ?? "",
+        players,
+        startTime: scheduledAt,
+        estimatedEndTime: new Date(
+          scheduledAt.getTime() + activeOpenPlay.transitionMinutes * 60000,
+        ),
+        isPreparing: false,
+      })
+    }
+  })
+
+  // Fire callback for completed games
+  if (options?.onGroupDone) {
+    await Promise.all(completedGames.map((game) => options.onGroupDone?.(game)))
+  }
+
+  // Compute nextTransition from courtsWithGames
+  let nextTransition: Date | null = null
+  const nextTimes = courtsWithGames
+    .map((c: any) => c.nextGame?.scheduledAt)
+    .filter((d: any): d is Date => !!d)
+
+  if (nextTimes.length > 0) {
+    const earliest = Math.min(...nextTimes.map((d: any) => d.getTime()))
+    nextTransition = new Date(earliest)
+  }
+
+  return {
+    isStarted: !!activeOpenPlay.startedAt,
+    openPlay: activeOpenPlay,
+    timeRange: `${formatTimeOnly(activeOpenPlay.startTime.toISOString())} - ${formatTimeOnly(activeOpenPlay.endTime.toISOString())}`,
+    courts: courtsWithGames,
+    waitingGroups,
+    queues: queue,
+    currentGames,
+    nextTransition,
   }
 }
 
@@ -336,6 +705,7 @@ export async function getOpenPlaySchedules(
     openPlayGroupId: q.openPlayGroupId,
     playerId: q.playerId,
     playerName: q.player.playerName,
+    skill: q.player.skill as PlayerSkill,
     scheduledAt: q.scheduledAt,
     endedAt: q.endedAt,
   })

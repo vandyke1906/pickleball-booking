@@ -2,7 +2,7 @@ import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
 import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
-import { deleteQueuedPlayers, getNewOpenPlaySchedules } from "@/lib/server/action/openplay.action"
+import { deleteQueuedPlayers, getOpenPlaySchedules } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -21,16 +21,18 @@ export const GET = withRateLimit(
       if (!activeOpenPlay)
         return NextResponse.json({ message: "No active Open Play found" }, { status: 404 })
 
-      const result = await getNewOpenPlaySchedules(activeOpenPlay.id, {
-        onGroupDone: async (game) => {
-          try {
-            const playerIds = game.players.map((p) => p.playerId)
-            const result = await deleteQueuedPlayers(playerIds)
-            console.info("Deleted queued players:", result.count)
-            EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: activeOpenPlay })
-          } catch (error) {
-            console.error("Error deleting queued players:", error)
-          }
+      const result = await getOpenPlaySchedules(activeOpenPlay.id, {
+        onGroupDone: (game) => {
+          console.info({ completed: JSON.stringify(game, null, 2) })
+          const playerIds = game.players.map((p) => p.playerId)
+          deleteQueuedPlayers(playerIds)
+            .then((result) => {
+              console.info("Deleted queued players:", result.count)
+              EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: activeOpenPlay })
+            })
+            .catch((error) => {
+              console.error("Error deleting queued players:", error)
+            })
         },
       })
       return NextResponse.json(result)

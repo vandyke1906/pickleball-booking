@@ -7,11 +7,9 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
   return (
     <PusherProvider>
       <main className="flex-1 overflow-y-auto">
-        <div className="p-4">
-          <div className="min-h-screen bg-slate-50 relative">
-            <BokehBackground />
-            <div className="relative z-10">{children}</div>
-          </div>
+        <div className="min-h-screen bg-slate-50 relative">
+          <BokehBackground />
+          <div className="relative z-10 min-h-screen w-full">{children}</div>
         </div>
       </main>
     </PusherProvider>

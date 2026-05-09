@@ -81,7 +81,7 @@ export type TQueueResponse = {
     players: OpenPlayPlayer[]
   }
   currentGames: TCurrentGame[]
-  queue: TQueueGroup[]
+  queues: TQueueGroup[]
   nextTransition: Date | null
   waitingPlayers: OpenPlayPlayer[]
 }

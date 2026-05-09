@@ -5,6 +5,7 @@ import { scheduleGroup } from "@/lib/server/action/openplay.action"
 import { TQueuePlayer } from "@/lib/type/openplay/openplay.type"
 import { Queue, Worker, QueueEvents, JobsOptions } from "bullmq"
 import Redis from "ioredis"
+import { v4 } from "uuid"
 
 export const QUEUE_KEYS = {
   LINEUP_PLAYER: "line-up-player",
@@ -16,6 +17,7 @@ class QueueManager {
   private queues: Record<string, Queue<any>> = {}
   private events: Record<string, QueueEvents> = {}
   private workers: Record<string, Worker<any>> = {}
+  private promotionLocks: Map<string, Promise<void>> = new Map()
 
   constructor() {
     this.connection = new Redis(redisUrl, { maxRetriesPerRequest: null })
@@ -103,7 +105,7 @@ class QueueManager {
         switch (queueName) {
           case QUEUE_KEYS.LINEUP_PLAYER: {
             const player: TQueuePlayer = job.data
-            console.log(`[Worker:${queueName}] Player ${player.playerName} joined lineup`)
+            console.info(`[Worker:${queueName}] Player ${player.playerName} joined lineup`)
 
             await this.aggregateBatchPlayers(
               `batch:${player.openPlayGroupId}`, // redis batch key
@@ -179,22 +181,22 @@ class QueueManager {
     options?: { onPromoted?: (data: any) => Promise<void> },
   ) {
     const lua = `
-    local key = KEYS[1]
-    local payload = ARGV[1]
-    local batchSize = tonumber(ARGV[2])
+      local key = KEYS[1]
+      local payload = ARGV[1]
+      local batchSize = tonumber(ARGV[2])
 
-    -- Push payload
-    redis.call("RPUSH", key, payload)
-    local size = redis.call("LLEN", key)
+      redis.call("RPUSH", key, payload)
 
-    if size >= batchSize then
-      local group = redis.call("LRANGE", key, 0, batchSize - 1)
-      redis.call("LTRIM", key, batchSize, -1)
-      return group
-    else
-      return {}
-    end
-  `
+      local size = redis.call("LLEN", key)
+
+      if size >= batchSize then
+        local group = redis.call("LRANGE", key, 0, batchSize - 1)
+        redis.call("LTRIM", key, batchSize, -1)
+        return group
+      else
+        return {}
+      end
+    `
 
     const raw = await this.connection.eval(
       lua,
@@ -203,11 +205,72 @@ class QueueManager {
       JSON.stringify(payload),
       batchSize.toString(),
     )
+
     const result: string[] = Array.isArray(raw) ? (raw as string[]) : []
 
-    if (result.length > 0) {
-      const parsed = result.map((item) => JSON.parse(item))
+    if (result.length === 0) return
+
+    const parsed = result.map((item) => JSON.parse(item))
+
+    // -----------------------------
+    // SERIALIZE onPromoted per batchKey
+    // -----------------------------
+
+    const previous = this.promotionLocks.get(batchKey) || Promise.resolve()
+
+    let release!: () => void
+
+    const current = new Promise<void>((resolve) => {
+      release = resolve
+    })
+
+    this.promotionLocks.set(
+      batchKey,
+      previous.then(() => current),
+    )
+
+    await previous
+
+    try {
       await options?.onPromoted?.(parsed)
+    } finally {
+      release()
+
+      // cleanup completed lock
+      if (this.promotionLocks.get(batchKey) === current) {
+        this.promotionLocks.delete(batchKey)
+      }
+    }
+  }
+
+  /**
+   * Acquire a Redis lock for atomic operations.
+   * @param lockKey - unique key for the lock (e.g., "lock:openplay:123")
+   * @param ttlMs - lock expiration in milliseconds
+   * @param fn - async function to execute while holding the lock
+   */
+  async withLock<T>(lockKey: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
+    const token = v4()
+
+    const options: any = {
+      NX: true, // only set if not exists
+      PX: ttlMs, // expire after ttlMs (milliseconds)
+    }
+
+    const acquired = await this.connection.set(lockKey, token, options)
+
+    if (!acquired) {
+      throw new Error(`Lock busy for ${lockKey}`)
+    }
+
+    try {
+      return await fn()
+    } finally {
+      // Release lock only if still owned by this token
+      const current = await this.connection.get(lockKey)
+      if (current === token) {
+        await this.connection.del(lockKey)
+      }
     }
   }
 }

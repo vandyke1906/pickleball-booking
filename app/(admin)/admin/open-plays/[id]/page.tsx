@@ -276,7 +276,6 @@ export default function OpenPlayPage() {
     createPlayerMutation.isPending ||
     updatePlayerMutation.isPending ||
     deletePlayerMutation.isPending
-  // startActiveOpenPlayMutation.isPending
 
   const isOpenPlayActive = openPlay?.status === OpenPlayStatus.active
   const isEmptyPlayers = (openPlay?.players || []).length === 0

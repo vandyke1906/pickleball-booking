@@ -1,4 +1,4 @@
-import { OpenPlay } from "@/.config/prisma/generated/prisma"
+import { OpenPlay, PlayerSkill } from "@/.config/prisma/generated/prisma"
 
 export type TQueuePlayer = {
   id: string
@@ -6,6 +6,8 @@ export type TQueuePlayer = {
   status: string
   openPlayGroupId: string
   playerId: string
+  courtName?: string
+  skill: PlayerSkill
   playerName: string
   scheduledAt?: Date | null
   endedAt?: Date | null
