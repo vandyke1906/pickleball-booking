@@ -409,3 +409,29 @@ export const normalizeToPhilippineTimeSeconds = (date: Date) => {
   d.setMilliseconds(0)
   return d.getTime()
 }
+
+
+export const extractUniqueFields = (err: any): string[] => {
+  // 1. Preferred: Prisma structured meta
+  const metaTarget = err?.meta?.target
+
+  if (Array.isArray(metaTarget) && metaTarget.length > 0) {
+    return metaTarget.filter(Boolean)
+  }
+
+  // 2. Fallback: parse message string
+  const message = err?.message || ""
+
+  // Extract content inside parentheses
+  const match = message.match(/\(([^)]+)\)/)
+  if (!match?.[1]) return []
+
+  return match[1]
+    .split(",")
+    .map((field: string) =>
+      field
+        .replace(/[`"'\\]/g, "") // remove quotes/backticks/slashes
+        .trim()
+    )
+    .filter(Boolean) // IMPORTANT: removes empty strings
+}

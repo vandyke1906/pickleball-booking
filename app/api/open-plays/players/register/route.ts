@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { submitLineup } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
+import { extractUniqueFields } from "@/lib/utils"
 import { openPlayPlayerRegistrationSchema } from "@/lib/validation/open-play/open-play.validation"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -121,28 +122,51 @@ export const POST = withRateLimit(async (req: NextRequest) => {
   } catch (err: any) {
     console.error("Register Open Play Player error:", err)
 
-    if ( err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002" ) {
-      const target = err.meta?.target as string[] | undefined
+    console.info({code: err.code})
 
-      if (target?.includes("playerName")) {
+    if ( err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002" ) {  
+      const fields = extractUniqueFields(err)
+
+      console.info({ fields })
+
+      if (fields.includes("playerName")) {
         return NextResponse.json(
           {
             success: false,
             error: "Player name already exists in this OpenPlay.",
           },
-          { status: 400 },
+          { status: 400 }
         )
       }
 
-      if (target?.includes("code")) {
+      if (fields.includes("code")) {
         return NextResponse.json(
           {
             success: false,
             error: "Player code already exists in this OpenPlay.",
           },
-          { status: 400 },
+          { status: 400 }
         )
       }
+
+      if (fields.includes("openPlayId") && fields.includes("playerName")) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "This player name already exists in this OpenPlay event.",
+          },
+          { status: 400 }
+        )
+      }
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Duplicate field constraint violation.",
+          fields,
+        },
+        { status: 400 }
+      )
     }
 
     if (err?.issues) {
