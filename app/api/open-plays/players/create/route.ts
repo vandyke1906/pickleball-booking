@@ -65,7 +65,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       const player = await tx.openPlayPlayer.create({
         data: {
           openPlayId: parsed.openPlayId,
-          playerName: parsed.playerName,
+          playerName: parsed.playerName.trim(),
           code: parsed.code,
           totalPlayTime: parsed.totalPlayTime || 0,
           skill: parsed.skill,

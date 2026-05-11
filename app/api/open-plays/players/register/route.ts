@@ -1,4 +1,4 @@
-import { OpenPlayStatus, PlayerSkill } from "@/.config/prisma/generated/prisma"
+import { OpenPlayStatus, PlayerSkill, Prisma } from "@/.config/prisma/generated/prisma"
 import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
@@ -80,7 +80,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       const player = await tx.openPlayPlayer.create({
         data: {
           openPlayId: parsed.openPlayId,
-          playerName: parsed.playerName,
+          playerName: parsed.playerName.trim(),
           code: parsed.code,
           totalPlayTime: 3 * 60, // default to 3 hours
           skill: parsed.skill,
@@ -120,6 +120,30 @@ export const POST = withRateLimit(async (req: NextRequest) => {
     return NextResponse.json({ success: true, result: createdPlayer })
   } catch (err: any) {
     console.error("Register Open Play Player error:", err)
+
+    if ( err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002" ) {
+      const target = err.meta?.target as string[] | undefined
+
+      if (target?.includes("playerName")) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Player name already exists in this OpenPlay.",
+          },
+          { status: 400 },
+        )
+      }
+
+      if (target?.includes("code")) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Player code already exists in this OpenPlay.",
+          },
+          { status: 400 },
+        )
+      }
+    }
 
     if (err?.issues) {
       return NextResponse.json(

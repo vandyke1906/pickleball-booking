@@ -342,7 +342,7 @@ export default function PickleballOpenPlayQueue() {
                         {group.skills.map((skill: PlayerSkill) => (
                           <span
                             key={skill}
-                            className="bg-primary/20 text-primary px-2 py-1 rounded-md text-xs font-semibold"
+                            className="bg-primary/20 text-primary px-2 py-1 rounded-md text-xs font-semibold uppercase"
                           >
                             {PlayerSkillLabels[skill]}
                           </span>
@@ -369,9 +369,14 @@ export default function PickleballOpenPlayQueue() {
                               )}
                             </div>
 
-                            <div className="text-right text-primary/60 text-xs leading-tight">
-                              <Badge>{player.courtName ? player.courtName : "-"}</Badge>
-                              {player.scheduledAt && <div>{timeText(player.scheduledAt)}</div>}
+                            <div className="text-right text-primary text-xs leading-tight">
+                              {player.courtName && player.scheduledAt ? (
+                                <>
+                                
+                              <Badge>{player.courtName}</Badge>
+                              <div>{timeText(player.scheduledAt)}</div>
+                                </>
+                              ) : <div className="text-xs uppercase">{PlayerSkillLabels[player.skill as PlayerSkill]}</div>}
                             </div>
                           </div>
                         )
@@ -399,13 +404,13 @@ export default function PickleballOpenPlayQueue() {
                     : undefined,
               }}
             >
-              {courts.map((court) => (
+              {courts.map((court: any) => (
                 <div
                   key={court.id}
                   className="border border-dashed border-gray-500 rounded-2xl bg-[#C1D5B8] p-4 md:p-6 flex flex-col h-full"
                 >
                   {/* Court header */}
-                  <div className="flex flex-col items-center justify-center bg-[#7FA477] p-2 md:p-3 rounded-xl mb-4">
+                  <div className="flex flex-col items-center justify-center bg-[#7FA477]/60 p-2 md:p-3 rounded-xl mb-4">
                     <div className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tight">
                       {court.name}
                     </div>
@@ -582,7 +587,7 @@ function LineupDialog({
                 type="text"
                 placeholder="Enter Player Code"
                 {...form.register("code")}
-                className="mt-2"
+                className="mt-2 uppercase"
               />
               {form.formState.errors.code && (
                 <p className="text-red-600 text-sm mt-1">{form.formState.errors.code.message}</p>

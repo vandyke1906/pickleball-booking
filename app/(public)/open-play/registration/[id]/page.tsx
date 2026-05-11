@@ -29,19 +29,18 @@ import {
 } from "@/lib/validation/open-play/open-play.validation"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { AlertTriangle, BicepsFlexed, RefreshCw } from "lucide-react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { useEffect, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { LoadingScreen } from "@/components/animated/loading-screen"
 
 export default function RegistrationOpenPlayPage() {
+  const router = useRouter()
   const params = useParams()
   const openPlayIdParam = params.id ?? ""
   const openPlayId = Array.isArray(openPlayIdParam) ? openPlayIdParam[0] : (openPlayIdParam ?? "")
 
   const { data: openPlay, isLoading, isError, refetch } = useOpenPlay(openPlayId)
-
-
 
   const form = useForm<OpenPlayPlayerRegistrationPayload>({
     resolver: zodResolver(openPlayPlayerRegistrationSchema),
@@ -84,6 +83,7 @@ export default function RegistrationOpenPlayPage() {
           code: "",
           skill: PlayerSkill.beginner,
         })
+        router.push(`/${openPlay?.organization?.slug || "pickleball"}/open-play`)
       },
     })
   }

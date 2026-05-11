@@ -78,6 +78,7 @@ model OpenPlayPlayer {
   updatedAt DateTime @updatedAt
 
   @@unique([openPlayId, code])
+  @@unique([openPlayId, playerName])
   @@index([skill])
   @@index([openPlayId])
 }

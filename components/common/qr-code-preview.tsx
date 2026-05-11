@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Label } from "@/components/ui/label"
 
 interface QrCodePreviewProps {
   title?: string
@@ -44,10 +45,11 @@ export default function QrCodePreview({ value, title }: QrCodePreviewProps) {
             <DialogTitle>{title || "QR Code"}</DialogTitle>
           </DialogHeader>
 
-          <div className="flex items-center justify-center py-6">
+          <div className="flex flex-col items-center justify-center py-6">
             <div className="rounded-2xl border bg-white p-4 shadow-sm">
               <QRCode value={value} size={220} className="h-auto w-full max-w-[220px]" />
             </div>
+              <Label className="mt-4 break-all text-center text-sm text-muted-foreground">{value}</Label>
           </div>
         </DialogContent>
       </Dialog>

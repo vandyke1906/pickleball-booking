@@ -37,6 +37,13 @@ export const GET = withRateLimit(
             },
           },
           registrationCodes: { select: { id: true, code: true } },
+          organization: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          }
         },
       })
 
