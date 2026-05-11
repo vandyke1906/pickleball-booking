@@ -7,6 +7,8 @@ import {
   formatCountdown,
   formatDate,
   formatTimeRange,
+  normalizeToPhilippineTimeSeconds,
+  PlayerSkillLabels,
   timeText,
   toPhilippineTime,
 } from "@/lib/utils"
@@ -36,8 +38,14 @@ import { useActiveOpenPlayQueue } from "@/lib/hooks/open-play/open-play.hook"
 import { useVoice } from "@/lib/hooks/speech/use-voice"
 import { Badge } from "@/components/ui/badge"
 import { EventBusKeys, useEventListener } from "@/lib/client/event-bus"
+import AnimatedSVG from "@/components/animated/animated-svg"
+import { logoPaths } from "@/lib/svg/logo"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { PlayerSkill } from "@/.config/prisma/generated/prisma"
 
 const GUARD_MS = 4000
+
+const groups = []
 
 export default function PickleballOpenPlayQueue() {
   const params = useParams()
@@ -55,7 +63,8 @@ export default function PickleballOpenPlayQueue() {
     isError,
   } = useActiveOpenPlayQueue(orgId)
 
-  console.info({ openPlayData })
+  const waitingGroups = openPlayData?.waitingGroups ?? []
+  const courts = openPlayData?.courts ?? []
 
   //Event Listener
   useEventListener(EventBusKeys.OPENPLAY_UPDATED, () => refetchOpenPlayData())
@@ -128,35 +137,13 @@ export default function PickleballOpenPlayQueue() {
   // =====================
   // SAFE DATA NORMALIZATION (IMPORTANT FIX)
   // =====================
-  const isStarted = openPlayData?.isStarted
   const openPlay = openPlayData?.openPlay ?? null
-  const queue = (openPlayData?.queue ?? []).map((q) => ({
-    ...q,
-    scheduledAt: toPhilippineTime(q.scheduledAt),
-    endedAt: toPhilippineTime(q.estimatedEndTime),
-  }))
-
-  const currentGames = (openPlayData?.currentGames ?? []).map((g) => ({
-    ...g,
-    startTime: toPhilippineTime(g.startTime),
-    estimatedEndTime: toPhilippineTime(g.estimatedEndTime),
-  }))
 
   const nextTransition = openPlayData?.nextTransition
     ? toPhilippineTime(openPlayData?.nextTransition)
     : null
-  const waitingPlayers = openPlayData?.waitingPlayers ?? []
 
-  const nextGroups = queue.filter(
-    (q) => nextTransition && q.scheduledAt.getTime() === nextTransition.getTime(),
-  )
-
-  const currentGamesRef = useRef(currentGames)
   const nextTransitionRef = useRef(nextTransition)
-
-  useEffect(() => {
-    currentGamesRef.current = currentGames
-  }, [currentGames])
 
   useEffect(() => {
     nextTransitionRef.current = nextTransition
@@ -183,21 +170,6 @@ export default function PickleballOpenPlayQueue() {
             lastRefetchRef.current = nextTransitionValue.getTime()
           }
         }
-
-        const games = currentGamesRef.current
-        if (games?.length) {
-          const completedGame = games.find(
-            (game) => game.estimatedEndTime.getTime() <= now.getTime(),
-          )
-
-          if (
-            completedGame &&
-            lastRefetchRef.current !== completedGame.estimatedEndTime.getTime()
-          ) {
-            refetchOpenPlayData?.()
-            lastRefetchRef.current = completedGame.estimatedEndTime.getTime()
-          }
-        }
       } else {
         if (!hasCancelledRef.current) {
           //  Guard: only process if queue is available
@@ -216,12 +188,12 @@ export default function PickleballOpenPlayQueue() {
   // AUTO ANNOUNCE NEXT GROUPS (multi-court, with lead time)
   // =====================
   useEffect(() => {
-    if (!audioEnabled || !openPlayData?.queue?.length || !nextTransition) return
+    if (!audioEnabled || !openPlayData?.queues?.length || !nextTransition) return
 
     const leadMinutes = openPlayData.openPlay?.announcementMinutesBeforeTransition ?? 0
     const leadMs = leadMinutes * 60 * 1000
 
-    const now = toPhilippineTime(new Date()).getTime()
+    const now = normalizeToPhilippineTimeSeconds(new Date())
     const last = (window as any).lastAnnounceTime || 0
     const transitionKey = nextTransition.toISOString()
 
@@ -230,13 +202,13 @@ export default function PickleballOpenPlayQueue() {
     if (now - last < GUARD_MS) return
 
     // ✅ Trigger announcement when within lead time window
-    const transitionTime = nextTransition.getTime()
+    const transitionTime = normalizeToPhilippineTimeSeconds(nextTransition)
     const diff = transitionTime - now
     if (diff > leadMs) return // too early, wait until within lead window
 
     // ✅ Find all groups scheduled at the upcoming transition
-    const upcomingGroups = openPlayData.queue.filter((q) => {
-      const t = toPhilippineTime(q.scheduledAt).getTime()
+    const upcomingGroups = openPlayData.queues.filter((q) => {
+      const t = normalizeToPhilippineTimeSeconds(q.scheduledAt)
       return Math.abs(t - transitionTime) <= GUARD_MS
     })
 
@@ -255,265 +227,302 @@ export default function PickleballOpenPlayQueue() {
   }, [audioEnabled, nextTransition, openPlayData?.openPlay?.announcementMinutesBeforeTransition])
 
   // =====================
-  // MANUAL ANNOUNCEMENT (using openPlayData.queue)
+  // MANUAL ANNOUNCEMENT (using openPlayData.queues)
   // =====================
   const handleManualAnnouncement = useCallback(() => {
-    if (!audioEnabled || !openPlayData?.queue || openPlayData.queue.length === 0) return
+    console.info({ audioEnabled, openPlayData })
 
-    const nextScheduledGroup = [...openPlayData.queue].sort(
+    if (!audioEnabled || !openPlayData?.queues || openPlayData.queues.length === 0) return
+
+    const sortedQueues = [...openPlayData.queues].sort(
       (a, b) =>
-        toPhilippineTime(a.scheduledAt).getTime() - toPhilippineTime(b.scheduledAt).getTime(),
-    )[0]
+        normalizeToPhilippineTimeSeconds(a.scheduledAt) -
+        normalizeToPhilippineTimeSeconds(b.scheduledAt),
+    )
 
-    if (!nextScheduledGroup) return
+    const firstScheduleTime = normalizeToPhilippineTimeSeconds(sortedQueues[0].scheduledAt)
 
-    const names =
-      nextScheduledGroup.players.map((p: any) => p.playerName).join(", ") || "all players"
-    const groupedNames = `${names} on ${nextScheduledGroup.courtName}`
+    // Get all groups with the same earliest schedule
+    const nextScheduledGroups = sortedQueues.filter(
+      (q) => normalizeToPhilippineTimeSeconds(q.scheduledAt) === firstScheduleTime,
+    )
+
+    if (nextScheduledGroups.length === 0) return
+
+    const groupedNames = nextScheduledGroups
+      .map((group) => {
+        const names = group.players.map((p: any) => p.playerName).join(", ") || "all players"
+
+        return `${names} on ${group.courtName}`
+      })
+      .join(". ")
 
     enqueueSpeak(
       `Attention please. Next game at ${timeText(
-        nextScheduledGroup.scheduledAt,
+        nextScheduledGroups[0].scheduledAt,
       )}. Players: ${groupedNames}. Please proceed after the current game.`,
     )
-  }, [audioEnabled, openPlayData?.queue])
+  }, [audioEnabled, openPlayData?.queues])
 
   if (isLoading || isLoadingOrgWithCourts) return <LoadingScreen message="Loading Queue" />
   if (!isQueueAvailable) return <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
 
   return (
-    <div className="min-h-screen bg-[#092021] text-white font-mono flex flex-col h-screen overflow-hidden">
-      {/* HEADER */}
-      <header className="bg-black/80 border-b border-emerald-600 py-4 px-4 md:px-8 flex items-center justify-between flex-shrink-0 backdrop-blur-md">
-        <div className="flex items-center gap-4">
-          <div className="w-11 h-11 bg-emerald-500 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg">
-            <span className="text-black font-black text-4xl">P</span>
+    <div className="fixed inset-0 h-screen w-screen text-primary font-mono">
+      {/* Grid layout: stacked on mobile/tablet, split on large */}
+      <div className="grid h-full w-full grid-cols-1 lg:grid-cols-4 overflow-y-auto">
+        {/* Sidebar */}
+        <aside className="lg:col-span-1 shadow-xl flex flex-col lg:h-full">
+          {/* Logo */}
+          <div className="py-4 border-b border-white/10 text-center bg-[#092021]">
+            <AnimatedSVG paths={logoPaths} viewBox="0 0 1440 514" className="mx-auto w-48 h-auto" />
           </div>
-          <div>
-            <h1 className="text-3xl md:text-5xl font-bold tracking-tighter text-white">
-              OPEN PLAY QUEUE
-            </h1>
-            <p className="text-emerald-400 text-base md:text-xl flex flex-col gap-1">
-              <span>
-                {formatDate(openPlay?.startTime)} •{" "}
-                {formatTimeRange(openPlay?.startTime, openPlay?.endTime)}
-              </span>
-              <span>
-                {/* {openPlay?.courts.length} {openPlay?.courts.length === 1 ? "Court" : "Courts"} •{" "} */}
-                {openPlay?.transitionMinutes} minutes playing time • Max 4 players per court
-              </span>
-            </p>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-4 md:gap-8">
-          <div className="hidden sm:block text-right">
-            <div className="text-emerald-300/70 text-sm">CURRENT TIME</div>
-            <div className="text-4xl md:text-6xl font-bold tabular-nums text-emerald-400">
-              {timeText(currentTime)}
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex-1 overflow-auto p-6 space-y-8">
-        {/* NEXT TRANSITION */}
-        <div className="bg-black/60 border border-emerald-600/40 rounded-xl p-4">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-2 text-emerald-400">
-              <Clock className="w-5 h-5" />
-              <span className="uppercase tracking-wide text-xs md:text-sm lg:text-base font-semibold">
-                Next Transition
-              </span>
+          <div className="border rounded-lg flex flex-col bg-muted gap-2 p-2 lg:h-full">
+            {/* Time Range Schedule */}
+            <div className="flex items-center justify-between">
+              <div className="text-sm">Schedule</div>
+              <div className="text-sm font-semibold">{openPlayData.timeRange ?? ""}</div>
             </div>
 
-            <Megaphone
-              onClick={handleManualAnnouncement}
-              className="w-5 h-5 text-emerald-500 cursor-pointer hover:text-emerald-400 transition"
-            />
-          </div>
-
-          <div className="flex items-end justify-between">
-            {/* Transition time */}
-            <div
-              className="font-bold tabular-nums text-white 
-                    text-2xl md:text-4xl lg:text-6xl"
-            >
-              {nextTransition && timeText(nextTransition)}
-            </div>
-
-            {/* Countdown */}
-            <div
-              className="text-emerald-400 font-semibold tabular-nums 
-                    text-lg md:text-2xl lg:text-4xl"
-            >
-              {formatCountdown(prepRemaining)}
-            </div>
-          </div>
-        </div>
-
-        {!isStarted ? (
-          waitingPlayers.length === 0 ? (
-            <div className="text-center py-10 text-emerald-300/60">No players waiting</div>
-          ) : (
-            <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
-              {waitingPlayers.map((player, idx) => (
-                <div
-                  key={player.id}
-                  className="bg-black/60 border border-emerald-600/30 rounded-xl p-4 flex items-center gap-3"
-                >
-                  <div className="w-8 h-8 rounded-full bg-emerald-500 text-black flex items-center justify-center font-bold text-sm">
-                    {idx + 1}
-                  </div>
-                  <div className="bg-emerald-900/50 px-4 py-2 rounded-lg text-lg md:text-2xl font-bold text-white border border-emerald-500/60 shadow-sm flex-1">
-                    {player.playerName}
-                  </div>
+            {/* Next Schedule */}
+            <div className="flex items-center justify-between">
+              <div className="text-sm">
+                <div className="flex items-center gap-1">
+                  Next Schedule
+                  <Megaphone
+                    onClick={handleManualAnnouncement}
+                    className="w-5 h-5 text-emerald-500 cursor-pointer hover:text-emerald-400 transition"
+                  />
                 </div>
-              ))}
-            </div>
-          )
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* CURRENT GAMES - smaller column */}
-            <div className="lg:col-span-1">
-              <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
-                <Users className="w-5 h-5 text-emerald-400" />
-                CURRENT GAMES
-              </h2>
-
-              <div className="space-y-4">
-                {currentGames.map((game) => (
-                  <div
-                    key={game.courtId}
-                    className="bg-black/70 border border-emerald-600/30 rounded-xl p-4"
-                  >
-                    <div className="flex justify-between mb-2">
-                      <div>
-                        <div className="text-emerald-400 font-semibold">{game.courtName}</div>
-                        <div className="text-xs text-emerald-300/60">
-                          {timeText(game.startTime)}
-                        </div>
-                      </div>
-                      <div className="text-xs text-emerald-400 font-mono">
-                        ~{timeText(game.estimatedEndTime)}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      {game.players.map((player) => (
-                        <div
-                          key={player.id}
-                          className="bg-emerald-900/40 px-2 py-1 rounded text-sm text-center text-white border border-emerald-600/40"
-                        >
-                          {player.playerName}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+              </div>
+              <div className="text-4xl font-bold">
+                {nextTransition ? timeText(nextTransition) : "-"}
               </div>
             </div>
 
-            {/* WAITING QUEUE - larger column */}
-            <div className="lg:col-span-2">
-              <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
-                <span>WAITING QUEUE</span>
-                <span className="text-emerald-400 text-sm">({queue.length})</span>
-              </h2>
-
-              {queue.length === 0 ? (
-                <div className="text-center py-10 text-emerald-300/60">No groups waiting</div>
-              ) : (
-                <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-2">
-                  {queue.map((group) => (
-                    <div
-                      key={group.id}
-                      className="bg-black/60 border border-emerald-600/30 rounded-xl p-4 flex justify-between items-center gap-3"
-                    >
-                      <div className="flex items-center gap-3 min-w-[120px]">
-                        <div className="w-8 h-8 rounded-full bg-emerald-500 text-black flex items-center justify-center font-bold text-sm">
-                          {group.position}
-                        </div>
-                        <div>
-                          <div className="text-white text-xs font-semibold">
-                            Group {group.position} <Badge>{group.courtName}</Badge>
-                          </div>
-                          <div className="text-lg text-emerald-300/60">
-                            {timeText(group.scheduledAt)}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-3 flex-1">
-                        <div className="flex flex-wrap gap-3 flex-1">
-                          {group.players.map((player) => (
-                            <div
-                              key={player.id}
-                              className="bg-emerald-900/50 px-4 py-2 rounded-lg text-lg md:text-2xl font-bold text-white border border-emerald-500/60 shadow-sm"
-                            >
-                              {player.playerName}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            {/* Current Time */}
+            <div className="border-b border-white/10 text-center">
+              <div className="text-4xl font-black">{timeText(currentTime)}</div>
             </div>
+
+            {/* Join Queue Button */}
+            <div className="p-2">
+              <Button
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                onClick={() => setOpenLineupDialog(true)}
+              >
+                Join Queue
+              </Button>
+            </div>
+
+            {/* Waiting List Title */}
+            <div>
+              <div className="text-sm text-center uppercase font-bold">Waiting Players</div>
+            </div>
+            {/* Waiting Groups List */}
+            <ScrollArea
+              className="
+    flex-1 h-0 p-4 border border-gray-500/20 rounded-lg
+    min-h-[200px] sm:min-h-[250px] md:min-h-[300px]
+  "
+            >
+              <div className="space-y-3">
+                {waitingGroups.map((group: any, idx: number) => (
+                  <ScrollArea
+                    key={`group.${group.groupId}_idx.${idx}`}
+                    className="
+          rounded-lg border border-dashed border-gray-500/20 px-2
+          h-40 sm:h-48 md:h-56 lg:h-64
+        "
+                  >
+                    <div className="space-y-2">
+                      {/* Group header with skills badges */}
+                      <div className="flex flex-wrap gap-2 p-2 items-center justify-center">
+                        {group.skills.map((skill: PlayerSkill) => (
+                          <span
+                            key={skill}
+                            className="bg-primary/20 text-primary px-2 py-1 rounded-md text-xs font-semibold"
+                          >
+                            {PlayerSkillLabels[skill]}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Player rows */}
+                      {group.players.map((player: any, index: number) => {
+                        const [firstName, ...restNames] = player.playerName.split(" ")
+
+                        return (
+                          <div
+                            key={`player.${player.id}_idx.${index}`}
+                            className="flex items-center justify-between py-1 rounded-md"
+                          >
+                            <div className="flex flex-col leading-none">
+                              <span className="font-black text-lg text-primary uppercase">
+                                {firstName}
+                              </span>
+                              {restNames.length > 0 && (
+                                <span className="text-xs text-primary/80">
+                                  {restNames.join(" ")}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="text-right text-primary/60 text-xs leading-tight">
+                              <Badge>{player.courtName ? player.courtName : "-"}</Badge>
+                              {player.scheduledAt && <div>{timeText(player.scheduledAt)}</div>}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </ScrollArea>
+                ))}
+              </div>
+            </ScrollArea>
           </div>
-        )}
-      </div>
+        </aside>
 
-      {/* FOOTER */}
-      {!!openPlayData.waitingPlayers.length && (
-        <footer className="bg-black/70 backdrop-blur-md border-t border-emerald-600/40 px-6 py-3 flex items-center gap-4 overflow-hidden">
-          {/* Label */}
-          <span className="text-emerald-400 font-semibold text-sm md:text-base whitespace-nowrap">
-            Waiting players <Badge variant="warning">{waitingPlayers.length ?? 0}</Badge>
-          </span>
-
-          {/* Marquee */}
-          <div className="relative flex-1 overflow-hidden">
-            {/* Edge fade */}
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-black/70 to-transparent z-10" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-black/70 to-transparent z-10" />
-
-            <motion.div
-              className="flex w-max items-center whitespace-nowrap will-change-transform"
-              initial={{ x: "100%" }} // 👈 always start from right
-              animate={{ x: "-50%" }} // 👈 scroll through
-              transition={{
-                repeat: Infinity,
-                duration: Math.max(14, waitingPlayers.length * 3),
-                ease: "linear",
+        {/* Main Content */}
+        <main className="lg:col-span-3 bg-[#092021] shadow-xl flex flex-col lg:h-full">
+          <div className="py-4 uppercase text-5xl font-bold text-white mb-4 text-center w-full">
+            Open Play Dashboard
+          </div>
+          <div className="flex-1 px-2 pt-2">
+            <div
+              className="flex-1 rounded-lg grid gap-3 h-full grid-cols-1 lg:grid-cols-none"
+              style={{
+                gridTemplateColumns:
+                  typeof window !== "undefined" && window.innerWidth >= 1024
+                    ? `repeat(${courts.length}, 1fr)`
+                    : undefined,
               }}
             >
-              {/* Track (duplicated once for seamless loop) */}
-              {waitingPlayers.map((p, i) => (
-                <span
-                  key={`${p.playerName}-${i}`}
-                  className="mx-4 inline-flex items-center gap-2 text-emerald-300/80 text-sm md:text-base"
+              {courts.map((court) => (
+                <div
+                  key={court.id}
+                  className="border border-dashed border-gray-500 rounded-2xl bg-[#C1D5B8] p-4 md:p-6 flex flex-col h-full"
                 >
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                  {p.playerName}
-                </span>
-              ))}
-            </motion.div>
-          </div>
-        </footer>
-      )}
+                  {/* Court header */}
+                  <div className="flex flex-col items-center justify-center bg-[#7FA477] p-2 md:p-3 rounded-xl mb-4">
+                    <div className="text-2xl md:text-4xl font-black text-primary uppercase tracking-tight">
+                      {court.name}
+                    </div>
+                  </div>
 
-      {/* SUBMIT LINEUP BUTTON */}
-      <motion.button
-        onClick={() => setOpenLineupDialog(true)}
-        className="fixed bottom-8 right-8 bg-emerald-500 hover:bg-emerald-600 text-black font-bold px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 z-50 transition-all active:scale-95"
-        initial={{ opacity: 0, scale: 0.8, y: 30 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-      >
-        <Send className="w-5 h-5" />
-        Submit Lineup
-      </motion.button>
+                  {/* Current and Next games */}
+                  <div className="flex-1 flex flex-col gap-4">
+                    {/* Current Game */}
+                    <div className="flex-1 flex flex-col">
+                      <div className="text-md md:text-2xl font-black uppercase text-primary mb-2 flex items-center justify-center gap-1 tracking-wide">
+                        Current Game
+                      </div>
+
+                      {court.currentGame ? (
+                        <div className="text-xs md:text-sm lg:text-base text-gray-700 mb-2 text-center font-semibold">
+                          {timeText(court.currentGame.startTime)} -{" "}
+                          {timeText(court.currentGame.estimatedEndTime)}
+                        </div>
+                      ) : null}
+
+                      <div className="flex-1 overflow-y-auto">
+                        {court.currentGame?.players?.length ? (
+                          <div className="rounded-xl bg-white/70 p-3 shadow-sm border border-white/40">
+                            <div className="flex flex-col gap-2">
+                              {court.currentGame.players.map((player) => {
+                                const [firstName, ...restNames] = player.playerName.split(" ")
+                                return (
+                                  <div
+                                    key={player.id}
+                                    className="flex items-center justify-between"
+                                  >
+                                    <div className="flex flex-col leading-none min-w-0">
+                                      <span className="font-black text-lg md:text-xl lg:text-2xl text-primary uppercase tracking-tight truncate">
+                                        {firstName}
+                                      </span>
+                                      {restNames.length > 0 && (
+                                        <span className="text-xs md:text-sm text-primary/80 font-semibold truncate">
+                                          {restNames.join(" ")}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {player.skill && (
+                                      <span className="text-xs md:text-sm font-bold text-primary/70 whitespace-nowrap ml-2">
+                                        {PlayerSkillLabels[player.skill as PlayerSkill]}
+                                      </span>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center h-full text-xs md:text-sm text-gray-600 font-medium">
+                            No current game
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Next Game */}
+                    <div className="flex-1 flex flex-col">
+                      <div className="text-md md:text-2xl font-black uppercase text-primary mb-2 flex items-center justify-center gap-1 tracking-wide">
+                        Next Game
+                      </div>
+
+                      {court.nextGame ? (
+                        <div className="text-xs md:text-sm lg:text-base text-gray-700 mb-2 text-center font-semibold">
+                          {timeText(court.nextGame.scheduledAt)} -{" "}
+                          {timeText(court.nextGame.estimatedEndTime)}
+                        </div>
+                      ) : null}
+
+                      <div className="flex-1 overflow-y-auto">
+                        {court.nextGame?.players?.length ? (
+                          <div className="rounded-xl bg-white/70 p-3 shadow-sm border border-white/40">
+                            <div className="flex flex-col gap-2">
+                              {court.nextGame.players.map((player) => {
+                                const [firstName, ...restNames] = player.playerName.split(" ")
+                                return (
+                                  <div
+                                    key={player.id}
+                                    className="flex items-center justify-between"
+                                  >
+                                    <div className="flex flex-col leading-none min-w-0">
+                                      <span className="font-black text-lg md:text-xl lg:text-2xl text-primary uppercase tracking-tight truncate">
+                                        {firstName}
+                                      </span>
+                                      {restNames.length > 0 && (
+                                        <span className="text-xs md:text-sm text-primary/80 font-semibold truncate">
+                                          {restNames.join(" ")}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {player.skill && (
+                                      <span className="text-xs md:text-sm font-bold text-primary/70 whitespace-nowrap ml-2">
+                                        {PlayerSkillLabels[player.skill as PlayerSkill]}
+                                      </span>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center h-full text-xs md:text-sm text-gray-600 font-medium">
+                            No next game scheduled
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </main>
+      </div>
 
       {openPlay && (
         <LineupDialog
@@ -522,16 +531,6 @@ export default function PickleballOpenPlayQueue() {
           onOpenChange={setOpenLineupDialog}
         />
       )}
-
-      {/* <button onClick={() => speak("Hello world, testing speech")}>Test Speech</button> */}
-
-      {/* <DebugOverlay
-        openPlayData={openPlayData}
-        speechQueueRef={speechQueueRef}
-        lastAnnouncedRef={lastAnnouncedRef}
-        startWarningAnnouncedRef={startWarningAnnouncedRef}
-        manualAnnouncedRef={manualAnnouncedRef}
-      /> */}
     </div>
   )
 }
@@ -570,8 +569,7 @@ function LineupDialog({
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold">Submit Your Lineup</DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                Enter your player code to join the queue or confirm your next game. Submit before
-                the transition ends!
+                Enter your player code to join the queue. Submit before the transition ends!
               </DialogDescription>
             </DialogHeader>
 

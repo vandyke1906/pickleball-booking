@@ -30,7 +30,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod"
 import { AlertTriangle, BicepsFlexed, RefreshCw } from "lucide-react"
 import { useParams } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { LoadingScreen } from "@/components/animated/loading-screen"
 
@@ -40,6 +40,8 @@ export default function RegistrationOpenPlayPage() {
   const openPlayId = Array.isArray(openPlayIdParam) ? openPlayIdParam[0] : (openPlayIdParam ?? "")
 
   const { data: openPlay, isLoading, isError, refetch } = useOpenPlay(openPlayId)
+
+
 
   const form = useForm<OpenPlayPlayerRegistrationPayload>({
     resolver: zodResolver(openPlayPlayerRegistrationSchema),
@@ -51,6 +53,12 @@ export default function RegistrationOpenPlayPage() {
       registrationCode: "",
     },
   })
+
+  const filteredSkills = useMemo(() => {
+    if (!openPlay?.groups) return []
+
+    return openPlay.groups.flatMap((group: any) => group.skills)
+  }, [openPlay?.groups])
 
   useEffect(() => {
     if (openPlay) {
@@ -70,11 +78,11 @@ export default function RegistrationOpenPlayPage() {
     registerOpenplayPlayerMutation.mutate(values, {
       onSuccess: () => {
         form.reset({
+          registrationCode: "",
           openPlayId: openPlayId,
           playerName: "",
           code: "",
           skill: PlayerSkill.beginner,
-          registrationCode: "",
         })
       },
     })
@@ -134,7 +142,7 @@ export default function RegistrationOpenPlayPage() {
                 )}
               </div>
               <fieldset
-                className="text-sm text-muted-foreground gap-2 flex flex-col"
+                className="text-sm gap-2 flex flex-col"
                 disabled={!registrationCode}
               >
                 Player Information
@@ -158,7 +166,7 @@ export default function RegistrationOpenPlayPage() {
                   <Input
                     id="code"
                     className="uppercase"
-                    placeholder="Auto-generated or custom code"
+                    placeholder="Player Code"
                     {...form.register("code")}
                   />
                   <p className="text-xs text-muted-foreground">
@@ -183,9 +191,9 @@ export default function RegistrationOpenPlayPage() {
                       <SelectValue placeholder="Select skill level" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.entries(PlayerSkillLabels).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>
-                          {label}
+                      {filteredSkills.map((skill) => (
+                        <SelectItem key={skill} value={skill}>
+                          {PlayerSkillLabels[skill as PlayerSkill]}
                         </SelectItem>
                       ))}
                     </SelectContent>

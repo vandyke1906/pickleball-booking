@@ -30,13 +30,9 @@ export function setupEventInvalidations(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: qKeyCourts.all, exact: false })
   })
 
-  // channel.bind(BroadcastEventTypes.OPENPLAY_NEW_PLAYER, (data: any) => {
-  //   queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
-  // })
-
-  // channel.bind(BroadcastEventTypes.OPENPLAY_UPDATE_PLAYER, (data: any) => {
-  //   queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
-  // })
+  channel.bind(BroadcastEventTypes.OPENPLAY_NEW_PLAYER, (data: any) => {
+    queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.detail(data?.openPlayId || data?.id || ""), exact: false })
+  })
 
   channel.bind(BroadcastEventTypes.OPENPLAY_UPDATED, (data: any) => {
     queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })

@@ -84,7 +84,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
               })),
             },
             registrationCodes: {
-              create: Array.from({ length: 50 }, () => ({
+              create: Array.from({ length: 100 }, () => ({
                 code: generateRegistrationCode(),
               })),
             },

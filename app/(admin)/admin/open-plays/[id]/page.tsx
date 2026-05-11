@@ -130,8 +130,6 @@ export default function OpenPlayPage() {
   const deletePlayerMutation = useDeleteOpenPlayPlayer()
   const reorderPlayerMutation = useReorderOpenPlayPlayers(openPlay?.id ?? "")
 
-  console.info({ openPlay })
-
   const form = useForm<OpenPlayPlayerPayload>({
     resolver: zodResolver(openPlayPlayerSchema),
     defaultValues: {

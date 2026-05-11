@@ -17,7 +17,6 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       code: (formData.get("code") as string) || "",
       skill: (formData.get("skill") as PlayerSkill) || "",
     }
-
     // Validate payload with Zod
     const parsed = openPlayPlayerRegistrationSchema.parse(payload)
 
@@ -35,7 +34,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
         where: {
           openPlayId_code: {
             openPlayId: parsed.openPlayId,
-            code: parsed.code,
+            code: parsed.registrationCode,
           },
         },
         select: { id: true },
@@ -89,6 +88,12 @@ export const POST = withRateLimit(async (req: NextRequest) => {
         },
       })
 
+      EventBroadcast({
+        type: BroadcastEventTypes.OPENPLAY_NEW_PLAYER,
+        data: player,
+      })
+
+
       //delete registration code after use
       await tx.registrationCode.delete({
         where: { id: registrationCode.id },
@@ -106,6 +111,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
           type: BroadcastEventTypes.OPENPLAY_UPDATED,
           data: player,
         })
+        
       }
 
       return player

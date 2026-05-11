@@ -55,8 +55,6 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
 
   const mutation = useCreateOrUpdateOpenPlay()
 
-  console.info({ initialData })
-
   const form = useForm<OpenPlayPayload>({
     resolver: zodResolver(openPlaySchema),
     defaultValues: {
