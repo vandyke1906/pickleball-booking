@@ -21,7 +21,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       const openPlayPlayer = await tx.openPlayPlayer.findFirst({
         where: {
           openPlayId,
-          code: code.trim(),
+          code: code.trim().toUpperCase(),
         },
         include: {
           openPlay: {

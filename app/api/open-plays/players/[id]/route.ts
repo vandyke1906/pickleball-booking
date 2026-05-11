@@ -69,9 +69,7 @@ export const PUT = withRateLimit(
         where: { id },
         data: {
           playerName: parsed.playerName,
-          code: parsed.code,
-          contactNumber: parsed.contactNumber,
-          emailAddress: parsed.emailAddress || null,
+          code: parsed.code?.trim().toUpperCase(),
           totalPlayTime: parsed.totalPlayTime,
           skill: parsed.skill,
         },

@@ -323,66 +323,31 @@ export default function PickleballOpenPlayQueue() {
             {/* Waiting Groups List */}
             <ScrollArea
               className="
-    flex-1 h-0 p-4 border border-gray-500/20 rounded-lg
-    min-h-[200px] sm:min-h-[250px] md:min-h-[300px]
-  "
+                flex-1 h-0 p-4 border border-gray-500/20 rounded-lg
+                min-h-[200px] sm:min-h-[250px] md:min-h-[300px]
+              "
             >
               <div className="space-y-3">
                 {waitingGroups.map((group: any, idx: number) => (
-                  <ScrollArea
+                  <div
                     key={`group.${group.groupId}_idx.${idx}`}
                     className="
-          rounded-lg border border-dashed border-gray-500/20 px-2
-          h-40 sm:h-48 md:h-56 lg:h-64
-        "
+                      rounded-lg border border-dashed border-gray-500/20 px-2
+                      md:h-56 lg:h-64
+                    "
                   >
-                    <div className="space-y-2">
-                      {/* Group header with skills badges */}
-                      <div className="flex flex-wrap gap-2 p-2 items-center justify-center">
-                        {group.skills.map((skill: PlayerSkill) => (
-                          <span
-                            key={skill}
-                            className="bg-primary/20 text-primary px-2 py-1 rounded-md text-xs font-semibold uppercase"
-                          >
-                            {PlayerSkillLabels[skill]}
-                          </span>
-                        ))}
-                      </div>
-
-                      {/* Player rows */}
-                      {group.players.map((player: any, index: number) => {
-                        const [firstName, ...restNames] = player.playerName.split(" ")
-
-                        return (
-                          <div
-                            key={`player.${player.id}_idx.${index}`}
-                            className="flex items-center justify-between py-1 rounded-md"
-                          >
-                            <div className="flex flex-col leading-none">
-                              <span className="font-black text-lg text-primary uppercase">
-                                {firstName}
-                              </span>
-                              {restNames.length > 0 && (
-                                <span className="text-xs text-primary/80">
-                                  {restNames.join(" ")}
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="text-right text-primary text-xs leading-tight">
-                              {player.courtName && player.scheduledAt ? (
-                                <>
-                                
-                              <Badge>{player.courtName}</Badge>
-                              <div>{timeText(player.scheduledAt)}</div>
-                                </>
-                              ) : <div className="text-xs uppercase">{PlayerSkillLabels[player.skill as PlayerSkill]}</div>}
-                            </div>
-                          </div>
-                        )
-                      })}
+                    {/* Desktop Scroll Only */}
+                    <div className="hidden md:block h-full">
+                      <ScrollArea className="h-full">
+                        <GroupContent group={group} />
+                      </ScrollArea>
                     </div>
-                  </ScrollArea>
+
+                    {/* Mobile: no inner scroll */}
+                    <div className="block md:hidden py-2">
+                      <GroupContent group={group} />
+                    </div>
+                  </div>
                 ))}
               </div>
             </ScrollArea>
@@ -649,6 +614,62 @@ function OpenPlayUnavailable({
           )}
         </div>
       </motion.div>
+    </div>
+  )
+}
+
+const GroupContent = ({ group }: any) => {
+  return (
+    <div className="space-y-2">
+      {/* Group header with skills badges */}
+      <div className="flex flex-wrap gap-2 p-2 items-center justify-center">
+        {group.skills.map((skill: PlayerSkill) => (
+          <span
+            key={skill}
+            className="bg-primary/20 text-primary px-2 py-1 rounded-md text-xs font-semibold uppercase"
+          >
+            {PlayerSkillLabels[skill]}
+          </span>
+        ))}
+      </div>
+
+      {/* Player rows */}
+      {group.players.map((player: any, index: number) => {
+        const [firstName, ...restNames] = player.playerName.split(" ")
+
+        return (
+          <div
+            key={`player.${player.id}_idx.${index}`}
+            className="flex items-center justify-between py-1 rounded-md"
+          >
+            {/* Name */}
+            <div className="flex flex-col leading-none">
+              <span className="font-black text-lg text-primary uppercase">
+                {firstName}
+              </span>
+              {restNames.length > 0 && (
+                <span className="text-xs text-primary/80">
+                  {restNames.join(" ")}
+                </span>
+              )}
+            </div>
+
+            {/* Status */}
+            <div className="text-right text-primary text-xs leading-tight">
+              {player.courtName && player.scheduledAt ? (
+                <>
+                  <Badge>{player.courtName}</Badge>
+                  <div>{timeText(player.scheduledAt)}</div>
+                </>
+              ) : (
+                <div className="text-xs uppercase">
+                  {PlayerSkillLabels[player.skill as PlayerSkill]}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

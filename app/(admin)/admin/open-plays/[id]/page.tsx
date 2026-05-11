@@ -141,6 +141,12 @@ export default function OpenPlayPage() {
     },
   })
 
+    const filteredSkills = useMemo(() => {
+    if (!openPlay?.groups) return []
+
+    return openPlay.groups.flatMap((group: any) => group.skills)
+  }, [openPlay?.groups])
+
   const [confirmOpenPlay, setConfirmOpenPlay] = useState<{
     open: boolean
     status: OpenPlayStatus | null
@@ -618,11 +624,11 @@ export default function OpenPlayPage() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {Object.entries(PlayerSkillLabels).map(([key, label]) => (
-                              <SelectItem key={key} value={key}>
-                                {label}
-                              </SelectItem>
-                            ))}
+                            {filteredSkills.map((skill) => (
+                        <SelectItem key={skill} value={skill}>
+                          {PlayerSkillLabels[skill as PlayerSkill]}
+                        </SelectItem>
+                      ))}
                           </SelectContent>
                         </Select>
                         {form.formState.errors.skill && (

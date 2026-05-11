@@ -30,7 +30,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
       where: {
         openPlayId_code: {
           openPlayId: parsed.openPlayId,
-          code: parsed.code,
+          code: parsed.code.trim().toUpperCase(),
         },
       },
     })
@@ -66,7 +66,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
         data: {
           openPlayId: parsed.openPlayId,
           playerName: parsed.playerName.trim(),
-          code: parsed.code,
+          code: parsed.code.trim().toUpperCase(),
           totalPlayTime: parsed.totalPlayTime || 0,
           skill: parsed.skill,
           order: nextOrder,

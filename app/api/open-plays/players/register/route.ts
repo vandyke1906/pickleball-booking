@@ -27,7 +27,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
         where: {
           openPlayId_code: {
             openPlayId: parsed.openPlayId,
-            code: parsed.code,
+            code: parsed.code.trim().toUpperCase(),
           },
         },
       }),
@@ -35,7 +35,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
         where: {
           openPlayId_code: {
             openPlayId: parsed.openPlayId,
-            code: parsed.registrationCode,
+            code: parsed.registrationCode.trim().toUpperCase(),
           },
         },
         select: { id: true },
@@ -82,7 +82,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
         data: {
           openPlayId: parsed.openPlayId,
           playerName: parsed.playerName.trim(),
-          code: parsed.code,
+          code: parsed.code.trim().toUpperCase(),
           totalPlayTime: 3 * 60, // default to 3 hours
           skill: parsed.skill,
           order: nextOrder,
