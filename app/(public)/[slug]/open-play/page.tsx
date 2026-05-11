@@ -4,9 +4,6 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { useParams } from "next/navigation"
 import { LoadingScreen } from "@/components/animated/loading-screen"
 import {
-  formatCountdown,
-  formatDate,
-  formatTimeRange,
   normalizeToPhilippineTimeSeconds,
   PlayerSkillLabels,
   timeText,
@@ -32,7 +29,7 @@ import {
   openPlayLineupSchema,
 } from "@/lib/validation/open-play/open-play.validation"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useSubmitLineupOpenPlay } from "@/lib/mutations/open-play/open-play.mutation"
+import { useStatusUpdateOpenPlay, useSubmitLineupOpenPlay } from "@/lib/mutations/open-play/open-play.mutation"
 import { useOrganizationCourts } from "@/lib/hooks/court/court.hook"
 import { useActiveOpenPlayQueue } from "@/lib/hooks/open-play/open-play.hook"
 import { useVoice } from "@/lib/hooks/speech/use-voice"
@@ -41,7 +38,7 @@ import { EventBusKeys, useEventListener } from "@/lib/client/event-bus"
 import AnimatedSVG from "@/components/animated/animated-svg"
 import { logoPaths } from "@/lib/svg/logo"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { PlayerSkill } from "@/.config/prisma/generated/prisma"
+import { OpenPlayStatus, PlayerSkill } from "@/.config/prisma/generated/prisma"
 
 const GUARD_MS = 4000
 
@@ -62,6 +59,8 @@ export default function PickleballOpenPlayQueue() {
     refetch: refetchOpenPlayData,
     isError,
   } = useActiveOpenPlayQueue(orgId)
+  
+  const updateStatusMutation = useStatusUpdateOpenPlay()
 
   const waitingGroups = openPlayData?.waitingGroups ?? []
   const courts = openPlayData?.courts ?? []
@@ -74,7 +73,7 @@ export default function PickleballOpenPlayQueue() {
   // =====================
   // STATE (ALWAYS STABLE)
   // =====================
-  const [currentTime, setCurrentTime] = useState(new Date())
+  const [currentTime, setCurrentTime] = useState(toPhilippineTime(new Date()))
   const [openLineupDialog, setOpenLineupDialog] = useState(false)
   const [audioEnabled, setAudioEnabled] = useState(true)
   const [prepRemaining, setPrepRemaining] = useState(0)
@@ -86,6 +85,7 @@ export default function PickleballOpenPlayQueue() {
   const lastRefetchRef = useRef<number>(0)
   const hasCancelledRef = useRef(false)
   const speakingRef = useRef(false)
+  const hasAutoEndedRef = useRef(false)
 
   const processQueue = () => {
     if (!isQueueAvailable) {
@@ -144,6 +144,55 @@ export default function PickleballOpenPlayQueue() {
     : null
 
   const nextTransitionRef = useRef(nextTransition)
+
+  //end session if current time is past end time and no more court activity
+  const shouldAutoEndOpenPlay = useCallback(
+    ({
+      openPlay,
+      courts,
+      now,
+    }: {
+      openPlay: any
+      courts: any[]
+      now: Date
+    }) => {
+      if (!openPlay) return false
+
+      const endTime = new Date(openPlay.endTime)
+      const isPastEnd = now.getTime() > endTime.getTime()
+
+      const hasActiveGames =
+        courts?.some((c) => c?.currentGame || c?.nextGame) ?? false
+
+      return isPastEnd && !hasActiveGames
+    },
+    [],
+  )
+
+  useEffect(() => {
+    const openPlay = openPlayData?.openPlay
+
+    if (!openPlay?.id || !courts) return
+
+    if (hasAutoEndedRef.current) return
+
+    const now = currentTime
+    const shouldEnd = shouldAutoEndOpenPlay({ openPlay, courts, now })
+    
+    if (!shouldEnd) return
+
+    hasAutoEndedRef.current = true
+
+    updateStatusMutation.mutate(
+      { id: openPlay.id, status: OpenPlayStatus.completed, },
+      { onError: () => { hasAutoEndedRef.current = false }, },
+    )
+  }, [ openPlayData?.openPlay?.id, courts, currentTime])
+
+  useEffect(() => {
+    hasAutoEndedRef.current = false
+  }, [openPlayData?.openPlay?.id])
+  //end session if current time is past end time and no more court activity
 
   useEffect(() => {
     nextTransitionRef.current = nextTransition
@@ -230,8 +279,6 @@ export default function PickleballOpenPlayQueue() {
   // MANUAL ANNOUNCEMENT (using openPlayData.queues)
   // =====================
   const handleManualAnnouncement = useCallback(() => {
-    console.info({ audioEnabled, openPlayData })
-
     if (!audioEnabled || !openPlayData?.queues || openPlayData.queues.length === 0) return
 
     const sortedQueues = [...openPlayData.queues].sort(
@@ -673,6 +720,8 @@ const GroupContent = ({ group }: any) => {
     </div>
   )
 }
+
+
 
 function DebugOverlay({
   openPlayData,
