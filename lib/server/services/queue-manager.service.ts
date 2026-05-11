@@ -5,7 +5,7 @@ import { scheduleGroup } from "@/lib/server/action/openplay.action"
 import { TQueuePlayer } from "@/lib/type/openplay/openplay.type"
 import { Queue, Worker, QueueEvents, JobsOptions } from "bullmq"
 import Redis from "ioredis"
-import { v4 } from "uuid"
+import Redlock from "redlock";
 
 export const QUEUE_KEYS = {
   LINEUP_PLAYER: "line-up-player",
@@ -18,9 +18,28 @@ class QueueManager {
   private events: Record<string, QueueEvents> = {}
   private workers: Record<string, Worker<any>> = {}
   private promotionLocks: Map<string, Promise<void>> = new Map()
+  private redlock: Redlock
 
   constructor() {
     this.connection = new Redis(redisUrl, { maxRetriesPerRequest: null })
+
+    this.connection.on("error", (err) => {
+      console.error("[Redis] Connection error:", err)
+    })
+    this.connection.on("close", () => {
+      console.warn("[Redis] Connection closed")
+    })
+
+    this.redlock = new Redlock([this.connection as unknown as Redlock.CompatibleRedisClient], {
+      retryCount: 50,
+      retryDelay: 200,
+      retryJitter: 100,
+      driftFactor: 0.01,
+    })
+
+    this.redlock.on("error", (error: any) => {
+      console.error("[Redlock] Error:", error)
+    });
 
     for (const queueName of Object.values(QUEUE_KEYS)) {
       console.info(`[QueueManager] Creating queue: ${queueName}`)
@@ -40,8 +59,19 @@ class QueueManager {
         console.error(`[${queueName}] Job failed: ${jobId}`, failedReason)
       })
 
+      this.connection.on("error", (err) => {
+        console.error("[Redis] Connection error:", err);
+      });
+
+      this.connection.on("close", () => {
+        console.warn("[Redis] Connection closed");
+      });
+
       this.registerWorker(queueName)
     }
+
+    process.on("SIGINT", async () => { await this.close(); process.exit(0); });
+    process.on("SIGTERM", async () => { await this.close(); process.exit(0); });
   }
 
   async addJob<T>(
@@ -126,12 +156,15 @@ class QueueManager {
                     )}`,
                   )
 
-                  try {
-                    await scheduleGroup(data)
-                    EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data })
-                  } catch (error: any) {
-                    console.error(`Schedule group error: ${error?.message || error}`)
-                  }
+                  const playersHash = data .map((p: any) => p.id) .sort() .join(":")
+                  await this.addJob( QUEUE_KEYS.ASSIGN_COURT, `schedule:${playersHash}`, data, )
+
+                  // try {
+                  //   await scheduleGroup(data)
+                  //   EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data })
+                  // } catch (error: any) {
+                  //   console.error(`Schedule group error: ${error?.message || error}`)
+                  // }
                 },
               },
             )
@@ -139,13 +172,26 @@ class QueueManager {
           }
 
           case QUEUE_KEYS.ASSIGN_COURT: {
-            const { openPlayId } = job.data
+            const group = job.data
+            if (!group?.length) return
+            const openPlayId = group[0].openPlayId
             console.info(`[Worker:${queueName}] Scheduling group for openPlay ${openPlayId}`)
-            // Example: call your scheduling logic
-            // const qm = new QueueManager(openPlayId) // if you want nested scheduling
-            // await qm.initializeData()
-            // const newGroup = qm.promoteWaitingGroup()
-            // if (newGroup) await qm.lineupQueueGroupPlayers(newGroup, prisma)
+
+            const lock = await this.redlock.acquire( [`lock:schedule:${openPlayId}`], 30000, )
+
+            try {
+              await scheduleGroup(group)
+              EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: group })
+              console.info( `[${QUEUE_KEYS.ASSIGN_COURT}] Scheduled group ${group[0].openPlayGroupId}` )
+            } finally {
+              try {
+                await lock.unlock()
+              } catch (err) {
+                console.error(`[Redlock] Failed to unlock:`, err)
+              }
+            }
+
+
             break
           }
 
@@ -153,7 +199,7 @@ class QueueManager {
             console.warn(`[Worker:${queueName}] No processor defined`)
         }
       },
-      { connection: this.connection, concurrency: 1 },
+      { connection: this.connection, concurrency: queueName === QUEUE_KEYS.ASSIGN_COURT ? 1 : 50 },
     )
   }
 
@@ -218,69 +264,23 @@ class QueueManager {
     )
 
     const result: string[] = Array.isArray(raw) ? (raw as string[]) : []
-
     if (result.length === 0) return
 
-    const parsed = result.map((item) => JSON.parse(item))
-
-    // -----------------------------
-    // SERIALIZE onPromoted per batchKey
-    // -----------------------------
+    const parsed: T[] = result.map((item) => JSON.parse(item))
 
     const previous = this.promotionLocks.get(batchKey) || Promise.resolve()
-
     let release!: () => void
+    const current = new Promise<void>((resolve) => { release = resolve })
 
-    const current = new Promise<void>((resolve) => {
-      release = resolve
-    })
-
-    this.promotionLocks.set(
-      batchKey,
-      previous.then(() => current),
-    )
-
+    this.promotionLocks.set(batchKey, previous.then(() => current))
     await previous
 
     try {
       await options?.onPromoted?.(parsed)
     } finally {
       release()
-
-      // cleanup completed lock
       if (this.promotionLocks.get(batchKey) === current) {
         this.promotionLocks.delete(batchKey)
-      }
-    }
-  }
-
-  /**
-   * Acquire a Redis lock for atomic operations.
-   * @param lockKey - unique key for the lock (e.g., "lock:openplay:123")
-   * @param ttlMs - lock expiration in milliseconds
-   * @param fn - async function to execute while holding the lock
-   */
-  async withLock<T>(lockKey: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
-    const token = v4()
-
-    const options: any = {
-      NX: true, // only set if not exists
-      PX: ttlMs, // expire after ttlMs (milliseconds)
-    }
-
-    const acquired = await this.connection.set(lockKey, token, options)
-
-    if (!acquired) {
-      throw new Error(`Lock busy for ${lockKey}`)
-    }
-
-    try {
-      return await fn()
-    } finally {
-      // Release lock only if still owned by this token
-      const current = await this.connection.get(lockKey)
-      if (current === token) {
-        await this.connection.del(lockKey)
       }
     }
   }
