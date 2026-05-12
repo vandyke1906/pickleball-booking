@@ -10,7 +10,7 @@ import {
   toPhilippineTime,
 } from "@/lib/utils"
 import { motion } from "framer-motion"
-import { Send, Clock, Users, Megaphone, RefreshCw, AlertTriangle } from "lucide-react"
+import { Megaphone, RefreshCw, AlertTriangle } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -29,7 +29,10 @@ import {
   openPlayLineupSchema,
 } from "@/lib/validation/open-play/open-play.validation"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useStatusUpdateOpenPlay, useSubmitLineupOpenPlay } from "@/lib/mutations/open-play/open-play.mutation"
+import {
+  useCompleteOpenPlay,
+  useSubmitLineupOpenPlay,
+} from "@/lib/mutations/open-play/open-play.mutation"
 import { useOrganizationCourts } from "@/lib/hooks/court/court.hook"
 import { useActiveOpenPlayQueue } from "@/lib/hooks/open-play/open-play.hook"
 import { Badge } from "@/components/ui/badge"
@@ -37,13 +40,10 @@ import { EventBusKeys, useEventListener } from "@/lib/client/event-bus"
 import AnimatedSVG from "@/components/animated/animated-svg"
 import { logoPaths } from "@/lib/svg/logo"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { OpenPlayStatus, PlayerSkill } from "@/.config/prisma/generated/prisma"
-import { useSpeechQueue } from "@/lib/hooks/speech/use-speech-queue"
-import { queue } from "sharp"
+import { PlayerSkill } from "@/.config/prisma/generated/prisma"
+import { useSpeech } from "@/lib/hooks/speech/use-speech"
 
 const GUARD_MS = 5000
-
-const groups = []
 
 export default function PickleballOpenPlayQueue() {
   const params = useParams()
@@ -58,180 +58,38 @@ export default function PickleballOpenPlayQueue() {
     refetch: refetchOpenPlayData,
     isError,
   } = useActiveOpenPlayQueue(orgId)
-  
-  const updateStatusMutation = useStatusUpdateOpenPlay()
+
+  const completeOpenPlayMutation = useCompleteOpenPlay()
+
+  useEventListener(EventBusKeys.OPENPLAY_UPDATED, () => refetchOpenPlayData()) //Event Listener
 
   const waitingGroups = openPlayData?.waitingGroups ?? []
   const courts = openPlayData?.courts ?? []
-
-  //Event Listener
-  useEventListener(EventBusKeys.OPENPLAY_UPDATED, () => refetchOpenPlayData())
-
   const isQueueAvailable = !!openPlayData && !isError
 
   // =====================
-  // STATE (ALWAYS STABLE)
+  // STATE
   // =====================
   const [currentTime, setCurrentTime] = useState(toPhilippineTime(new Date()))
   const [openLineupDialog, setOpenLineupDialog] = useState(false)
   const [prepRemaining, setPrepRemaining] = useState(0)
 
-  const speechQueueRef = useRef<string[]>([])
-  const manualAnnouncedRef = useRef<Set<string>>(new Set())
-  const startWarningAnnouncedRef = useRef<Set<string>>(new Set())
   const lastAnnouncedRef = useRef<string | null>(null)
   const lastRefetchRef = useRef<number>(0)
   const hasCancelledRef = useRef(false)
   const hasAutoEndedRef = useRef(false)
+  const nextTransitionRef = useRef<Date | null>(null)
 
-  const { enqueueSpeak, stopSpeaking } = useSpeechQueue(isQueueAvailable)
+  const { enqueueSpeak, stopSpeaking } = useSpeech(isQueueAvailable)
 
-  // =====================
-  // SAFE DATA NORMALIZATION (IMPORTANT FIX)
-  // =====================
   const openPlay = openPlayData?.openPlay ?? null
-
   const nextTransition = openPlayData?.nextTransition
-    ? toPhilippineTime(openPlayData?.nextTransition)
+    ? toPhilippineTime(openPlayData.nextTransition)
     : null
-
-  const nextTransitionRef = useRef(nextTransition)
-
-  //end session if current time is past end time and no more court activity
-  const shouldAutoEndOpenPlay = useCallback(
-    ({
-      openPlay,
-      courts,
-      now,
-    }: {
-      openPlay: any
-      courts: any[]
-      now: Date
-    }) => {
-      if (!openPlay) return false
-
-      const endTime = new Date(openPlay.endTime)
-      const isPastEnd = now.getTime() > endTime.getTime()
-
-      const hasActiveGames =
-        courts?.some((c) => c?.currentGame || c?.nextGame) ?? false
-
-      return isPastEnd && !hasActiveGames
-    },
-    [],
-  )
-
-  useEffect(() => {
-    const openPlay = openPlayData?.openPlay
-
-    if (!openPlay?.id || !courts) return
-
-    if (hasAutoEndedRef.current) return
-
-    const now = currentTime
-    const shouldEnd = shouldAutoEndOpenPlay({ openPlay, courts, now })
-    
-    if (!shouldEnd) return
-
-    hasAutoEndedRef.current = true
-
-    updateStatusMutation.mutate(
-      { id: openPlay.id, status: OpenPlayStatus.completed, },
-      { onError: () => { hasAutoEndedRef.current = false }, },
-    )
-  }, [ openPlayData?.openPlay?.id, courts, currentTime])
-
-  useEffect(() => {
-    hasAutoEndedRef.current = false
-  }, [openPlayData?.openPlay?.id])
-  //end session if current time is past end time and no more court activity
 
   useEffect(() => {
     nextTransitionRef.current = nextTransition
   }, [nextTransition])
-
-  // =====================
-  // LIVE CLOCK + COUNTDOWN + GAME COMPLETION CHECK
-  // =====================
-  useEffect(() => {
-    const tick = () => {
-      const now = toPhilippineTime(new Date())
-      setCurrentTime(now)
-
-      if (isQueueAvailable) {
-        hasCancelledRef.current = false
-        const nextTransitionValue = nextTransitionRef.current
-        if (nextTransitionValue) {
-          // subtract preparation seconds here
-          const adjustedTransition = new Date( nextTransitionValue.getTime() - (openPlay?.preparationSeconds ?? 0) * 1000 )
-          const diff = adjustedTransition.getTime() - now.getTime()
-
-          setPrepRemaining(diff > 0 ? diff : 0)
-
-          if (diff <= 0) {
-            refetchOpenPlayData?.().then(() => { 
-              handleManualAnnouncement()
-            })
-            lastRefetchRef.current = nextTransitionValue.getTime()
-          }
-        }
-      } else {
-        if (!hasCancelledRef.current) {
-          //  Guard: only process if queue is available
-          stopSpeaking()
-          hasCancelledRef.current = true
-        }
-      }
-    }
-
-    tick()
-    const interval = setInterval(tick, 1000)
-    return () => clearInterval(interval)
-  }, [isQueueAvailable, openPlay?.preparationSeconds])
-
-  // =====================
-  // AUTO ANNOUNCE NEXT GROUPS (multi-court, with lead time)
-  // =====================
-  useEffect(() => {
-    if (!openPlayData?.queues?.length || !nextTransition) return
-
-    const leadMinutes = openPlayData.openPlay?.announcementMinutesBeforeTransition ?? 0
-    const leadMs = leadMinutes * 60 * 1000
-
-    const now = normalizeToPhilippineTimeSeconds(new Date())
-    const transitionKey = nextTransition.toISOString()
-
-    // Guard: prevent duplicate or too‑frequent announcements
-    if (lastAnnouncedRef.current === transitionKey) return
-    if (now - ((window as any).lastAnnounceTime || 0) < GUARD_MS) return
-
-    const transitionTime = normalizeToPhilippineTimeSeconds(nextTransition)
-    const diff = transitionTime - now
-    if (diff > leadMs) return
-
-    const upcomingGroups = openPlayData.queues.filter((q) => {
-      const t = normalizeToPhilippineTimeSeconds(q.scheduledAt)
-      return Math.abs(t - transitionTime) <= GUARD_MS
-    })
-
-    if (!upcomingGroups.length) return
-
-    const groupedMessage = upcomingGroups
-      .map((group) => {
-        const names = group.players.map((p: any) => p.playerName).join(", ") || "all players"
-        return `${names} on ${group.courtName}`
-      })
-      .join(". ")
-
-      
-      console.info({manual: groupedMessage})
-
-    enqueueSpeak(`Attention please. Next players: ${groupedMessage}.`)
-    
-    lastAnnouncedRef.current = transitionKey
-    ;(window as any).lastAnnounceTime = now
-    refetchOpenPlayData?.()
-  }, [isQueueAvailable, nextTransition, openPlayData?.openPlay?.announcementMinutesBeforeTransition])
 
   // =====================
   // MANUAL ANNOUNCE
@@ -246,7 +104,6 @@ export default function PickleballOpenPlayQueue() {
     )
 
     const firstScheduleTime = normalizeToPhilippineTimeSeconds(sortedQueues[0].scheduledAt)
-
     const nextScheduledGroups = sortedQueues.filter((q) => {
       const t = normalizeToPhilippineTimeSeconds(q.scheduledAt)
       return Math.abs(t - firstScheduleTime) <= GUARD_MS
@@ -257,21 +114,132 @@ export default function PickleballOpenPlayQueue() {
     const groupedNames = nextScheduledGroups
       .map((group) => {
         const names = group.players.map((p: any) => p.playerName).join(", ") || "all players"
-        return `${names} on ${group.courtName}`
+        return `${group.courtName}.. Players, ${names}.`
       })
       .join(". ")
-      console.info({manual: groupedNames})
-    enqueueSpeak(
-      `Attention please. Next games starting around ${timeText(
-        nextScheduledGroups[0].scheduledAt,
-      )}. Players: ${groupedNames}. Please proceed after the current game.`,
-    )
+
+    enqueueSpeak(`Attention... Next on ${groupedNames}.`)
+    refetchOpenPlayData?.()
   }, [openPlayData?.queues, enqueueSpeak])
 
-  // useEffect(() => {
-  //   handleManualAnnouncement()
-  // }, [waitingGroups, isQueueAvailable])
+  // =====================
+  // SINGLE INTERVAL LOOP
+  // =====================
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = toPhilippineTime(new Date())
+      setCurrentTime(now)
 
+      // --- Auto end session ---
+      if (openPlay?.id && !hasAutoEndedRef.current) {
+        const endTime = new Date(openPlay.endTime)
+        const isPastEnd = now.getTime() > endTime.getTime()
+        const hasActiveGames = courts?.some((c) => c?.currentGame || c?.nextGame) ?? false
+        if (isPastEnd && !hasActiveGames) {
+          hasAutoEndedRef.current = true
+          completeOpenPlayMutation.mutate(
+            { id: openPlay.id },
+            { onError: () => (hasAutoEndedRef.current = false) },
+          )
+        }
+      }
+
+      if (isQueueAvailable) {
+        hasCancelledRef.current = false
+
+        // --- Countdown prep ---
+        const nextTransitionValue = nextTransitionRef.current
+        if (nextTransitionValue) {
+          const adjustedTransition = new Date(
+            nextTransitionValue.getTime() - (openPlay?.preparationSeconds ?? 0) * 1000,
+          )
+          const diff = adjustedTransition.getTime() - now.getTime()
+          setPrepRemaining(diff > 0 ? diff : 0)
+
+          if (diff <= 0 && lastRefetchRef.current !== nextTransitionValue.getTime()) {
+            handleManualAnnouncement()
+            lastRefetchRef.current = nextTransitionValue.getTime()
+          }
+        }
+
+        // --- Refetch if nextGame is due OR currentGame has ended ---
+        courts.forEach((court: any) => {
+          // Check nextGame
+          if (court?.nextGame) {
+            const nextGameStart = toPhilippineTime(new Date(court.nextGame.scheduledAt))
+            if (nextGameStart.getTime() <= now.getTime()) {
+              if (lastRefetchRef.current !== nextGameStart.getTime()) {
+                refetchOpenPlayData?.()
+                lastRefetchRef.current = nextGameStart.getTime()
+              }
+            }
+          }
+
+          // Check currentGame
+          if (court?.currentGame) {
+            const currentGameEnd = toPhilippineTime(new Date(court.currentGame.estimatedEndTime))
+            if (currentGameEnd.getTime() <= now.getTime()) {
+              if (lastRefetchRef.current !== currentGameEnd.getTime()) {
+                refetchOpenPlayData?.()
+                lastRefetchRef.current = currentGameEnd.getTime()
+              }
+            }
+          }
+        })
+      } else {
+        if (!hasCancelledRef.current) {
+          stopSpeaking()
+          hasCancelledRef.current = true
+        }
+      }
+
+      // --- Auto announce ---
+      if (openPlayData?.queues?.length && nextTransition) {
+        const leadMinutes = openPlayData.openPlay?.announcementMinutesBeforeTransition ?? 0
+        const leadMs = leadMinutes * 60 * 1000
+        const nowSec = normalizeToPhilippineTimeSeconds(new Date())
+        const transitionKey = nextTransition.toISOString()
+
+        if (
+          lastAnnouncedRef.current !== transitionKey &&
+          nowSec - ((window as any).lastAnnounceTime || 0) >= GUARD_MS
+        ) {
+          const transitionTime = normalizeToPhilippineTimeSeconds(nextTransition)
+          const diff = transitionTime - nowSec
+          if (diff <= leadMs) {
+            const upcomingGroups = openPlayData.queues.filter((q) => {
+              const t = normalizeToPhilippineTimeSeconds(q.scheduledAt)
+              return Math.abs(t - transitionTime) <= GUARD_MS
+            })
+            if (upcomingGroups.length) {
+              const groupedMessage = upcomingGroups
+                .map((group) => {
+                  const names =
+                    group.players.map((p: any) => p.playerName).join(", ") || "all players"
+                  return `${group.courtName}.. Players, ${names}.`
+                })
+                .join(". ")
+              enqueueSpeak(`Attention... Next on ${groupedMessage}.`)
+              refetchOpenPlayData?.()
+              lastAnnouncedRef.current = transitionKey
+              ;(window as any).lastAnnounceTime = nowSec
+            }
+          }
+        }
+      }
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [
+    isQueueAvailable,
+    stopSpeaking,
+    enqueueSpeak,
+    refetchOpenPlayData,
+    openPlay,
+    courts,
+    completeOpenPlayMutation,
+    nextTransition,
+    openPlayData?.queues,
+  ])
 
   if (isLoading || isLoadingOrgWithCourts) return <LoadingScreen message="Loading Queue" />
   if (!isQueueAvailable) return <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
@@ -653,13 +621,9 @@ const GroupContent = ({ group }: any) => {
           >
             {/* Name */}
             <div className="flex flex-col leading-none">
-              <span className="font-black text-lg text-primary uppercase">
-                {firstName}
-              </span>
+              <span className="font-black text-lg text-primary uppercase">{firstName}</span>
               {restNames.length > 0 && (
-                <span className="text-xs text-primary/80">
-                  {restNames.join(" ")}
-                </span>
+                <span className="text-xs text-primary/80">{restNames.join(" ")}</span>
               )}
             </div>
 
@@ -679,48 +643,6 @@ const GroupContent = ({ group }: any) => {
           </div>
         )
       })}
-    </div>
-  )
-}
-
-
-
-function DebugOverlay({
-  openPlayData,
-  speechQueueRef,
-  isSpeakingRef,
-  lastAnnouncedRef,
-  startWarningAnnouncedRef,
-  manualAnnouncedRef,
-}: any) {
-  return (
-    <div
-      style={{
-        position: "fixed",
-        bottom: 0,
-        right: 0,
-        background: "rgba(0,0,0,0.8)",
-        color: "white",
-        padding: "12px",
-        fontSize: "12px",
-        maxWidth: "300px",
-        zIndex: 9999,
-        borderTopLeftRadius: "8px",
-      }}
-    >
-      <h4 style={{ margin: "0 0 8px 0" }}>🔍 Debug Overlay</h4>
-      <div>Queue length: {speechQueueRef.current.length}</div>
-      <div>Last announced: {lastAnnouncedRef.current}</div>
-      <div>Start warnings: {Array.from(startWarningAnnouncedRef.current).join(", ")}</div>
-      <div>Manual announced: {Array.from(manualAnnouncedRef.current).join(", ")}</div>
-      <div>
-        Next scheduled group:{" "}
-        {openPlayData?.queue?.[0]
-          ? `${openPlayData.queue[0].players.map((p: any) => p.playerName).join(", ")} on ${
-              openPlayData.queue[0].courtName
-            }`
-          : "None"}
-      </div>
     </div>
   )
 }

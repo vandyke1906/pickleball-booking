@@ -5,7 +5,7 @@ import { scheduleGroup } from "@/lib/server/action/openplay.action"
 import { TQueuePlayer } from "@/lib/type/openplay/openplay.type"
 import { Queue, Worker, QueueEvents, JobsOptions } from "bullmq"
 import Redis from "ioredis"
-import Redlock from "redlock";
+import Redlock from "redlock"
 
 export const QUEUE_KEYS = {
   LINEUP_PLAYER: "line-up-player",
@@ -39,7 +39,7 @@ class QueueManager {
 
     this.redlock.on("error", (error: any) => {
       console.error("[Redlock] Error:", error)
-    });
+    })
 
     for (const queueName of Object.values(QUEUE_KEYS)) {
       console.info(`[QueueManager] Creating queue: ${queueName}`)
@@ -60,18 +60,24 @@ class QueueManager {
       })
 
       this.connection.on("error", (err) => {
-        console.error("[Redis] Connection error:", err);
-      });
+        console.error("[Redis] Connection error:", err)
+      })
 
       this.connection.on("close", () => {
-        console.warn("[Redis] Connection closed");
-      });
+        console.warn("[Redis] Connection closed")
+      })
 
       this.registerWorker(queueName)
     }
 
-    process.on("SIGINT", async () => { await this.close(); process.exit(0); });
-    process.on("SIGTERM", async () => { await this.close(); process.exit(0); });
+    process.on("SIGINT", async () => {
+      await this.close()
+      process.exit(0)
+    })
+    process.on("SIGTERM", async () => {
+      await this.close()
+      process.exit(0)
+    })
   }
 
   async addJob<T>(
@@ -156,15 +162,11 @@ class QueueManager {
                     )}`,
                   )
 
-                  const playersHash = data .map((p: any) => p.id) .sort() .join(":")
-                  await this.addJob( QUEUE_KEYS.ASSIGN_COURT, `schedule:${playersHash}`, data, )
-
-                  // try {
-                  //   await scheduleGroup(data)
-                  //   EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data })
-                  // } catch (error: any) {
-                  //   console.error(`Schedule group error: ${error?.message || error}`)
-                  // }
+                  const playersHash = data
+                    .map((p: any) => p.id)
+                    .sort()
+                    .join(":")
+                  await this.addJob(QUEUE_KEYS.ASSIGN_COURT, `schedule:${playersHash}`, data)
                 },
               },
             )
@@ -176,13 +178,14 @@ class QueueManager {
             if (!group?.length) return
             const openPlayId = group[0].openPlayId
             console.info(`[Worker:${queueName}] Scheduling group for openPlay ${openPlayId}`)
-
-            const lock = await this.redlock.acquire( [`lock:schedule:${openPlayId}`], 30000, )
+            const lock = await this.redlock.acquire([`lock:schedule:${openPlayId}`], 30000)
 
             try {
               await scheduleGroup(group)
               EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: group })
-              console.info( `[${QUEUE_KEYS.ASSIGN_COURT}] Scheduled group ${group[0].openPlayGroupId}` )
+              console.info(
+                `[${QUEUE_KEYS.ASSIGN_COURT}] Scheduled group ${group[0].openPlayGroupId}`,
+              )
             } finally {
               try {
                 await lock.unlock()
@@ -191,7 +194,6 @@ class QueueManager {
               }
             }
 
-
             break
           }
 
@@ -199,7 +201,7 @@ class QueueManager {
             console.warn(`[Worker:${queueName}] No processor defined`)
         }
       },
-      { connection: this.connection, concurrency: queueName === QUEUE_KEYS.ASSIGN_COURT ? 1 : 50 },
+      { connection: this.connection, concurrency: 1 },
     )
   }
 
@@ -270,9 +272,14 @@ class QueueManager {
 
     const previous = this.promotionLocks.get(batchKey) || Promise.resolve()
     let release!: () => void
-    const current = new Promise<void>((resolve) => { release = resolve })
+    const current = new Promise<void>((resolve) => {
+      release = resolve
+    })
 
-    this.promotionLocks.set(batchKey, previous.then(() => current))
+    this.promotionLocks.set(
+      batchKey,
+      previous.then(() => current),
+    )
     await previous
 
     try {

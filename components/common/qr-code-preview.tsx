@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import QRCode from "react-qr-code"
 import { QrCode } from "lucide-react"
+import { QRCodeSVG } from "qrcode.react"
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
@@ -47,9 +47,11 @@ export default function QrCodePreview({ value, title }: QrCodePreviewProps) {
 
           <div className="flex flex-col items-center justify-center py-6">
             <div className="rounded-2xl border bg-white p-4 shadow-sm">
-              <QRCode value={value} size={220} className="h-auto w-full max-w-[220px]" />
+              <QRCodeSVG value={value} size={220} className="h-auto w-full max-w-[220px]" />
             </div>
-              <Label className="mt-4 break-all text-center text-sm text-muted-foreground">{value}</Label>
+            <Label className="mt-4 break-all text-center text-sm text-muted-foreground">
+              {value}
+            </Label>
           </div>
         </DialogContent>
       </Dialog>

@@ -64,7 +64,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
       duration: initialData?.duration || 1,
       transitionMinutes: initialData?.transitionMinutes || 0,
       preparationSeconds: initialData?.preparationSeconds || 0,
-      announcementMinutesBeforeTransition: initialData?.announcementMinutesBeforeTransition || 1,
+      announcementMinutesBeforeTransition: initialData?.announcementMinutesBeforeTransition || 0,
       courtIds: initialData?.courtIds || [],
       groupSkills: initialData?.groupSkills || [],
     },
@@ -158,7 +158,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
         duration: initialData?.duration || 1,
         transitionMinutes: initialData?.transitionMinutes || 0,
         preparationSeconds: initialData?.preparationSeconds || 0,
-        announcementMinutesBeforeTransition: initialData?.announcementMinutesBeforeTransition || 1,
+        announcementMinutesBeforeTransition: initialData?.announcementMinutesBeforeTransition || 0,
         courtIds: initialData?.courtIds || [],
         groupSkills: initialData?.groupSkills || [],
       })
@@ -273,7 +273,9 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
                       step={1}
                       placeholder="Enter Player Preparation Minutes"
                       required
-                      {...form.register("announcementMinutesBeforeTransition", { valueAsNumber: true })}
+                      {...form.register("announcementMinutesBeforeTransition", {
+                        valueAsNumber: true,
+                      })}
                     />
                     {form.formState.errors.announcementMinutesBeforeTransition && (
                       <p className="text-sm text-red-600">

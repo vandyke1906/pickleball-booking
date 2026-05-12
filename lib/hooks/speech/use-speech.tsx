@@ -1,14 +1,20 @@
-import { useEffect, useState } from "react"
+"use client"
 
-export const useVoice = () => {
+import { useEffect, useRef, useState } from "react"
+
+export const useSpeech = (isQueueAvailable: boolean) => {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null)
+  const [voicesReady, setVoicesReady] = useState(false)
 
+  const speechQueueRef = useRef<string[]>([])
+  const speakingRef = useRef(false)
+
+  /** Load voices once and retry until available */
   useEffect(() => {
     const loadVoices = () => {
       const available = window.speechSynthesis.getVoices()
       if (!available.length) {
-        // Retry until voices are loaded
         setTimeout(loadVoices, 250)
         return
       }
@@ -18,11 +24,14 @@ export const useVoice = () => {
         available.find((v) => v.lang.toLowerCase().includes("en-ph")) ||
         available[0]
       setSelectedVoice(voice || null)
+      setVoicesReady(true)
     }
+
     window.speechSynthesis.onvoiceschanged = loadVoices
     loadVoices()
   }, [])
 
+  /** Core speak function */
   const speak = (
     text: string,
     repeats = 1,
@@ -36,13 +45,10 @@ export const useVoice = () => {
     }
 
     let count = 0
-
     const speakOnce = () => {
       if (count >= repeats) return
 
-      const availableVoices = voices.length ? voices : window.speechSynthesis.getVoices()
-      const voice = selectedVoice || availableVoices[0]
-
+      const voice = selectedVoice || voices[0]
       if (!voice) {
         console.warn("No voices yet, retrying...")
         setTimeout(speakOnce, 300)
@@ -52,27 +58,59 @@ export const useVoice = () => {
       const utterance = new SpeechSynthesisUtterance(text)
       utterance.voice = voice
       utterance.rate = options?.rate ?? 1.1
-      utterance.pitch = options?.pitch ?? 1.1
-      utterance.volume = options?.volume ?? 0.9
-
-      console.info({utterance})
+      utterance.pitch = options?.pitch ?? 1.0
+      utterance.volume = options?.volume ?? 1.0
 
       utterance.onstart = () => {
-        console.info("****utterance start")
+        speakingRef.current = true
         onSpeaking?.(true)
       }
       utterance.onend = () => {
+        speakingRef.current = false
         onSpeaking?.(false)
         count++
         if (count < repeats) setTimeout(speakOnce, delaySec * 1000)
+        else processQueue() // continue with next queued item
       }
-      console.info("speak****")
+
       window.speechSynthesis.speak(utterance)
     }
 
     speakOnce()
   }
 
+  /** Queue processor */
+  const processQueue = () => {
+    if (!isQueueAvailable || speakingRef.current) return
+    const text = speechQueueRef.current.shift()
+    if (!text) return
+    speak(text)
+  }
 
-  return { voices, selectedVoice, setSelectedVoice, speak }
+  /** Public enqueue function */
+  const enqueueSpeak = (text: string, repeats = 1, delaySec = 2) => {
+    if (!voicesReady) {
+      console.warn("Voices not ready yet")
+      setTimeout(() => enqueueSpeak(text, repeats, delaySec), 500)
+      return
+    }
+
+    if (!isQueueAvailable) {
+      stopSpeaking()
+      return
+    }
+
+    if (speechQueueRef.current.includes(text)) return
+    speechQueueRef.current.push(text)
+    if (!speakingRef.current) processQueue()
+  }
+
+  /** Stop everything immediately */
+  const stopSpeaking = () => {
+    window.speechSynthesis.cancel()
+    speechQueueRef.current = []
+    speakingRef.current = false
+  }
+
+  return { voices, selectedVoice, setSelectedVoice, enqueueSpeak, stopSpeaking }
 }

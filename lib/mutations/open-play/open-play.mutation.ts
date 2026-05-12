@@ -24,7 +24,10 @@ async function createOrUpdateOpenPlay(payload: OpenPlayPayload) {
   formData.append("duration", parsed.duration.toString())
   formData.append("transitionMinutes", parsed.transitionMinutes.toString())
   formData.append("preparationSeconds", parsed.preparationSeconds.toString())
-  formData.append("announcementMinutesBeforeTransition", parsed.announcementMinutesBeforeTransition.toString())
+  formData.append(
+    "announcementMinutesBeforeTransition",
+    parsed.announcementMinutesBeforeTransition.toString(),
+  )
   formData.append("courtIds", JSON.stringify(parsed.courtIds))
   formData.append("groupSkills", JSON.stringify(parsed.groupSkills))
 
@@ -120,6 +123,19 @@ async function statusUpdateOpenPlay(id: string, status: OpenPlayStatus) {
   if (!res.ok) {
     const error = await res.json()
     throw new Error(error?.error || "Activation failed")
+  }
+
+  return res.json()
+}
+
+async function completeOpenPlay(id: string) {
+  const res = await fetch(`/api/open-plays/${id}/complete`, {
+    method: "POST",
+  })
+
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error?.error || "Completion failed")
   }
 
   return res.json()
@@ -474,6 +490,52 @@ export function useStatusUpdateOpenPlay() {
     },
 
     onSettled: (_data, _error, { id }) => {
+      queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
+    },
+
+    retry: 1,
+  })
+}
+
+export function useCompleteOpenPlay() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) => completeOpenPlay(id),
+
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: ["open-play", id] })
+
+      const previousOpenPlay = queryClient.getQueryData(["open-play", id])
+
+      if (previousOpenPlay) {
+        queryClient.setQueryData(["open-play", id], (old: any) => ({
+          ...old,
+        }))
+      }
+
+      return { previousOpenPlay }
+    },
+
+    onError: (error, { id }, context) => {
+      if (context?.previousOpenPlay) {
+        queryClient.setQueryData(["open-play", id], context.previousOpenPlay)
+      }
+      toast.error("Completion failed", { description: (error as Error).message })
+    },
+
+    onSuccess: (_data) => {
+      const config: any = {
+        title: "Open Play Completed",
+        description: "The open play has been marked as completed.",
+      } as const
+
+      toast.success(config?.title ?? "Status Updated", {
+        description: config?.description ?? "The open play status has been completed.",
+      })
+    },
+
+    onSettled: (_data, _error) => {
       queryClient.invalidateQueries({ queryKey: qKeyOpenPlays.all, exact: false })
     },
 
