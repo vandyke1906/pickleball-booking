@@ -8,6 +8,7 @@ export const openPlaySchema = z.object({
   startTime: z.string().regex(/^\d{2}:\d{2}$/, "Start time must be HH:mm"),
   duration: z.number().min(1).max(16),
   transitionMinutes: z.number({ error: "Transition minutes is required" }).min(1),
+  announcementMinutesBeforeTransition: z.number({ error: "Announcement minutes before transition is required" }).min(1),
   preparationSeconds: z.number().min(1),
   courtIds: z.array(z.string()).nonempty("At least one court must be selected"),
   groupSkills: z

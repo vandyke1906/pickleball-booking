@@ -24,6 +24,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
   const duration = Number(formData.get("duration"))
   const transitionMinutes = Number(formData.get("transitionMinutes"))
   const preparationSeconds = Number(formData.get("preparationSeconds"))
+  const announcementMinutesBeforeTransition = Number(formData.get("announcementMinutesBeforeTransition"))
   const courtIds = JSON.parse(formData.get("courtIds") as string)
   const groupSkills = JSON.parse(formData.get("groupSkills") as string)
 
@@ -51,6 +52,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
             endTime: end,
             transitionMinutes,
             preparationSeconds,
+            announcementMinutesBeforeTransition,
             courts: {
               set: [],
               connect: courtIds.map((id: string) => ({ id })),
@@ -77,6 +79,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
             endTime: end,
             transitionMinutes: transitionMinutes,
             preparationSeconds: preparationSeconds,
+            announcementMinutesBeforeTransition: announcementMinutesBeforeTransition,
             courts: { connect: courtIds.map((id: string) => ({ id })) },
             groups: {
               create: groupSkills.map((c: any) => ({

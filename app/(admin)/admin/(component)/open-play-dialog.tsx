@@ -64,6 +64,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
       duration: initialData?.duration || 1,
       transitionMinutes: initialData?.transitionMinutes || 0,
       preparationSeconds: initialData?.preparationSeconds || 0,
+      announcementMinutesBeforeTransition: initialData?.announcementMinutesBeforeTransition || 1,
       courtIds: initialData?.courtIds || [],
       groupSkills: initialData?.groupSkills || [],
     },
@@ -157,6 +158,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
         duration: initialData?.duration || 1,
         transitionMinutes: initialData?.transitionMinutes || 0,
         preparationSeconds: initialData?.preparationSeconds || 0,
+        announcementMinutesBeforeTransition: initialData?.announcementMinutesBeforeTransition || 1,
         courtIds: initialData?.courtIds || [],
         groupSkills: initialData?.groupSkills || [],
       })
@@ -193,7 +195,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
               <div className="space-y-2">
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   {/* Date */}
-                  <div className="lg:col-span-2 rounded w-full space-y-2">
+                  <div className="rounded w-full space-y-2">
                     <Label className="font-semibold text-slate-700">Date</Label>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -257,6 +259,25 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
                     {form.formState.errors.preparationSeconds && (
                       <p className="text-sm text-red-600">
                         {form.formState.errors.preparationSeconds.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="rounded w-full space-y-2">
+                    <Label className="font-semibold text-slate-700">
+                      Announcement Minutes Before Transition
+                    </Label>
+                    <Input
+                      id="announcementMinutesBeforeTransition"
+                      type="number"
+                      step={1}
+                      placeholder="Enter Player Preparation Minutes"
+                      required
+                      {...form.register("announcementMinutesBeforeTransition", { valueAsNumber: true })}
+                    />
+                    {form.formState.errors.announcementMinutesBeforeTransition && (
+                      <p className="text-sm text-red-600">
+                        {form.formState.errors.announcementMinutesBeforeTransition.message}
                       </p>
                     )}
                   </div>

@@ -24,6 +24,7 @@ async function createOrUpdateOpenPlay(payload: OpenPlayPayload) {
   formData.append("duration", parsed.duration.toString())
   formData.append("transitionMinutes", parsed.transitionMinutes.toString())
   formData.append("preparationSeconds", parsed.preparationSeconds.toString())
+  formData.append("announcementMinutesBeforeTransition", parsed.announcementMinutesBeforeTransition.toString())
   formData.append("courtIds", JSON.stringify(parsed.courtIds))
   formData.append("groupSkills", JSON.stringify(parsed.groupSkills))
 
