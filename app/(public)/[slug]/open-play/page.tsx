@@ -132,7 +132,7 @@ export default function PickleballOpenPlayQueue() {
 
       // --- Auto end session ---
       if (openPlay?.id && !hasAutoEndedRef.current) {
-        const endTime = new Date(openPlay.endTime)
+        const endTime = toPhilippineTime(new Date(openPlay.endTime))
         const isPastEnd = now.getTime() > endTime.getTime()
         const hasActiveGames = courts?.some((c) => c?.currentGame || c?.nextGame) ?? false
         if (isPastEnd && !hasActiveGames) {
@@ -150,8 +150,8 @@ export default function PickleballOpenPlayQueue() {
         // --- Countdown prep ---
         const nextTransitionValue = nextTransitionRef.current
         if (nextTransitionValue) {
-          const adjustedTransition = new Date(
-            nextTransitionValue.getTime() - (openPlay?.preparationSeconds ?? 0) * 1000,
+          const adjustedTransition = toPhilippineTime(
+            new Date(nextTransitionValue.getTime() - (openPlay?.preparationSeconds ?? 0) * 1000),
           )
           const diff = adjustedTransition.getTime() - now.getTime()
           setPrepRemaining(diff > 0 ? diff : 0)
@@ -240,6 +240,24 @@ export default function PickleballOpenPlayQueue() {
     nextTransition,
     openPlayData?.queues,
   ])
+
+  useEffect(() => {
+    const unlockSpeech = () => {
+      const u = new SpeechSynthesisUtterance(" ")
+      u.volume = 0 // silent
+      u.rate = 1
+      u.pitch = 1
+      window.speechSynthesis.speak(u)
+
+      // remove listeners after first unlock
+      window.removeEventListener("click", unlockSpeech)
+      window.removeEventListener("touchstart", unlockSpeech)
+    }
+
+    // wait for first user gesture
+    window.addEventListener("click", unlockSpeech)
+    window.addEventListener("touchstart", unlockSpeech)
+  }, [])
 
   if (isLoading || isLoadingOrgWithCourts) return <LoadingScreen message="Loading Queue" />
   if (!isQueueAvailable) return <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
