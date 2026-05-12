@@ -372,6 +372,7 @@ export async function getNewOpenPlaySchedules(
       startTime: true,
       endTime: true,
       transitionMinutes: true,
+      announcementMinutesBeforeTransition: true,
       preparationSeconds: true,
       groups: { select: { id: true, skills: true, status: true } },
       queues: {
@@ -654,12 +655,36 @@ export async function getNewOpenPlaySchedules(
     nextTransition = new Date(earliest);
   }
 
+  const groupedBySkills: Record<string, {
+    skills: PlayerSkill[];
+    status: QueueStatus;
+    players: TQueuePlayer[];
+    groupIds: string[];
+  }> = {};
+
+  waitingGroups.forEach((wg) => {
+    const key = skillsKey(wg.skills);
+    if (!groupedBySkills[key]) {
+      groupedBySkills[key] = {
+        skills: wg.skills,
+        status: wg.status,
+        players: [],
+        groupIds: [],
+      };
+    }
+    groupedBySkills[key].players.push(...wg.players);
+    groupedBySkills[key].groupIds.push(wg.groupId);
+  });
+
+  // Convert back to array
+  const mergedWaitingGroups = Object.values(groupedBySkills);
+
   return {
     isStarted: !!activeOpenPlay.startedAt,
     openPlay: activeOpenPlay,
     timeRange: `${formatTimeOnly(activeOpenPlay.startTime.toISOString())} - ${formatTimeOnly(activeOpenPlay.endTime.toISOString())}`,
     courts: courtsWithGames,
-    waitingGroups,
+    waitingGroups: mergedWaitingGroups,
     queues: queue,
     currentGames,
     nextTransition,
@@ -849,4 +874,9 @@ export async function getOpenPlaySchedules(
     waitingPlayers,
     nextTransition,
   };
+}
+
+
+function skillsKey(skills: PlayerSkill[]): string {
+  return skills.sort().join("-");
 }

@@ -32,15 +32,16 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useStatusUpdateOpenPlay, useSubmitLineupOpenPlay } from "@/lib/mutations/open-play/open-play.mutation"
 import { useOrganizationCourts } from "@/lib/hooks/court/court.hook"
 import { useActiveOpenPlayQueue } from "@/lib/hooks/open-play/open-play.hook"
-import { useVoice } from "@/lib/hooks/speech/use-voice"
 import { Badge } from "@/components/ui/badge"
 import { EventBusKeys, useEventListener } from "@/lib/client/event-bus"
 import AnimatedSVG from "@/components/animated/animated-svg"
 import { logoPaths } from "@/lib/svg/logo"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { OpenPlayStatus, PlayerSkill } from "@/.config/prisma/generated/prisma"
+import { useSpeechQueue } from "@/lib/hooks/speech/use-speech-queue"
+import { queue } from "sharp"
 
-const GUARD_MS = 4000
+const GUARD_MS = 5000
 
 const groups = []
 
@@ -48,8 +49,6 @@ export default function PickleballOpenPlayQueue() {
   const params = useParams()
   const slugParam = params.slug ?? ""
   const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam
-
-  const { speak } = useVoice()
 
   const { data: orgWithCourts, isLoading: isLoadingOrgWithCourts } = useOrganizationCourts({ slug })
   const orgId = orgWithCourts?.id ?? ""
@@ -75,7 +74,6 @@ export default function PickleballOpenPlayQueue() {
   // =====================
   const [currentTime, setCurrentTime] = useState(toPhilippineTime(new Date()))
   const [openLineupDialog, setOpenLineupDialog] = useState(false)
-  const [audioEnabled, setAudioEnabled] = useState(true)
   const [prepRemaining, setPrepRemaining] = useState(0)
 
   const speechQueueRef = useRef<string[]>([])
@@ -84,55 +82,9 @@ export default function PickleballOpenPlayQueue() {
   const lastAnnouncedRef = useRef<string | null>(null)
   const lastRefetchRef = useRef<number>(0)
   const hasCancelledRef = useRef(false)
-  const speakingRef = useRef(false)
   const hasAutoEndedRef = useRef(false)
 
-  const processQueue = () => {
-    if (!isQueueAvailable) {
-      stopSpeaking()
-      return
-    }
-
-    // ✅ bail if already speaking or queue empty
-    if (speakingRef.current) return
-    if (speechQueueRef.current.length === 0) return
-
-    const text = speechQueueRef.current.shift()
-    if (!text) return
-
-    speakingRef.current = true
-
-    speak(text, 1, 2, (speaking: boolean) => {
-      if (!speaking) {
-        speakingRef.current = false
-        processQueue() // continue with next item only after finishing
-      }
-    })
-  }
-
-  const enqueueSpeak = (text: string) => {
-    if (!isQueueAvailable) {
-      stopSpeaking()
-      return
-    }
-
-    // prevent duplicate enqueues
-    if (speechQueueRef.current.includes(text)) {
-      return
-    }
-
-    speechQueueRef.current.push(text)
-
-    if (!speakingRef.current) {
-      processQueue()
-    }
-  }
-
-  const stopSpeaking = () => {
-    window.speechSynthesis.cancel()
-    speechQueueRef.current = []
-    speakingRef.current = false
-  }
+  const { enqueueSpeak, stopSpeaking } = useSpeechQueue(isQueueAvailable)
 
   // =====================
   // SAFE DATA NORMALIZATION (IMPORTANT FIX)
@@ -210,12 +162,16 @@ export default function PickleballOpenPlayQueue() {
         hasCancelledRef.current = false
         const nextTransitionValue = nextTransitionRef.current
         if (nextTransitionValue) {
-          const diff = nextTransitionValue.getTime() - now.getTime()
+          // subtract preparation seconds here
+          const adjustedTransition = new Date( nextTransitionValue.getTime() - (openPlay?.preparationSeconds ?? 0) * 1000 )
+          const diff = adjustedTransition.getTime() - now.getTime()
 
           setPrepRemaining(diff > 0 ? diff : 0)
 
           if (diff <= 0) {
-            refetchOpenPlayData?.()
+            refetchOpenPlayData?.().then(() => { 
+              handleManualAnnouncement()
+            })
             lastRefetchRef.current = nextTransitionValue.getTime()
           }
         }
@@ -231,31 +187,28 @@ export default function PickleballOpenPlayQueue() {
     tick()
     const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
-  }, [isQueueAvailable])
+  }, [isQueueAvailable, openPlay?.preparationSeconds])
 
   // =====================
   // AUTO ANNOUNCE NEXT GROUPS (multi-court, with lead time)
   // =====================
   useEffect(() => {
-    if (!audioEnabled || !openPlayData?.queues?.length || !nextTransition) return
+    if (!openPlayData?.queues?.length || !nextTransition) return
 
     const leadMinutes = openPlayData.openPlay?.announcementMinutesBeforeTransition ?? 0
     const leadMs = leadMinutes * 60 * 1000
 
     const now = normalizeToPhilippineTimeSeconds(new Date())
-    const last = (window as any).lastAnnounceTime || 0
     const transitionKey = nextTransition.toISOString()
 
-    // ✅ Only announce once per transition slot
+    // Guard: prevent duplicate or too‑frequent announcements
     if (lastAnnouncedRef.current === transitionKey) return
-    if (now - last < GUARD_MS) return
+    if (now - ((window as any).lastAnnounceTime || 0) < GUARD_MS) return
 
-    // ✅ Trigger announcement when within lead time window
     const transitionTime = normalizeToPhilippineTimeSeconds(nextTransition)
     const diff = transitionTime - now
-    if (diff > leadMs) return // too early, wait until within lead window
+    if (diff > leadMs) return
 
-    // ✅ Find all groups scheduled at the upcoming transition
     const upcomingGroups = openPlayData.queues.filter((q) => {
       const t = normalizeToPhilippineTimeSeconds(q.scheduledAt)
       return Math.abs(t - transitionTime) <= GUARD_MS
@@ -270,16 +223,21 @@ export default function PickleballOpenPlayQueue() {
       })
       .join(". ")
 
+      
+      console.info({manual: groupedMessage})
+
     enqueueSpeak(`Attention please. Next players: ${groupedMessage}.`)
+    
     lastAnnouncedRef.current = transitionKey
     ;(window as any).lastAnnounceTime = now
-  }, [audioEnabled, nextTransition, openPlayData?.openPlay?.announcementMinutesBeforeTransition])
+    refetchOpenPlayData?.()
+  }, [isQueueAvailable, nextTransition, openPlayData?.openPlay?.announcementMinutesBeforeTransition])
 
   // =====================
-  // MANUAL ANNOUNCEMENT (using openPlayData.queues)
+  // MANUAL ANNOUNCE
   // =====================
   const handleManualAnnouncement = useCallback(() => {
-    if (!audioEnabled || !openPlayData?.queues || openPlayData.queues.length === 0) return
+    if (!openPlayData?.queues?.length) return
 
     const sortedQueues = [...openPlayData.queues].sort(
       (a, b) =>
@@ -289,27 +247,31 @@ export default function PickleballOpenPlayQueue() {
 
     const firstScheduleTime = normalizeToPhilippineTimeSeconds(sortedQueues[0].scheduledAt)
 
-    // Get all groups with the same earliest schedule
-    const nextScheduledGroups = sortedQueues.filter(
-      (q) => normalizeToPhilippineTimeSeconds(q.scheduledAt) === firstScheduleTime,
-    )
+    const nextScheduledGroups = sortedQueues.filter((q) => {
+      const t = normalizeToPhilippineTimeSeconds(q.scheduledAt)
+      return Math.abs(t - firstScheduleTime) <= GUARD_MS
+    })
 
-    if (nextScheduledGroups.length === 0) return
+    if (!nextScheduledGroups.length) return
 
     const groupedNames = nextScheduledGroups
       .map((group) => {
         const names = group.players.map((p: any) => p.playerName).join(", ") || "all players"
-
         return `${names} on ${group.courtName}`
       })
       .join(". ")
-
+      console.info({manual: groupedNames})
     enqueueSpeak(
-      `Attention please. Next game at ${timeText(
+      `Attention please. Next games starting around ${timeText(
         nextScheduledGroups[0].scheduledAt,
       )}. Players: ${groupedNames}. Please proceed after the current game.`,
     )
-  }, [audioEnabled, openPlayData?.queues])
+  }, [openPlayData?.queues, enqueueSpeak])
+
+  // useEffect(() => {
+  //   handleManualAnnouncement()
+  // }, [waitingGroups, isQueueAvailable])
+
 
   if (isLoading || isLoadingOrgWithCourts) return <LoadingScreen message="Loading Queue" />
   if (!isQueueAvailable) return <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
@@ -329,7 +291,7 @@ export default function PickleballOpenPlayQueue() {
             {/* Time Range Schedule */}
             <div className="flex items-center justify-between">
               <div className="text-sm">Schedule</div>
-              <div className="text-sm font-semibold">{openPlayData.timeRange ?? ""}</div>
+              <div className="text-sm font-semibold">{openPlayData?.timeRange ?? ""}</div>
             </div>
 
             {/* Next Schedule */}
@@ -447,7 +409,7 @@ export default function PickleballOpenPlayQueue() {
                         {court.currentGame?.players?.length ? (
                           <div className="rounded-xl bg-white/70 p-3 shadow-sm border border-white/40">
                             <div className="flex flex-col gap-2">
-                              {court.currentGame.players.map((player) => {
+                              {court.currentGame.players.map((player: any) => {
                                 const [firstName, ...restNames] = player.playerName.split(" ")
                                 return (
                                   <div
@@ -499,7 +461,7 @@ export default function PickleballOpenPlayQueue() {
                         {court.nextGame?.players?.length ? (
                           <div className="rounded-xl bg-white/70 p-3 shadow-sm border border-white/40">
                             <div className="flex flex-col gap-2">
-                              {court.nextGame.players.map((player) => {
+                              {court.nextGame.players.map((player: any) => {
                                 const [firstName, ...restNames] = player.playerName.split(" ")
                                 return (
                                   <div
