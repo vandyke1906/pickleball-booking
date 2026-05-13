@@ -44,6 +44,7 @@ import { PlayerSkill } from "@/.config/prisma/generated/prisma"
 import { useSpeech } from "@/lib/hooks/speech/use-speech"
 
 const GUARD_MS = 5000
+const REPEAT_ANNOUNCE = Number.isFinite( Number(process.env.NEXT_PUBLIC_REPEAT_ANNOUNCE) ) ? Number(process.env.NEXT_PUBLIC_REPEAT_ANNOUNCE) : 2;
 
 export default function PickleballOpenPlayQueue() {
   const params = useParams()
@@ -219,7 +220,7 @@ export default function PickleballOpenPlayQueue() {
                   return `${group.courtName}.. Players, ${names}.`
                 })
                 .join(". ")
-              enqueueSpeak(`Attention... Next on ${groupedMessage}.`, 2)
+              enqueueSpeak(`Attention... Next on ${groupedMessage}.`, REPEAT_ANNOUNCE)
               refetchOpenPlayData?.()
               lastAnnouncedRef.current = transitionKey
               ;(window as any).lastAnnounceTime = nowSec
@@ -291,7 +292,7 @@ export default function PickleballOpenPlayQueue() {
                   />
                 </div>
               </div>
-              <div className="text-4xl font-bold">
+              <div className="text-3xl font-bold">
                 {nextTransition ? timeText(nextTransition) : "-"}
               </div>
             </div>
