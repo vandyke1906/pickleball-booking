@@ -332,7 +332,7 @@ export default function PickleballOpenPlayQueue() {
                   <div
                     key={`group.${group.groupId}_idx.${idx}`}
                     className="
-                      rounded-lg border border-dashed border-gray-500/20 px-2 lg:h-64
+                      rounded-lg border border-dashed border-gray-500/20 px-2 lg:h-64 h-auto overflow-visible  lg:flex-1 lg:h-0 lg:overflow-auto
                     "
                   >
                     {/* Desktop Scroll Only */}
