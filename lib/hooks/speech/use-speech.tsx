@@ -20,6 +20,9 @@ export const useSpeech = (isQueueAvailable: boolean) => {
       }
       setVoices(available)
       const voice =
+        available.find((v) => v.lang.toLowerCase().includes("en-us")) ||
+        available.find((v) => v.lang.toLowerCase().includes("en-gb")) ||
+        available.find((v) => v.lang.toLowerCase().includes("en")) ||
         available.find((v) => v.lang.toLowerCase().includes("fil-ph")) ||
         available.find((v) => v.lang.toLowerCase().includes("en-ph")) ||
         available[0]
@@ -57,9 +60,10 @@ export const useSpeech = (isQueueAvailable: boolean) => {
 
       const utterance = new SpeechSynthesisUtterance(text)
       utterance.voice = voice
-      utterance.rate = options?.rate ?? 1.1
-      utterance.pitch = options?.pitch ?? 1.0
-      utterance.volume = options?.volume ?? 1.0
+      utterance.lang = "en-US"
+      utterance.rate = options?.rate ?? 1
+      utterance.pitch = options?.pitch ?? 1
+      utterance.volume = options?.volume ?? 1
 
       utterance.onstart = () => {
         speakingRef.current = true

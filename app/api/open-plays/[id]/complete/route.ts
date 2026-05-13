@@ -1,4 +1,5 @@
 import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
+import { isServerAuthenticated } from "@/lib/auth/auth.server"
 import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
@@ -7,6 +8,11 @@ import { NextRequest, NextResponse } from "next/server"
 
 export const POST = withRateLimit(
   async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+      const session = await isServerAuthenticated()
+      if (!session?.user) return NextResponse.json({
+        success: true,
+        message: ""
+      })
     try {
       const { id } = await params
       if (!id) return NextResponse.json({ success: false, message: "Please provide open play id!" })

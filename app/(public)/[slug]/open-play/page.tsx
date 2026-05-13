@@ -219,7 +219,7 @@ export default function PickleballOpenPlayQueue() {
                   return `${group.courtName}.. Players, ${names}.`
                 })
                 .join(". ")
-              enqueueSpeak(`Attention... Next on ${groupedMessage}.`)
+              enqueueSpeak(`Attention... Next on ${groupedMessage}.`, 2)
               refetchOpenPlayData?.()
               lastAnnouncedRef.current = transitionKey
               ;(window as any).lastAnnounceTime = nowSec
@@ -327,8 +327,7 @@ export default function PickleballOpenPlayQueue() {
                   <div
                     key={`group.${group.groupId}_idx.${idx}`}
                     className="
-                      rounded-lg border border-dashed border-gray-500/20 px-2
-                      md:h-56 lg:h-64
+                      rounded-lg border border-dashed border-gray-500/20 px-2 lg:h-64
                     "
                   >
                     {/* Desktop Scroll Only */}
