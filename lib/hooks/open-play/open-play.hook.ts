@@ -84,6 +84,10 @@ export type TQueueResponse = {
   queues: TQueueGroup[]
   nextTransition: Date | null
   waitingPlayers: OpenPlayPlayer[]
+  lastUpdate: string
+  waitingGroups: any[]
+  courts: any[]
+  timeRange: any
 }
 
 export function useOrganizationOpenPlays(params: OpenPlayListParams) {

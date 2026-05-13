@@ -356,6 +356,7 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
     players: results,
   };
 }
+
 export async function getNewOpenPlaySchedules(
   openPlayId: string = "",
   options?: {
@@ -418,13 +419,13 @@ export async function getNewOpenPlaySchedules(
   }[] = [];
 
   // Build courts with currentGame and nextGame
-  const courtsWithGames = activeOpenPlay.courts.map((court) => {
+  const courtsWithGames = activeOpenPlay.courts.map((court: any) => {
     const courtQueues = activeOpenPlay.queues.filter(
-      (q) => q.assignedCourtId === court.id,
+      (q: any) => q.assignedCourtId === court.id,
     );
 
     const groupsByTime: Record<number, any[]> = {};
-    courtQueues.forEach((q) => {
+    courtQueues.forEach((q: any) => {
       if (!q.scheduledAt) return;
       const key = q.scheduledAt.getTime();
       if (!groupsByTime[key]) groupsByTime[key] = [];
@@ -477,10 +478,10 @@ export async function getNewOpenPlaySchedules(
       ...(currentTime ? groupsByTime[currentTime].map((q) => q.id) : []),
       ...(nextTime ? groupsByTime[nextTime].map((q) => q.id) : []),
     ]);
-    const remaining = courtQueues.filter((q) => !excludedIds.has(q.id));
+    const remaining = courtQueues.filter((q: any) => !excludedIds.has(q.id));
 
     const groupedByGroup: Record<string, TQueuePlayer[]> = {};
-    remaining.forEach((q) => {
+    remaining.forEach((q: any) => {
       if (!q.openPlayGroupId) return;
       if (!groupedByGroup[q.openPlayGroupId])
         groupedByGroup[q.openPlayGroupId] = [];
@@ -488,7 +489,7 @@ export async function getNewOpenPlaySchedules(
     });
 
     Object.entries(groupedByGroup).forEach(([groupId, players]) => {
-      const groupMeta = activeOpenPlay.groups.find((g) => g.id === groupId);
+      const groupMeta = activeOpenPlay.groups.find((g: any) => g.id === groupId);
       waitingGroups.push({
         groupId,
         skills: groupMeta?.skills ?? [],
@@ -507,17 +508,17 @@ export async function getNewOpenPlaySchedules(
 
   // Add unscheduled players into waitingGroups
   const unscheduled = activeOpenPlay.queues.filter(
-    (q) => !q.scheduledAt && !q.endedAt,
+    (q: any) => !q.scheduledAt && !q.endedAt,
   );
   const unscheduledByGroup: Record<string, TQueuePlayer[]> = {};
-  unscheduled.forEach((q) => {
+  unscheduled.forEach((q: any) => {
     if (!q.openPlayGroupId) return;
     if (!unscheduledByGroup[q.openPlayGroupId])
       unscheduledByGroup[q.openPlayGroupId] = [];
     unscheduledByGroup[q.openPlayGroupId].push(toQueuePlayer(q));
   });
   Object.entries(unscheduledByGroup).forEach(([groupId, players]) => {
-    const groupMeta = activeOpenPlay.groups.find((g) => g.id === groupId);
+    const groupMeta = activeOpenPlay.groups.find((g: any) => g.id === groupId);
     waitingGroups.push({
       groupId,
       skills: groupMeta?.skills ?? [],
@@ -527,9 +528,9 @@ export async function getNewOpenPlaySchedules(
   });
 
   // Add groups with no players at all
-  activeOpenPlay.groups.forEach((g) => {
+  activeOpenPlay.groups.forEach((g: any) => {
     const hasPlayers = activeOpenPlay.queues.some(
-      (q) => q.openPlayGroupId === g.id,
+      (q: any) => q.openPlayGroupId === g.id,
     );
     if (!hasPlayers) {
       waitingGroups.push({
@@ -688,6 +689,7 @@ export async function getNewOpenPlaySchedules(
     queues: queue,
     currentGames,
     nextTransition,
+    lastUpdate: new Date().toISOString()
   };
 }
 

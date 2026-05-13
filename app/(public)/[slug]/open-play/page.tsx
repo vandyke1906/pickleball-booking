@@ -62,7 +62,9 @@ export default function PickleballOpenPlayQueue() {
 
   const completeOpenPlayMutation = useCompleteOpenPlay()
 
-  useEventListener(EventBusKeys.OPENPLAY_UPDATED, () => refetchOpenPlayData()) //Event Listener
+  useEventListener(EventBusKeys.OPENPLAY_UPDATED, (data) => {
+    refetchOpenPlayData()
+  }) //Event Listener
 
   const waitingGroups = openPlayData?.waitingGroups ?? []
   const courts = openPlayData?.courts ?? []
@@ -120,7 +122,7 @@ export default function PickleballOpenPlayQueue() {
       .join(". ")
 
     enqueueSpeak(`Attention... Next on ${groupedNames}.`)
-    refetchOpenPlayData?.()
+    // refetchOpenPlayData?.()
   }, [openPlayData?.queues, enqueueSpeak])
 
   // =====================
@@ -133,6 +135,7 @@ export default function PickleballOpenPlayQueue() {
 
       // --- Auto end session ---
       if (openPlay?.id && !hasAutoEndedRef.current) {
+        if(!openPlay.endTime) return
         const endTime = toPhilippineTime(new Date(openPlay.endTime))
         const isPastEnd = now.getTime() > endTime.getTime()
         const hasActiveGames = courts?.some((c) => c?.currentGame || c?.nextGame) ?? false
@@ -170,7 +173,7 @@ export default function PickleballOpenPlayQueue() {
             const nextGameStart = toPhilippineTime(new Date(court.nextGame.scheduledAt))
             if (nextGameStart.getTime() <= now.getTime()) {
               if (lastRefetchRef.current !== nextGameStart.getTime()) {
-                refetchOpenPlayData?.()
+                // refetchOpenPlayData?.()
                 lastRefetchRef.current = nextGameStart.getTime()
               }
             }
@@ -181,7 +184,7 @@ export default function PickleballOpenPlayQueue() {
             const currentGameEnd = toPhilippineTime(new Date(court.currentGame.estimatedEndTime))
             if (currentGameEnd.getTime() <= now.getTime()) {
               if (lastRefetchRef.current !== currentGameEnd.getTime()) {
-                refetchOpenPlayData?.()
+                // refetchOpenPlayData?.()
                 lastRefetchRef.current = currentGameEnd.getTime()
               }
             }
@@ -221,7 +224,7 @@ export default function PickleballOpenPlayQueue() {
                 })
                 .join(". ")
               enqueueSpeak(`Attention... Next on ${groupedMessage}.`, REPEAT_ANNOUNCE)
-              refetchOpenPlayData?.()
+              // refetchOpenPlayData?.()
               lastAnnouncedRef.current = transitionKey
               ;(window as any).lastAnnounceTime = nowSec
             }
@@ -240,6 +243,7 @@ export default function PickleballOpenPlayQueue() {
     completeOpenPlayMutation,
     nextTransition,
     openPlayData?.queues,
+    openPlayData?.lastUpdate,
   ])
 
   useEffect(() => {

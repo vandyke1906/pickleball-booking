@@ -10,6 +10,8 @@ import Redlock from "redlock"
 export const QUEUE_KEYS = {
   LINEUP_PLAYER: "line-up-player",
   ASSIGN_COURT: "assign-court",
+  MATCH_STARTED: "match-started",
+  MATCH_ENDED: "match-ended",
 } as const
 
 class QueueManager {
@@ -37,7 +39,7 @@ class QueueManager {
       driftFactor: 0.01,
     })
 
-    this.redlock.on("error", (error: any) => {
+    this.redlock.on("clientError", (error: any) => {
       console.error("[Redlock] Error:", error)
     })
 
@@ -149,23 +151,20 @@ class QueueManager {
               4,
               {
                 onPromoted: async (data) => {
-                  console.info(
-                    `Promoted: ${JSON.stringify(
-                      data.map((d: any) => ({
-                        name: d.playerName,
-                        startAt: d.startAt,
-                        endAt: d.endAt,
-                        openPlayGroupId: d.openPlayGroupId,
-                      })),
-                      null,
-                      2,
-                    )}`,
-                  )
+                  // console.info(
+                  //   `Promoted: ${JSON.stringify(
+                  //     data.map((d: any) => ({
+                  //       name: d.playerName,
+                  //       startAt: d.startAt,
+                  //       endAt: d.endAt,
+                  //       openPlayGroupId: d.openPlayGroupId,
+                  //     })),
+                  //     null,
+                  //     2,
+                  //   )}`,
+                  // )
 
-                  const playersHash = data
-                    .map((p: any) => p.id)
-                    .sort()
-                    .join(":")
+                  const playersHash = data .map((p: any) => p.id) .sort() .join(":")
                   await this.addJob(QUEUE_KEYS.ASSIGN_COURT, `schedule:${playersHash}`, data)
                 },
               },
@@ -181,11 +180,40 @@ class QueueManager {
             const lock = await this.redlock.acquire([`lock:schedule:${openPlayId}`], 30000)
 
             try {
-              await scheduleGroup(group)
+              const schedule = await scheduleGroup(group)
+              // console.info({"######": JSON.stringify(schedule, null, 2)})
               EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: group })
-              console.info(
-                `[${QUEUE_KEYS.ASSIGN_COURT}] Scheduled group ${group[0].openPlayGroupId}`,
-              )
+
+              console.info( `[${QUEUE_KEYS.ASSIGN_COURT}] Scheduled group ${group[0].openPlayGroupId}`)
+
+              if(schedule){
+                const startedAt = new Date(schedule.scheduledAt).getTime()
+                const delayStartGame = Math.max(0, startedAt - Date.now())
+
+                const endedAt = new Date(schedule.endedAt).getTime()
+                const delayEndGame = Math.max(0, endedAt - Date.now())
+                
+
+                //start game
+                await this.addJob(QUEUE_KEYS.MATCH_STARTED, `court:${schedule.courtId}`,
+                  {
+                    courtId: schedule.courtId,
+                    openPlayGroupId: schedule.players[0].openPlayGroupId,
+                    players: schedule.players,
+                  },
+                  { delay: delayStartGame },
+                )
+
+                //end game
+                await this.addJob(QUEUE_KEYS.MATCH_ENDED, `court:${schedule.courtId}`,
+                  {
+                    courtId: schedule.courtId,
+                    openPlayGroupId: schedule.players[0].openPlayGroupId,
+                    players: schedule.players,
+                  },
+                  { delay: delayEndGame },
+                )
+              }
             } finally {
               try {
                 await lock.unlock()
@@ -194,6 +222,13 @@ class QueueManager {
               }
             }
 
+            break
+          }
+          case QUEUE_KEYS.MATCH_STARTED:
+          case QUEUE_KEYS.MATCH_ENDED: {
+            const group = job.data
+            console.info("*********QUEUE_KEYS.MATCH_ENDED")
+            EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: group })
             break
           }
 
