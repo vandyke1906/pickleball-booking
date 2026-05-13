@@ -183,7 +183,7 @@ export function useActiveOpenPlayQueue(organizationId: string) {
     gcTime: 1000 * 60 * 60 * 24, // keep cache for 24 hours
 
     // PREVENT AUTO REFETCH
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     refetchOnReconnect: false,
     refetchOnMount: false,
   })
