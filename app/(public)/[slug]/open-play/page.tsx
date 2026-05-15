@@ -74,7 +74,6 @@ export default function PickleballOpenPlayQueue() {
     refetchOpenPlayData()
 
     if (data?.key === QUEUE_KEYS.MATCH_ANNOUNCEMENT) {
-      // console.info(data)
       const key = [data.courtName, ...data.players].join("|")
       const text = `Attention... Next on ${data.courtName}.. Players, ${data.players.join(", ")}.`
 
@@ -230,69 +229,32 @@ export default function PickleballOpenPlayQueue() {
           }
         }
       } else {
-        if (!hasCancelledRef.current) {
-          stopSpeaking()
-          hasCancelledRef.current = true
-        }
+        // if (!hasCancelledRef.current) {
+        //   stopSpeaking()
+        //   hasCancelledRef.current = true
+        // }
       }
 
-      // if (openPlayData?.queues?.length && nextTransition) {
-      //   const leadMinutes = openPlayData.openPlay?.announcementMinutesBeforeTransition ?? 0
-      //   const leadMs = leadMinutes * 60 * 1000
-      //   const nowSec = normalizeToPhilippineTimeSeconds(new Date())
-      //   const transitionKey = nextTransition.toISOString()
+      // --- Auto announce ---
+      if (openPlayData?.queues?.length && nextTransition) {
+        const leadMinutes = openPlayData.openPlay?.announcementMinutesBeforeTransition ?? 0
+        const leadMs = leadMinutes * 60 * 1000
+        const nowSec = normalizeToPhilippineTimeSeconds(new Date())
+        const transitionKey = nextTransition.toISOString()
 
-      //   if (
-      //     lastAnnouncedRef.current !== transitionKey &&
-      //     nowSec - ((window as any).lastAnnounceTime || 0) >= GUARD_MS
-      //   ) {
-      //     const transitionTime = normalizeToPhilippineTimeSeconds(nextTransition)
-      //     const diff = transitionTime - nowSec
-      //     if (diff <= leadMs) {
-      //       const upcomingGroups = openPlayData.queues.filter((q) => {
-      //         const t = normalizeToPhilippineTimeSeconds(q.scheduledAt)
-      //         return Math.abs(t - transitionTime) <= GUARD_MS
-      //       })
-      //       if (upcomingGroups.length) {
-      //         const groupedMessage = upcomingGroups
-      //           .map((group) => {
-      //             const names =
-      //               group.players.map((p: any) => p.playerName).join(", ") || "all players"
-      //             return `${group.courtName}.. Players, ${names}.`
-      //           })
-      //           .join(". ")
-      //         console.info({ groupedMessage })
-      //         lastAnnouncedRef.current = transitionKey
-      //         ;(window as any).lastAnnounceTime = nowSec
-      //       }
-      //     }
-      //   }
-      // }
-
-      // --- Auto announce from localStorage ---
-      // const stored = localStorage.getItem("announcements")
-      // console.info({ stored })
-      // if (stored) {
-      //   const announcements: {
-      //     key: string
-      //     text: string
-      //     preparationAt?: string
-      //     spoken?: boolean
-      //   }[] = JSON.parse(stored)
-
-      //   announcements.forEach((a) => {
-      //     if (a.preparationAt) {
-      //       const prepTime = new Date(a.preparationAt).getTime()
-      //       if (now.getTime() >= prepTime && !a.spoken) {
-      //         enqueueSpeak(a.text, 2, 0.5)
-      //         a.spoken = true
-      //       }
-      //     }
-      //   })
-
-      //   // persist updated spoken flags
-      //   localStorage.setItem("announcements", JSON.stringify(announcements))
-      // }
+        if (
+          lastAnnouncedRef.current !== transitionKey &&
+          nowSec - ((window as any).lastAnnounceTime || 0) >= GUARD_MS
+        ) {
+          const transitionTime = normalizeToPhilippineTimeSeconds(nextTransition)
+          const diff = transitionTime - nowSec
+          if (diff <= leadMs) {
+            refetchOpenPlayData?.()
+            lastAnnouncedRef.current = transitionKey
+            ;(window as any).lastAnnounceTime = nowSec
+          }
+        }
+      }
     }, 1000)
     return () => clearInterval(interval)
   }, [
