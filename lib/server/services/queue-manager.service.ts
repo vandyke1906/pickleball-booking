@@ -376,6 +376,18 @@ class QueueManager {
               type: BroadcastEventTypes.OPENPLAY_UPDATED,
               data: group,
             })
+
+            //Refresh batches for this open play
+            const openPlayId = group[0].openPlayId
+            await manager.promoteWaitingPlayers<TQueuePlayer>(`batch_${openPlayId}`, 4, {
+              onPromoted: async (data) => {
+                await manager.addJob(QUEUE_KEYS.ASSIGN_COURT, "assign-court", data, {
+                  jobId: `schedule_trigger_${openPlayId}}_${Date.now()}`,
+                  removeOnComplete: true,
+                })
+              },
+            })
+
             break
           }
           case QUEUE_KEYS.MATCH_ANNOUNCEMENT: {
