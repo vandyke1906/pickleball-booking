@@ -110,7 +110,9 @@ export default function PickleballOpenPlayQueue() {
               announcementsRef.current = announcementsRef.current.filter(
                 (a) => a.key !== announcement.key,
               )
-              refetchOpenPlayData()
+              setTimeout(() => {
+                refetchOpenPlayData()
+              }, 2000) // 1 second delay
             })
           }, delay)
         }
