@@ -68,11 +68,11 @@ export default function PickleballOpenPlayQueue() {
     if (data?.key === QUEUE_KEYS.MATCH_ANNOUNCEMENT) {
       const key = [data.courtName, ...data.players].join("|")
       const text = `Attention... Next on ${data.courtName}.. Players, ${data.players.join(", ")}.`
-      console.info({ data, key, text, announcedKeysRef })
+      // console.info({ data, key, text, announcedKeysRef })
       if (data?.courtName && data.players?.length && !announcedKeysRef.current.has(key)) {
         announcedKeysRef.current.add(key)
         announcementsRef.current.push(text)
-        console.info("speak")
+        // console.info("speak")
         enqueueSpeak(text, 2, 0.5)
       }
     }
@@ -115,7 +115,6 @@ export default function PickleballOpenPlayQueue() {
   // MANUAL ANNOUNCE (current + next queue)
   // =====================
   const handleManualAnnouncement = useCallback(() => {
-    console.info({ openPlayData })
     if (!openPlayData?.courts?.length) return
 
     const messages: string[] = []
@@ -310,7 +309,7 @@ export default function PickleballOpenPlayQueue() {
 
         {/* Main Content */}
         <main className="lg:col-span-3 bg-[#092021] shadow-xl flex flex-col lg:h-full">
-          <div className="py-4 uppercase text-5xl font-bold text-white mb-4 text-center w-full">
+          <div className="py-4 uppercase text-5xl font-black text-white mb-4 text-center w-full">
             Open Play Dashboard
           </div>
           <div className="flex-1 px-2 pt-2">

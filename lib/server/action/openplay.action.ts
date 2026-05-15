@@ -41,7 +41,7 @@ export async function initializeLineup(tx: TPrismaTransaction, openPlayId: strin
   const skillGroupMap = new Map<PlayerSkill, string>()
 
   for (const group of openPlayGroups) {
-    manager.clearBatch(`batch:${group.id}`)
+    manager.clearBatch(`batch_${group.id}`)
 
     for (const skill of group.skills) {
       skillGroupMap.set(skill, group.id)
@@ -98,7 +98,7 @@ export async function initializeLineup(tx: TPrismaTransaction, openPlayId: strin
   ])
   const jobs: Promise<any>[] = []
   for (const player of playersGroup) {
-    jobs.push(manager.addJob(QUEUE_KEYS.LINEUP_PLAYER, player.openPlayGroupId, player))
+    jobs.push(manager.addJob(QUEUE_KEYS.LINEUP_PLAYER, "lineup-player", player))
   }
 
   Promise.allSettled(jobs).then((results) => {
@@ -115,6 +115,7 @@ export async function initializeLineup(tx: TPrismaTransaction, openPlayId: strin
       }),
     )
   })
+
   return true
 }
 
@@ -151,10 +152,17 @@ export async function submitLineup(
   })
 
   // Add job to manager
-  await manager.addJob(QUEUE_KEYS.LINEUP_PLAYER, opGroup.id, {
-    ...player,
-    openPlayGroupId: opGroup.id,
-  })
+  await manager.addJob(
+    QUEUE_KEYS.LINEUP_PLAYER,
+    opGroup.id,
+    {
+      ...player,
+      openPlayGroupId: opGroup.id,
+    },
+    {
+      jobId: `lineup_${player.code}-${player.playerName}`,
+    },
+  )
 }
 
 // Check if player still has allowance based on elapsed time
