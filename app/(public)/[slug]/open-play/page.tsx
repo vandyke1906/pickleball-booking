@@ -227,7 +227,9 @@ export default function PickleballOpenPlayQueue() {
 
           if (diff <= 0 && lastRefetchRef.current !== nextTransitionValue.getTime()) {
             lastRefetchRef.current = nextTransitionValue.getTime()
-            refetchOpenPlayData()
+            setTimeout(() => {
+              refetchOpenPlayData()
+            }, 1000) // 1 second delay
           }
         }
       } else {
