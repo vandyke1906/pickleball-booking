@@ -38,18 +38,18 @@ export const GET = withRateLimit(
       })
 
       //Refresh batches for this open play
-      // await manager.promoteWaitingPlayers<TQueuePlayer>(`batch_${activeOpenPlay.id}`, 4, {
-      //   onPromoted: async (data) => {
-      //     const playersHash = data
-      //       .map((p: any) => p.id)
-      //       .sort()
-      //       .join("_")
-      //     await manager.addJob(QUEUE_KEYS.ASSIGN_COURT, "assign-court", data, {
-      //       jobId: `schedule_${playersHash}`,
-      //       removeOnComplete: true,
-      //     })
-      //   },
-      // })
+      await manager.promoteWaitingPlayers<TQueuePlayer>(`batch_${activeOpenPlay.id}`, 4, {
+        onPromoted: async (data) => {
+          const playersHash = data
+            .map((p: any) => p.id)
+            .sort()
+            .join("_")
+          await manager.addJob(QUEUE_KEYS.ASSIGN_COURT, "assign-court", data, {
+            jobId: `schedule_${playersHash}`,
+            removeOnComplete: true,
+          })
+        },
+      })
 
       return NextResponse.json(result)
     } catch (error: any) {
