@@ -194,7 +194,7 @@ class QueueManager {
                     .join(":")
 
                   this.assignCourtCounter++ // Increment counter each time a group is promoted
-                  const delay = this.assignCourtCounter * 2000 // Delay = counter * 2000 ms
+                  const delay = this.assignCourtCounter * 4000 // Delay = counter * 2000 ms
 
                   await this.addJob(QUEUE_KEYS.ASSIGN_COURT, "assign-court", data, {
                     jobId: `schedule_${playersHash}`,

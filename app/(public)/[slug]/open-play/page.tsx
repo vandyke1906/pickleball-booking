@@ -246,6 +246,8 @@ export default function PickleballOpenPlayQueue() {
         const nowSec = normalizeToPhilippineTimeSeconds(new Date())
         const transitionKey = nextTransition.toISOString()
 
+        refetchOpenPlayData?.()
+
         if (
           lastAnnouncedRef.current !== transitionKey &&
           nowSec - ((window as any).lastAnnounceTime || 0) >= GUARD_MS
@@ -253,7 +255,6 @@ export default function PickleballOpenPlayQueue() {
           const transitionTime = normalizeToPhilippineTimeSeconds(nextTransition)
           const diff = transitionTime - nowSec
           if (diff <= leadMs) {
-            refetchOpenPlayData?.()
             lastAnnouncedRef.current = transitionKey
             ;(window as any).lastAnnounceTime = nowSec
           }
