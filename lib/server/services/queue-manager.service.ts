@@ -37,6 +37,8 @@ class QueueManager {
       console.error("[Redlock] Error:", error)
     })
 
+    this.clearStaleLocks()
+
     for (const queueName of Object.values(QUEUE_KEYS)) {
       console.info(`[QueueManager] Creating queue: ${queueName}`)
       this.queues[queueName] = new Queue(queueName, { connection: this.connection })
@@ -74,6 +76,18 @@ class QueueManager {
       await this.close()
       process.exit(0)
     })
+  }
+
+  private async clearStaleLocks() {
+    try {
+      const keys = await this.connection.keys("lock:schedule:*")
+      if (keys.length > 0) {
+        await this.connection.del(...keys)
+        console.info(`[QueueManager] Cleared ${keys.length} stale locks`)
+      }
+    } catch (err) {
+      console.error("[QueueManager] Error clearing stale locks:", err)
+    }
   }
 
   private safeJobId(id?: string): string | undefined {
