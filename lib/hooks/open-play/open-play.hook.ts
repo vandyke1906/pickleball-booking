@@ -178,14 +178,10 @@ export function useActiveOpenPlayQueue(organizationId: string) {
     queryFn: () => fetcher(url),
     enabled: typeof organizationId === "string" && organizationId.trim().length > 0,
 
-    // CACHE CONTROL
-    staleTime: Infinity, // never becomes stale
-    gcTime: 1000 * 60 * 60 * 24, // keep cache for 24 hours
-
     // PREVENT AUTO REFETCH
     refetchOnWindowFocus: true,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
   })
 
   return {
