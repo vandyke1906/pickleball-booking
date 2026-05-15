@@ -63,8 +63,6 @@ export default function PickleballOpenPlayQueue() {
   } = useActiveOpenPlayQueue(orgId)
 
   useEventListener(EventBusKeys.OPENPLAY_UPDATED, async ({ data }) => {
-    await refetchOpenPlayData()
-
     if (data?.key === QUEUE_KEYS.MATCH_ANNOUNCEMENT) {
       const key = [data.courtName, ...data.players].join("|")
       const text = `Attention... Next on ${data.courtName}.. Players, ${data.players.join(", ")}.`
@@ -76,6 +74,7 @@ export default function PickleballOpenPlayQueue() {
         enqueueSpeak(text, 2, 0.5)
       }
     }
+    await refetchOpenPlayData()
   }) //Event Listener
 
   const waitingGroups = openPlayData?.waitingGroups ?? []

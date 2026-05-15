@@ -380,6 +380,39 @@ class QueueManager {
       }
     }
   }
+
+  async promoteWaitingPlayers<T>(
+    batchKey: string,
+    batchSize: number,
+    options?: { onPromoted?: (data: any) => Promise<void> },
+  ) {
+    const items = await this.connection.lrange(batchKey, 0, batchSize - 1)
+    if (items.length < batchSize) return
+
+    const parsed: T[] = items.map((item) => JSON.parse(item))
+    await this.connection.ltrim(batchKey, batchSize, -1)
+
+    // reuse promotion lock logic
+    const previous = this.promotionLocks.get(batchKey) || Promise.resolve()
+    let release!: () => void
+    const current = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    this.promotionLocks.set(
+      batchKey,
+      previous.then(() => current),
+    )
+    await previous
+
+    try {
+      await options?.onPromoted?.(parsed)
+    } finally {
+      release()
+      if (this.promotionLocks.get(batchKey) === current) {
+        this.promotionLocks.delete(batchKey)
+      }
+    }
+  }
 }
 
 export const manager = new QueueManager()

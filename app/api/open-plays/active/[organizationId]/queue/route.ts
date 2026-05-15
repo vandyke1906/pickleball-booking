@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { deleteQueuedPlayers, getNewOpenPlaySchedules } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
+import { manager } from "@/lib/server/services/queue-manager.service"
+import { TQueuePlayer } from "@/lib/type/openplay/openplay.type"
+import { QUEUE_KEYS } from "@/lib/type/queue/queue.type"
 import { NextRequest, NextResponse } from "next/server"
 
 export const GET = withRateLimit(
@@ -33,6 +36,21 @@ export const GET = withRateLimit(
           }
         },
       })
+
+      //Refresh batches for this open play
+      await manager.promoteWaitingPlayers<TQueuePlayer>(`batch_${activeOpenPlay.id}`, 4, {
+        onPromoted: async (data) => {
+          const playersHash = data
+            .map((p: any) => p.id)
+            .sort()
+            .join("_")
+          await manager.addJob(QUEUE_KEYS.ASSIGN_COURT, "assign-court", data, {
+            jobId: `schedule_${playersHash}`,
+            removeOnComplete: true,
+          })
+        },
+      })
+
       return NextResponse.json(result)
     } catch (error: any) {
       console.error("Error getting open play:", error?.message || error)
