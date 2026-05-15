@@ -27,8 +27,8 @@ class QueueManager {
     })
 
     this.redlock = new Redlock([this.connection as unknown as Redlock.CompatibleRedisClient], {
-      retryCount: 50,
-      retryDelay: 200,
+      retryCount: 20,
+      retryDelay: 500,
       retryJitter: 100,
       driftFactor: 0.01,
     })
@@ -206,10 +206,10 @@ class QueueManager {
             if (!group?.length) return
             const openPlayId = group[0].openPlayId
             console.info(`[Worker:${queueName}] Scheduling group for openPlay ${openPlayId}`)
-            const lock = await this.redlock.acquire([`lock:schedule:${openPlayId}`], 15000)
 
-            try {
+            await this.withScheduleLock(this.connection, this.redlock, openPlayId, async () => {
               const schedule = await scheduleGroup(group)
+
               console.info(
                 `[${QUEUE_KEYS.ASSIGN_COURT}] Scheduled group ${group[0].openPlayGroupId} on court: ${schedule?.courtName}`,
               )
@@ -222,7 +222,7 @@ class QueueManager {
                 const endedAt = new Date(schedule.endedAt).getTime()
                 const delayEndGame = Math.max(0, endedAt - Date.now())
 
-                const preparationAt = startedAt - schedule.preparationSeconds * 1000
+                const preparationAt = startedAt - schedule.preparationSeconds * 1000 + 1000
                 const delayPreparation = Math.max(0, preparationAt - Date.now())
 
                 await Promise.all([
@@ -275,19 +275,90 @@ class QueueManager {
                   ),
                 ])
               }
-
               EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: group })
-            } catch (err) {
-              console.error(`[${queueName}] Error scheduling group:`, err)
-              await this.connection.del(`lock:schedule:${openPlayId}`) //Force cleanup if lock acquisition or scheduling fails
-            } finally {
-              try {
-                await lock.unlock()
-              } catch (err) {
-                console.error(`[Redlock] Failed to unlock:`, err)
-                await this.connection.del(`lock:schedule:${openPlayId}`)
-              }
-            }
+            })
+
+            // const lock = await this.redlock.acquire([`lock:schedule:${openPlayId}`], 15000)
+            // try {
+            //   const schedule = await scheduleGroup(group)
+            //   console.info(
+            //     `[${QUEUE_KEYS.ASSIGN_COURT}] Scheduled group ${group[0].openPlayGroupId} on court: ${schedule?.courtName}`,
+            //   )
+            //   if (schedule) {
+            //     // Delays for start game
+            //     const startedAt = new Date(schedule.scheduledAt).getTime()
+            //     const delayStartGame = Math.max(0, startedAt - Date.now())
+
+            //     // Delays for end game
+            //     const endedAt = new Date(schedule.endedAt).getTime()
+            //     const delayEndGame = Math.max(0, endedAt - Date.now())
+
+            //     const preparationAt = startedAt - schedule.preparationSeconds * 1000 + 1000
+            //     const delayPreparation = Math.max(0, preparationAt - Date.now())
+
+            //     await Promise.all([
+            //       //start game
+            //       this.addJob(
+            //         QUEUE_KEYS.MATCH_STARTED,
+            //         `court:${schedule.courtId}`,
+            //         {
+            //           courtId: schedule.courtId,
+            //           openPlayGroupId: schedule.players[0].openPlayGroupId,
+            //           players: schedule.players,
+            //           startsAt: schedule.scheduledAt,
+            //         },
+            //         {
+            //           delay: delayStartGame,
+            //           jobId: `match-start_${schedule.courtId}:${group[0].openPlayGroupId}`,
+            //           removeOnComplete: true,
+            //         },
+            //       ),
+            //       //end game
+            //       this.addJob(
+            //         QUEUE_KEYS.MATCH_ENDED,
+            //         `court:${schedule.courtId}`,
+            //         {
+            //           courtId: schedule.courtId,
+            //           openPlayGroupId: schedule.players[0].openPlayGroupId,
+            //           players: schedule.players,
+            //           endsAt: schedule.endedAt,
+            //         },
+            //         {
+            //           delay: delayEndGame,
+            //           jobId: `match-end_${schedule.courtId}:${group[0].openPlayGroupId}`,
+            //           removeOnComplete: true,
+            //         },
+            //       ),
+            //       // Transition announcement
+            //       this.addJob(
+            //         QUEUE_KEYS.MATCH_ANNOUNCEMENT,
+            //         `court:${schedule.courtId}:${schedule.courtName}:announcement`,
+            //         {
+            //           courtName: schedule.courtName,
+            //           startedAt: schedule.scheduledAt,
+            //           preparationAt: new Date(preparationAt),
+            //           players: schedule.players
+            //             .map((p) => p.player.playerName || "Player")
+            //             .sort((a, b) => a.localeCompare(b)),
+            //           key: QUEUE_KEYS.MATCH_ANNOUNCEMENT,
+            //         },
+            //         delayPreparation > 0 ? { delay: delayPreparation } : {},
+            //       ),
+            //     ])
+            //   }
+
+            //   EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: group })
+            // } catch (err) {
+            //   console.error(`[${queueName}] Error scheduling group:`, err)
+            //   await this.connection.del(`lock:schedule:${openPlayId}`) //Force cleanup if lock acquisition or scheduling fails
+            // } finally {
+            //   try {
+            //     await lock.unlock()
+            //   } catch (err) {
+            //     console.error(`[Redlock] Failed to unlock:`, err)
+            //     await this.connection.del(`lock:schedule:${openPlayId}`)
+            //   }
+            // }
 
             break
           }
@@ -453,6 +524,37 @@ class QueueManager {
         console.error("[QueueManager] Error sweeping locks:", err)
       }
     }, 300000)
+  }
+
+  private async withScheduleLock<T>(
+    connection: Redis,
+    redlock: Redlock,
+    openPlayId: string,
+    fn: () => Promise<T>,
+  ): Promise<T | null> {
+    let lock: Redlock.Lock | undefined
+    try {
+      // 🔹 Short TTL (10–15s) since jobs are fast
+      lock = await redlock.acquire([`lock:schedule:${openPlayId}`], 15000)
+
+      // Run the protected logic
+      return await fn()
+    } catch (err) {
+      console.error(`[Lock] Error for ${openPlayId}:`, err)
+      // 🔹 Force cleanup if acquire or fn fails
+      await connection.del(`lock:schedule:${openPlayId}`)
+      return null
+    } finally {
+      if (lock) {
+        try {
+          await lock.unlock()
+        } catch (err) {
+          console.error(`[Lock] Failed to unlock ${openPlayId}:`, err)
+          // 🔹 Force cleanup if unlock fails
+          await connection.del(`lock:schedule:${openPlayId}`)
+        }
+      }
+    }
   }
 }
 
