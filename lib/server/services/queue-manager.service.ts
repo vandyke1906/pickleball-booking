@@ -3,16 +3,10 @@ import { redisUrl } from "@/lib/redis/redis"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { scheduleGroup } from "@/lib/server/action/openplay.action"
 import { TQueuePlayer } from "@/lib/type/openplay/openplay.type"
+import { QUEUE_KEYS } from "@/lib/type/queue/queue.type"
 import { Queue, Worker, QueueEvents, JobsOptions } from "bullmq"
 import Redis from "ioredis"
 import Redlock from "redlock"
-
-export const QUEUE_KEYS = {
-  LINEUP_PLAYER: "line-up-player",
-  ASSIGN_COURT: "assign-court",
-  MATCH_STARTED: "match-started",
-  MATCH_ENDED: "match-ended",
-} as const
 
 class QueueManager {
   private connection: Redis
@@ -133,6 +127,24 @@ class QueueManager {
     return job
   }
 
+  async clearQueue(queueName: string) {
+    const queue = this.queues[queueName]
+    if (!queue) throw new Error(`Queue ${queueName} not found`)
+    console.info(`[QueueManager] Pausing queue ${queueName}`)
+    await queue.pause()
+
+    try {
+      await queue.drain() // Remove waiting + delayed jobs
+      await queue.clean(0, 1000, "completed") // Remove completed jobs
+      await queue.clean(0, 1000, "failed") // Remove failed jobs
+      console.info(`[QueueManager] Queue ${queueName} cleaned successfully`)
+    } finally {
+      await queue.resume()
+      console.info(`[QueueManager] Queue ${queueName} resumed`)
+    }
+    return true
+  }
+
   private registerWorker(queueName: string) {
     if (this.workers[queueName]) return
     console.info(`[QueueManager] Registering worker for: ${queueName}`)
@@ -164,7 +176,10 @@ class QueueManager {
                   //   )}`,
                   // )
 
-                  const playersHash = data .map((p: any) => p.id) .sort() .join(":")
+                  const playersHash = data
+                    .map((p: any) => p.id)
+                    .sort()
+                    .join(":")
                   await this.addJob(QUEUE_KEYS.ASSIGN_COURT, `schedule:${playersHash}`, data)
                 },
               },
@@ -182,37 +197,82 @@ class QueueManager {
             try {
               const schedule = await scheduleGroup(group)
               // console.info({"######": JSON.stringify(schedule, null, 2)})
-              EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: group })
+              // EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: group })
 
-              console.info( `[${QUEUE_KEYS.ASSIGN_COURT}] Scheduled group ${group[0].openPlayGroupId}`)
+              console.info(
+                `[${QUEUE_KEYS.ASSIGN_COURT}] Scheduled group ${group[0].openPlayGroupId}`,
+              )
 
-              if(schedule){
+              if (schedule) {
+                // Delays for start game
                 const startedAt = new Date(schedule.scheduledAt).getTime()
                 const delayStartGame = Math.max(0, startedAt - Date.now())
 
+                // Delays for end game
                 const endedAt = new Date(schedule.endedAt).getTime()
                 const delayEndGame = Math.max(0, endedAt - Date.now())
-                
 
-                //start game
-                await this.addJob(QUEUE_KEYS.MATCH_STARTED, `court:${schedule.courtId}`,
-                  {
-                    courtId: schedule.courtId,
-                    openPlayGroupId: schedule.players[0].openPlayGroupId,
-                    players: schedule.players,
-                  },
-                  { delay: delayStartGame },
-                )
+                // // Announcement timings
+                // const DELAY_MS = 2000
+                // const announcementAt =
+                //   startedAt - schedule.announcementMinutesBeforeTransition * 60 * 1000 - DELAY_MS
 
-                //end game
-                await this.addJob(QUEUE_KEYS.MATCH_ENDED, `court:${schedule.courtId}`,
-                  {
-                    courtId: schedule.courtId,
-                    openPlayGroupId: schedule.players[0].openPlayGroupId,
-                    players: schedule.players,
-                  },
-                  { delay: delayEndGame },
-                )
+                const preparationAt = startedAt - schedule.preparationSeconds * 1000
+                const delayPreparation = Math.max(0, preparationAt - Date.now())
+
+                console.info({ delayStartGame, delayPreparation })
+
+                // const delayAnnouncement = announcementAt - Date.now()
+                // const delayPreparation = preparationAt - Date.now()
+
+                await Promise.all([
+                  //start game
+                  this.addJob(
+                    QUEUE_KEYS.MATCH_STARTED,
+                    `court:${schedule.courtId}`,
+                    {
+                      courtId: schedule.courtId,
+                      openPlayGroupId: schedule.players[0].openPlayGroupId,
+                      players: schedule.players,
+                    },
+                    { delay: delayStartGame },
+                  ),
+                  //end game
+                  this.addJob(
+                    QUEUE_KEYS.MATCH_ENDED,
+                    `court:${schedule.courtId}`,
+                    {
+                      courtId: schedule.courtId,
+                      openPlayGroupId: schedule.players[0].openPlayGroupId,
+                      players: schedule.players,
+                    },
+                    { delay: delayEndGame },
+                  ),
+                  // // Transition announcement
+                  this.addJob(
+                    QUEUE_KEYS.MATCH_ANNOUNCEMENT,
+                    `court:${schedule.courtId}:${schedule.courtName}:announcement`,
+                    {
+                      courtName: schedule.courtName,
+                      players: schedule.players
+                        .map((p) => p.player.playerName || "Player")
+                        .sort((a, b) => a.localeCompare(b)),
+                      key: QUEUE_KEYS.MATCH_ANNOUNCEMENT,
+                    },
+                    delayPreparation > 0 ? { delay: delayPreparation } : {},
+                  ),
+                  // // Preparation announcement
+                  // this.addJob(
+                  //   QUEUE_KEYS.MATCH_ANNOUNCEMENT,
+                  //   `court:${schedule.courtId}:preparation`,
+                  //   {
+                  //     courtName: schedule.courtName,
+                  //     players: schedule.players,
+                  //     key: queueName,
+                  //   },
+                  //   delayPreparation > 0 ? { delay: delayPreparation } : {},
+                  // ),
+                ])
               }
             } finally {
               try {
@@ -227,16 +287,25 @@ class QueueManager {
           case QUEUE_KEYS.MATCH_STARTED:
           case QUEUE_KEYS.MATCH_ENDED: {
             const group = job.data
-            console.info("*********QUEUE_KEYS.MATCH_ENDED")
-            EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: group })
+            EventBroadcast({
+              type: BroadcastEventTypes.OPENPLAY_UPDATED,
+              data: group,
+            })
             break
           }
-
+          case QUEUE_KEYS.MATCH_ANNOUNCEMENT: {
+            console.info(JSON.stringify(job.data, null, 2))
+            EventBroadcast({
+              type: BroadcastEventTypes.OPENPLAY_UPDATED,
+              data: job.data,
+            })
+            break
+          }
           default:
             console.warn(`[Worker:${queueName}] No processor defined`)
         }
       },
-      { connection: this.connection, concurrency: 1 },
+      { connection: this.connection, concurrency: queueName === QUEUE_KEYS.ASSIGN_COURT ? 1 : 5 },
     )
   }
 

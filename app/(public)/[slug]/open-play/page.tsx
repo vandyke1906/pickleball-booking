@@ -10,7 +10,7 @@ import {
   toPhilippineTime,
 } from "@/lib/utils"
 import { motion } from "framer-motion"
-import { Megaphone, RefreshCw, AlertTriangle } from "lucide-react"
+import { Megaphone, RefreshCw, AlertTriangle, WifiOff } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -42,14 +42,16 @@ import { logoPaths } from "@/lib/svg/logo"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { PlayerSkill } from "@/.config/prisma/generated/prisma"
 import { useSpeech } from "@/lib/hooks/speech/use-speech"
-
-const GUARD_MS = 5000
-const REPEAT_ANNOUNCE = Number.isFinite( Number(process.env.NEXT_PUBLIC_REPEAT_ANNOUNCE) ) ? Number(process.env.NEXT_PUBLIC_REPEAT_ANNOUNCE) : 2;
+import { QUEUE_KEYS } from "@/lib/type/queue/queue.type"
+import { useNetworkStatus } from "@/lib/hooks/court/network/use-network.hook"
 
 export default function PickleballOpenPlayQueue() {
   const params = useParams()
   const slugParam = params.slug ?? ""
   const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam
+
+  const completeOpenPlayMutation = useCompleteOpenPlay()
+  const { isOnline, isOffline, isSlow, quality } = useNetworkStatus()
 
   const { data: orgWithCourts, isLoading: isLoadingOrgWithCourts } = useOrganizationCourts({ slug })
   const orgId = orgWithCourts?.id ?? ""
@@ -60,10 +62,20 @@ export default function PickleballOpenPlayQueue() {
     isError,
   } = useActiveOpenPlayQueue(orgId)
 
-  const completeOpenPlayMutation = useCompleteOpenPlay()
+  useEventListener(EventBusKeys.OPENPLAY_UPDATED, async ({ data }) => {
+    await refetchOpenPlayData()
 
-  useEventListener(EventBusKeys.OPENPLAY_UPDATED, (data) => {
-    refetchOpenPlayData()
+    if (data?.key === QUEUE_KEYS.MATCH_ANNOUNCEMENT) {
+      const key = [data.courtName, ...data.players].join("|")
+      const text = `Attention... Next on ${data.courtName}.. Players, ${data.players.join(", ")}.`
+      console.info({ data, key, text, announcedKeysRef })
+      if (data?.courtName && data.players?.length && !announcedKeysRef.current.has(key)) {
+        announcedKeysRef.current.add(key)
+        announcementsRef.current.push(text)
+        console.info("speak")
+        enqueueSpeak(text, 2, 0.5)
+      }
+    }
   }) //Event Listener
 
   const waitingGroups = openPlayData?.waitingGroups ?? []
@@ -77,13 +89,18 @@ export default function PickleballOpenPlayQueue() {
   const [openLineupDialog, setOpenLineupDialog] = useState(false)
   const [prepRemaining, setPrepRemaining] = useState(0)
 
-  const lastAnnouncedRef = useRef<string | null>(null)
   const lastRefetchRef = useRef<number>(0)
   const hasCancelledRef = useRef(false)
   const hasAutoEndedRef = useRef(false)
   const nextTransitionRef = useRef<Date | null>(null)
 
-  const { enqueueSpeak, stopSpeaking } = useSpeech(isQueueAvailable)
+  // Track unique announcements
+  const announcedKeysRef = useRef<Set<string>>(new Set())
+  const announcementsRef = useRef<string[]>([])
+
+  const { enqueueSpeak, stopSpeaking } = useSpeech(
+    isQueueAvailable && quality !== "offline" && quality !== "poor",
+  )
 
   const openPlay = openPlayData?.openPlay ?? null
   const nextTransition = openPlayData?.nextTransition
@@ -95,35 +112,35 @@ export default function PickleballOpenPlayQueue() {
   }, [nextTransition])
 
   // =====================
-  // MANUAL ANNOUNCE
+  // MANUAL ANNOUNCE (current + next queue)
   // =====================
   const handleManualAnnouncement = useCallback(() => {
-    if (!openPlayData?.queues?.length) return
+    console.info({ openPlayData })
+    if (!openPlayData?.courts?.length) return
 
-    const sortedQueues = [...openPlayData.queues].sort(
-      (a, b) =>
-        normalizeToPhilippineTimeSeconds(a.scheduledAt) -
-        normalizeToPhilippineTimeSeconds(b.scheduledAt),
-    )
+    const messages: string[] = []
 
-    const firstScheduleTime = normalizeToPhilippineTimeSeconds(sortedQueues[0].scheduledAt)
-    const nextScheduledGroups = sortedQueues.filter((q) => {
-      const t = normalizeToPhilippineTimeSeconds(q.scheduledAt)
-      return Math.abs(t - firstScheduleTime) <= GUARD_MS
+    openPlayData.courts.forEach((court) => {
+      // ✅ Current game announcement
+      if (court.currentGame?.players?.length) {
+        const names =
+          court.currentGame.players.map((p: any) => p.playerName).join(", ") || "all players"
+        messages.push(`${court.name}.. Currently playing: ${names}.`)
+      }
+
+      // ✅ Next queue announcement (preparation)
+      if (court.nextGame?.players?.length) {
+        const names =
+          court.nextGame.players.map((p: any) => p.playerName).join(", ") || "all players"
+        messages.push(`${court.name}.. Next scheduled: ${names}. Please prepare.`)
+      }
     })
 
-    if (!nextScheduledGroups.length) return
+    if (!messages.length) return
 
-    const groupedNames = nextScheduledGroups
-      .map((group) => {
-        const names = group.players.map((p: any) => p.playerName).join(", ") || "all players"
-        return `${group.courtName}.. Players, ${names}.`
-      })
-      .join(". ")
-
-    enqueueSpeak(`Attention... Next on ${groupedNames}.`)
-    // refetchOpenPlayData?.()
-  }, [openPlayData?.queues, enqueueSpeak])
+    const groupedMessage = messages.join(" ")
+    enqueueSpeak(`Attention... ${groupedMessage}`)
+  }, [openPlayData?.courts, enqueueSpeak])
 
   // =====================
   // SINGLE INTERVAL LOOP
@@ -135,7 +152,7 @@ export default function PickleballOpenPlayQueue() {
 
       // --- Auto end session ---
       if (openPlay?.id && !hasAutoEndedRef.current) {
-        if(!openPlay.endTime) return
+        if (!openPlay.endTime) return
         const endTime = toPhilippineTime(new Date(openPlay.endTime))
         const isPastEnd = now.getTime() > endTime.getTime()
         const hasActiveGames = courts?.some((c) => c?.currentGame || c?.nextGame) ?? false
@@ -161,74 +178,13 @@ export default function PickleballOpenPlayQueue() {
           setPrepRemaining(diff > 0 ? diff : 0)
 
           if (diff <= 0 && lastRefetchRef.current !== nextTransitionValue.getTime()) {
-            handleManualAnnouncement()
             lastRefetchRef.current = nextTransitionValue.getTime()
           }
         }
-
-        // --- Refetch if nextGame is due OR currentGame has ended ---
-        courts.forEach((court: any) => {
-          // Check nextGame
-          if (court?.nextGame) {
-            const nextGameStart = toPhilippineTime(new Date(court.nextGame.scheduledAt))
-            if (nextGameStart.getTime() <= now.getTime()) {
-              if (lastRefetchRef.current !== nextGameStart.getTime()) {
-                // refetchOpenPlayData?.()
-                lastRefetchRef.current = nextGameStart.getTime()
-              }
-            }
-          }
-
-          // Check currentGame
-          if (court?.currentGame) {
-            const currentGameEnd = toPhilippineTime(new Date(court.currentGame.estimatedEndTime))
-            if (currentGameEnd.getTime() <= now.getTime()) {
-              if (lastRefetchRef.current !== currentGameEnd.getTime()) {
-                // refetchOpenPlayData?.()
-                lastRefetchRef.current = currentGameEnd.getTime()
-              }
-            }
-          }
-        })
       } else {
         if (!hasCancelledRef.current) {
           stopSpeaking()
           hasCancelledRef.current = true
-        }
-      }
-
-      // --- Auto announce ---
-      if (openPlayData?.queues?.length && nextTransition) {
-        const leadMinutes = openPlayData.openPlay?.announcementMinutesBeforeTransition ?? 0
-        const leadMs = leadMinutes * 60 * 1000
-        const nowSec = normalizeToPhilippineTimeSeconds(new Date())
-        const transitionKey = nextTransition.toISOString()
-
-        if (
-          lastAnnouncedRef.current !== transitionKey &&
-          nowSec - ((window as any).lastAnnounceTime || 0) >= GUARD_MS
-        ) {
-          const transitionTime = normalizeToPhilippineTimeSeconds(nextTransition)
-          const diff = transitionTime - nowSec
-          if (diff <= leadMs) {
-            const upcomingGroups = openPlayData.queues.filter((q) => {
-              const t = normalizeToPhilippineTimeSeconds(q.scheduledAt)
-              return Math.abs(t - transitionTime) <= GUARD_MS
-            })
-            if (upcomingGroups.length) {
-              const groupedMessage = upcomingGroups
-                .map((group) => {
-                  const names =
-                    group.players.map((p: any) => p.playerName).join(", ") || "all players"
-                  return `${group.courtName}.. Players, ${names}.`
-                })
-                .join(". ")
-              enqueueSpeak(`Attention... Next on ${groupedMessage}.`, REPEAT_ANNOUNCE)
-              // refetchOpenPlayData?.()
-              lastAnnouncedRef.current = transitionKey
-              ;(window as any).lastAnnounceTime = nowSec
-            }
-          }
         }
       }
     }, 1000)
@@ -236,8 +192,6 @@ export default function PickleballOpenPlayQueue() {
   }, [
     isQueueAvailable,
     stopSpeaking,
-    enqueueSpeak,
-    refetchOpenPlayData,
     openPlay,
     courts,
     completeOpenPlayMutation,
@@ -264,6 +218,7 @@ export default function PickleballOpenPlayQueue() {
     window.addEventListener("touchstart", unlockSpeech)
   }, [])
 
+  if (isOffline) return <InternetProblemPage onRetry={refetchOpenPlayData} quality={quality} />
   if (isLoading || isLoadingOrgWithCourts) return <LoadingScreen message="Loading Queue" />
   if (!isQueueAvailable) return <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
 
@@ -296,7 +251,7 @@ export default function PickleballOpenPlayQueue() {
                   />
                 </div>
               </div>
-              <div className="text-3xl font-bold">
+              <div className="text-xl font-black">
                 {nextTransition ? timeText(nextTransition) : "-"}
               </div>
             </div>
@@ -665,6 +620,57 @@ const GroupContent = ({ group }: any) => {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+function InternetProblemPage({
+  message = "No internet connection detected.",
+  quality = "",
+  onRetry,
+}: {
+  message?: string
+  quality?: string
+  onRetry?: () => void
+}) {
+  return (
+    <div className="min-h-screen bg-[#092021] text-white flex items-center justify-center font-mono px-6">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-black/70 border border-red-500/40 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl"
+      >
+        {/* ICON */}
+        <div className="flex justify-center mb-4">
+          <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500 flex items-center justify-center">
+            <WifiOff className="w-8 h-8 text-red-400" />
+          </div>
+        </div>
+
+        {/* TITLE */}
+        <h1 className="text-2xl font-bold text-white mb-2">Internet Connection Lost</h1>
+
+        {/* MESSAGE */}
+        <p className="text-red-300/70 text-sm mb-6">{message}</p>
+
+        {/* QUALITY INDICATOR */}
+        <div className="mb-4 text-xs text-white/60">
+          Connection quality: <span className="font-bold">{quality}</span>
+        </div>
+
+        {/* ACTIONS */}
+        <div className="flex flex-col gap-3">
+          {onRetry && (
+            <button
+              onClick={onRetry}
+              className="flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-black font-bold py-3 rounded-xl transition active:scale-95"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Retry
+            </button>
+          )}
+        </div>
+      </motion.div>
     </div>
   )
 }

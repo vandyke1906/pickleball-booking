@@ -2,6 +2,12 @@
 
 import { useEffect, useRef, useState } from "react"
 
+type SpeechQueueItem = {
+  text: string
+  repeats: number
+  delaySec: number
+}
+
 export const useSpeech = (isQueueAvailable: boolean) => {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null)
@@ -86,9 +92,15 @@ export const useSpeech = (isQueueAvailable: boolean) => {
   /** Queue processor */
   const processQueue = () => {
     if (!isQueueAvailable || speakingRef.current) return
-    const text = speechQueueRef.current.shift()
-    if (!text) return
-    speak(text)
+    // const text = speechQueueRef.current.shift()
+    // if (!text) return
+    // speak(text)
+
+    const item = speechQueueRef.current.shift()
+    if (!item) return
+    const [text, repeatsStr, delayStr] = item.split("|||")
+
+    speak(text, Number(repeatsStr ?? 1), Number(delayStr ?? 2))
   }
 
   /** Public enqueue function */
@@ -104,8 +116,13 @@ export const useSpeech = (isQueueAvailable: boolean) => {
       return
     }
 
-    if (speechQueueRef.current.includes(text)) return
-    speechQueueRef.current.push(text)
+    // if (speechQueueRef.current.includes(text)) return
+    // speechQueueRef.current.push(text)
+
+    const encoded = `${text}|||${repeats}|||${delaySec}`
+    if (speechQueueRef.current.includes(encoded)) return
+    speechQueueRef.current.push(encoded)
+
     if (!speakingRef.current) processQueue()
   }
 

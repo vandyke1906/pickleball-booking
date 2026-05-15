@@ -31,7 +31,7 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
     })
 
     channel.bind_global((eventName: string, data: any) => {
-      console.info("[Pusher] received event", eventName, data)
+      // console.info("[Pusher] received event", eventName, data) //ronie pusher global
     })
 
     setupEventInvalidations(queryClient)

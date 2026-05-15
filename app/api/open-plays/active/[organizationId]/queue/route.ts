@@ -27,7 +27,7 @@ export const GET = withRateLimit(
             const playerIds = game.players.map((p) => p.playerId)
             const result = await deleteQueuedPlayers(playerIds)
             console.info("Deleted queued players:", result.count)
-            EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: activeOpenPlay })
+            // EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: activeOpenPlay })
           } catch (error) {
             console.error("Error deleting queued players:", error)
           }
