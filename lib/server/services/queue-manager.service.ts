@@ -207,76 +207,82 @@ class QueueManager {
             const openPlayId = group[0].openPlayId
             console.info(`[Worker:${queueName}] Scheduling group for openPlay ${openPlayId}`)
 
-            await this.withScheduleLock(this.connection, this.redlock, openPlayId, async () => {
-              const schedule = await scheduleGroup(group)
+            // Push group into queue
+            await this.connection.rpush(`scheduleQueue:${openPlayId}`, JSON.stringify(group))
 
-              console.info(
-                `[${QUEUE_KEYS.ASSIGN_COURT}] Scheduled group ${group[0].openPlayGroupId} on court: ${schedule?.courtName}`,
-              )
-              if (schedule) {
-                // Delays for start game
-                const startedAt = new Date(schedule.scheduledAt).getTime()
-                const delayStartGame = Math.max(0, startedAt - Date.now())
+            // Trigger scheduler (only one per openPlayId)
+            await this.processScheduleQueue(openPlayId)
 
-                // Delays for end game
-                const endedAt = new Date(schedule.endedAt).getTime()
-                const delayEndGame = Math.max(0, endedAt - Date.now())
+            // await this.withScheduleLock(this.connection, this.redlock, openPlayId, async () => {
+            //   const schedule = await scheduleGroup(group)
 
-                const preparationAt = startedAt - schedule.preparationSeconds * 1000 + 1000
-                const delayPreparation = Math.max(0, preparationAt - Date.now())
+            //   console.info(
+            //     `[${QUEUE_KEYS.ASSIGN_COURT}] Scheduled group ${group[0].openPlayGroupId} on court: ${schedule?.courtName}`,
+            //   )
+            //   if (schedule) {
+            //     // Delays for start game
+            //     const startedAt = new Date(schedule.scheduledAt).getTime()
+            //     const delayStartGame = Math.max(0, startedAt - Date.now())
 
-                await Promise.all([
-                  //start game
-                  this.addJob(
-                    QUEUE_KEYS.MATCH_STARTED,
-                    `court:${schedule.courtId}`,
-                    {
-                      courtId: schedule.courtId,
-                      openPlayGroupId: schedule.players[0].openPlayGroupId,
-                      players: schedule.players,
-                      startsAt: schedule.scheduledAt,
-                    },
-                    {
-                      delay: delayStartGame,
-                      jobId: `match-start_${schedule.courtId}:${group[0].openPlayGroupId}`,
-                      removeOnComplete: true,
-                    },
-                  ),
-                  //end game
-                  this.addJob(
-                    QUEUE_KEYS.MATCH_ENDED,
-                    `court:${schedule.courtId}`,
-                    {
-                      courtId: schedule.courtId,
-                      openPlayGroupId: schedule.players[0].openPlayGroupId,
-                      players: schedule.players,
-                      endsAt: schedule.endedAt,
-                    },
-                    {
-                      delay: delayEndGame,
-                      jobId: `match-end_${schedule.courtId}:${group[0].openPlayGroupId}`,
-                      removeOnComplete: true,
-                    },
-                  ),
-                  // Transition announcement
-                  this.addJob(
-                    QUEUE_KEYS.MATCH_ANNOUNCEMENT,
-                    `court:${schedule.courtId}:${schedule.courtName}:announcement`,
-                    {
-                      courtName: schedule.courtName,
-                      startedAt: schedule.scheduledAt,
-                      preparationAt: new Date(preparationAt),
-                      players: schedule.players
-                        .map((p) => p.player.playerName || "Player")
-                        .sort((a, b) => a.localeCompare(b)),
-                      key: QUEUE_KEYS.MATCH_ANNOUNCEMENT,
-                    },
-                    delayPreparation > 0 ? { delay: delayPreparation } : {},
-                  ),
-                ])
-              }
-              EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: group })
-            })
+            //     // Delays for end game
+            //     const endedAt = new Date(schedule.endedAt).getTime()
+            //     const delayEndGame = Math.max(0, endedAt - Date.now())
+
+            //     const preparationAt = startedAt - schedule.preparationSeconds * 1000 + 1000
+            //     const delayPreparation = Math.max(0, preparationAt - Date.now())
+
+            //     await Promise.all([
+            //       //start game
+            //       this.addJob(
+            //         QUEUE_KEYS.MATCH_STARTED,
+            //         `court:${schedule.courtId}`,
+            //         {
+            //           courtId: schedule.courtId,
+            //           openPlayGroupId: schedule.players[0].openPlayGroupId,
+            //           players: schedule.players,
+            //           startsAt: schedule.scheduledAt,
+            //         },
+            //         {
+            //           delay: delayStartGame,
+            //           jobId: `match-start_${schedule.courtId}:${group[0].openPlayGroupId}`,
+            //           removeOnComplete: true,
+            //         },
+            //       ),
+            //       //end game
+            //       this.addJob(
+            //         QUEUE_KEYS.MATCH_ENDED,
+            //         `court:${schedule.courtId}`,
+            //         {
+            //           courtId: schedule.courtId,
+            //           openPlayGroupId: schedule.players[0].openPlayGroupId,
+            //           players: schedule.players,
+            //           endsAt: schedule.endedAt,
+            //         },
+            //         {
+            //           delay: delayEndGame,
+            //           jobId: `match-end_${schedule.courtId}:${group[0].openPlayGroupId}`,
+            //           removeOnComplete: true,
+            //         },
+            //       ),
+            //       // Transition announcement
+            //       this.addJob(
+            //         QUEUE_KEYS.MATCH_ANNOUNCEMENT,
+            //         `court:${schedule.courtId}:${schedule.courtName}:announcement`,
+            //         {
+            //           courtName: schedule.courtName,
+            //           startedAt: schedule.scheduledAt,
+            //           preparationAt: new Date(preparationAt),
+            //           players: schedule.players
+            //             .map((p) => p.player.playerName || "Player")
+            //             .sort((a, b) => a.localeCompare(b)),
+            //           key: QUEUE_KEYS.MATCH_ANNOUNCEMENT,
+            //         },
+            //         delayPreparation > 0 ? { delay: delayPreparation } : {},
+            //       ),
+            //     ])
+            //   }
+            //   EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: group })
+            // })
 
             // const lock = await this.redlock.acquire([`lock:schedule:${openPlayId}`], 15000)
             // try {
@@ -555,6 +561,82 @@ class QueueManager {
         }
       }
     }
+  }
+
+  private async processScheduleQueue(openPlayId: string) {
+    while (true) {
+      const nextGroup = await this.connection.lpop(`scheduleQueue:${openPlayId}`)
+      if (!nextGroup) break
+
+      const group = JSON.parse(nextGroup)
+      const schedule = await scheduleGroup(group)
+
+      if (schedule) {
+        await this.enqueueMatchLifecycle(schedule, group)
+        EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: group })
+      }
+    }
+  }
+
+  private async enqueueMatchLifecycle(schedule: any, group: any[]) {
+    const startedAt = new Date(schedule.scheduledAt).getTime()
+    const delayStartGame = Math.max(0, startedAt - Date.now())
+
+    const endedAt = new Date(schedule.endedAt).getTime()
+    const delayEndGame = Math.max(0, endedAt - Date.now())
+
+    const preparationAt = startedAt - schedule.preparationSeconds * 1000 + 1000
+    const delayPreparation = Math.max(0, preparationAt - Date.now())
+
+    await Promise.all([
+      // start game
+      this.addJob(
+        QUEUE_KEYS.MATCH_STARTED,
+        `court:${schedule.courtId}`,
+        {
+          courtId: schedule.courtId,
+          openPlayGroupId: schedule.players[0].openPlayGroupId,
+          players: schedule.players,
+          startsAt: schedule.scheduledAt,
+        },
+        {
+          delay: delayStartGame,
+          jobId: `match-start_${schedule.courtId}:${group[0].openPlayGroupId}`,
+          removeOnComplete: true,
+        },
+      ),
+      // end game
+      this.addJob(
+        QUEUE_KEYS.MATCH_ENDED,
+        `court:${schedule.courtId}`,
+        {
+          courtId: schedule.courtId,
+          openPlayGroupId: schedule.players[0].openPlayGroupId,
+          players: schedule.players,
+          endsAt: schedule.endedAt,
+        },
+        {
+          delay: delayEndGame,
+          jobId: `match-end_${schedule.courtId}:${group[0].openPlayGroupId}`,
+          removeOnComplete: true,
+        },
+      ),
+      // transition announcement
+      this.addJob(
+        QUEUE_KEYS.MATCH_ANNOUNCEMENT,
+        `court:${schedule.courtId}:${schedule.courtName}:announcement`,
+        {
+          courtName: schedule.courtName,
+          startedAt: schedule.scheduledAt,
+          preparationAt: new Date(preparationAt),
+          players: schedule.players
+            .map((p: any) => p.player.playerName || "Player")
+            .sort((a: any, b: any) => a.localeCompare(b)),
+          key: QUEUE_KEYS.MATCH_ANNOUNCEMENT,
+        },
+        delayPreparation > 0 ? { delay: delayPreparation } : {},
+      ),
+    ])
   }
 }
 
