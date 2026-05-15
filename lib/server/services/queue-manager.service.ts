@@ -15,6 +15,7 @@ class QueueManager {
   private workers: Record<string, Worker<any>> = {}
   private promotionLocks: Map<string, Promise<void>> = new Map()
   private redlock: Redlock
+  private assignCourtCounter = 0
 
   constructor() {
     this.connection = new Redis(redisUrl, { maxRetriesPerRequest: null })
@@ -191,9 +192,14 @@ class QueueManager {
                     .map((p: any) => p.id)
                     .sort()
                     .join(":")
+
+                  this.assignCourtCounter++ // Increment counter each time a group is promoted
+                  const delay = this.assignCourtCounter * 2000 // Delay = counter * 2000 ms
+
                   await this.addJob(QUEUE_KEYS.ASSIGN_COURT, "assign-court", data, {
                     jobId: `schedule_${playersHash}`,
                     removeOnComplete: true,
+                    delay,
                   })
                 },
               },
