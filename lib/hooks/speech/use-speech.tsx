@@ -104,7 +104,7 @@ export const useSpeech = (isQueueAvailable: boolean) => {
   }
 
   /** Public enqueue function */
-  const enqueueSpeak = (text: string, repeats = 1, delaySec = 2) => {
+  const enqueueSpeak = (text: string, repeats = 1, delaySec = 2, onComplete = () => {}) => {
     if (!voicesReady) {
       console.warn("Voices not ready yet")
       setTimeout(() => enqueueSpeak(text, repeats, delaySec), 500)
@@ -124,6 +124,7 @@ export const useSpeech = (isQueueAvailable: boolean) => {
     speechQueueRef.current.push(encoded)
 
     if (!speakingRef.current) processQueue()
+    onComplete?.()
   }
 
   /** Stop everything immediately */

@@ -45,6 +45,14 @@ import { useSpeech } from "@/lib/hooks/speech/use-speech"
 import { QUEUE_KEYS } from "@/lib/type/queue/queue.type"
 import { useNetworkStatus } from "@/lib/hooks/court/network/use-network.hook"
 
+type Announcement = {
+  key: string
+  text: string
+  preparationAt?: string
+}
+
+const GUARD_MS = 5000
+
 export default function PickleballOpenPlayQueue() {
   const params = useParams()
   const slugParam = params.slug ?? ""
@@ -63,17 +71,59 @@ export default function PickleballOpenPlayQueue() {
   } = useActiveOpenPlayQueue(orgId)
 
   useEventListener(EventBusKeys.OPENPLAY_UPDATED, async ({ data }) => {
-    await refetchOpenPlayData()
+    refetchOpenPlayData()
+
     if (data?.key === QUEUE_KEYS.MATCH_ANNOUNCEMENT) {
+      // console.info(data)
       const key = [data.courtName, ...data.players].join("|")
       const text = `Attention... Next on ${data.courtName}.. Players, ${data.players.join(", ")}.`
-      // console.info({ data, key, text, announcedKeysRef })
-      if (data?.courtName && data.players?.length && !announcedKeysRef.current.has(key)) {
-        announcedKeysRef.current.add(key)
-        announcementsRef.current.push(text)
-        enqueueSpeak(text, 2, 0.5)
+
+      const alreadyExists = announcementsRef.current.some((a) => a.key === key)
+      if (data?.courtName && data.players?.length && !alreadyExists) {
+        const announcement: Announcement = {
+          key,
+          text,
+          preparationAt: data.preparationAt,
+        }
+
+        announcementsRef.current.push(announcement)
+
+        const prepTime = toPhilippineTime(new Date(data.preparationAt)).getTime()
+        const now = currentTime.getTime()
+        const delay = prepTime - now
+
+        // console.info({ delay, announcement })
+
+        if (delay <= 0) {
+          // preparationAt is now or already passed → announce immediately
+          enqueueSpeak(text, 2, 0.5, () => {
+            // remove after speaking
+            announcementsRef.current = announcementsRef.current.filter(
+              (a) => a.key !== announcement.key,
+            )
+          })
+        } else {
+          // preparationAt is in the future → schedule
+          setTimeout(() => {
+            enqueueSpeak(text, 2, 0.5, () => {
+              announcementsRef.current = announcementsRef.current.filter(
+                (a) => a.key !== announcement.key,
+              )
+              refetchOpenPlayData()
+            })
+          }, delay)
+        }
       }
     }
+    // if (data?.key === QUEUE_KEYS.MATCH_ANNOUNCEMENT) {
+    //   const key = [data.courtName, ...data.players].join("|")
+    //   const text = `Attention... Next on ${data.courtName}.. Players, ${data.players.join(", ")}.`
+    //   if (data?.courtName && data.players?.length && !announcedKeysRef.current.has(key)) {
+    //     announcedKeysRef.current.add(key)
+    //     announcementsRef.current.push(text)
+    //     enqueueSpeak(text, 2, 0.5)
+    //   }
+    // }
   }) //Event Listener
 
   const waitingGroups = openPlayData?.waitingGroups ?? []
@@ -87,14 +137,14 @@ export default function PickleballOpenPlayQueue() {
   const [openLineupDialog, setOpenLineupDialog] = useState(false)
   const [prepRemaining, setPrepRemaining] = useState(0)
 
+  const lastAnnouncedRef = useRef<string | null>(null)
   const lastRefetchRef = useRef<number>(0)
   const hasCancelledRef = useRef(false)
   const hasAutoEndedRef = useRef(false)
   const nextTransitionRef = useRef<Date | null>(null)
 
   // Track unique announcements
-  const announcedKeysRef = useRef<Set<string>>(new Set())
-  const announcementsRef = useRef<string[]>([])
+  const announcementsRef = useRef<Announcement[]>([])
 
   const { enqueueSpeak, stopSpeaking } = useSpeech(
     isQueueAvailable && quality !== "offline" && quality !== "poor",
@@ -176,6 +226,7 @@ export default function PickleballOpenPlayQueue() {
 
           if (diff <= 0 && lastRefetchRef.current !== nextTransitionValue.getTime()) {
             lastRefetchRef.current = nextTransitionValue.getTime()
+            refetchOpenPlayData()
           }
         }
       } else {
@@ -184,6 +235,64 @@ export default function PickleballOpenPlayQueue() {
           hasCancelledRef.current = true
         }
       }
+
+      // if (openPlayData?.queues?.length && nextTransition) {
+      //   const leadMinutes = openPlayData.openPlay?.announcementMinutesBeforeTransition ?? 0
+      //   const leadMs = leadMinutes * 60 * 1000
+      //   const nowSec = normalizeToPhilippineTimeSeconds(new Date())
+      //   const transitionKey = nextTransition.toISOString()
+
+      //   if (
+      //     lastAnnouncedRef.current !== transitionKey &&
+      //     nowSec - ((window as any).lastAnnounceTime || 0) >= GUARD_MS
+      //   ) {
+      //     const transitionTime = normalizeToPhilippineTimeSeconds(nextTransition)
+      //     const diff = transitionTime - nowSec
+      //     if (diff <= leadMs) {
+      //       const upcomingGroups = openPlayData.queues.filter((q) => {
+      //         const t = normalizeToPhilippineTimeSeconds(q.scheduledAt)
+      //         return Math.abs(t - transitionTime) <= GUARD_MS
+      //       })
+      //       if (upcomingGroups.length) {
+      //         const groupedMessage = upcomingGroups
+      //           .map((group) => {
+      //             const names =
+      //               group.players.map((p: any) => p.playerName).join(", ") || "all players"
+      //             return `${group.courtName}.. Players, ${names}.`
+      //           })
+      //           .join(". ")
+      //         console.info({ groupedMessage })
+      //         lastAnnouncedRef.current = transitionKey
+      //         ;(window as any).lastAnnounceTime = nowSec
+      //       }
+      //     }
+      //   }
+      // }
+
+      // --- Auto announce from localStorage ---
+      // const stored = localStorage.getItem("announcements")
+      // console.info({ stored })
+      // if (stored) {
+      //   const announcements: {
+      //     key: string
+      //     text: string
+      //     preparationAt?: string
+      //     spoken?: boolean
+      //   }[] = JSON.parse(stored)
+
+      //   announcements.forEach((a) => {
+      //     if (a.preparationAt) {
+      //       const prepTime = new Date(a.preparationAt).getTime()
+      //       if (now.getTime() >= prepTime && !a.spoken) {
+      //         enqueueSpeak(a.text, 2, 0.5)
+      //         a.spoken = true
+      //       }
+      //     }
+      //   })
+
+      //   // persist updated spoken flags
+      //   localStorage.setItem("announcements", JSON.stringify(announcements))
+      // }
     }, 1000)
     return () => clearInterval(interval)
   }, [
@@ -215,8 +324,21 @@ export default function PickleballOpenPlayQueue() {
     window.addEventListener("touchstart", unlockSpeech)
   }, [])
 
+  useEffect(() => {
+    const stored = localStorage.getItem("announcements")
+    if (stored) announcementsRef.current = JSON.parse(stored)
+  }, [])
+
+  const clearAnnouncements = () => {
+    announcementsRef.current = []
+    localStorage.removeItem("announcements")
+  }
+
   if (isLoading || isLoadingOrgWithCourts) return <LoadingScreen message="Loading Queue" />
-  if (!isQueueAvailable) return <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
+  if (!isQueueAvailable) {
+    clearAnnouncements()
+    return <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
+  }
   if (isOffline) return <InternetProblemPage onRetry={refetchOpenPlayData} quality={quality} />
 
   return (

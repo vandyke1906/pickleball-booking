@@ -193,7 +193,7 @@ class QueueManager {
             try {
               const schedule = await scheduleGroup(group)
               console.info(
-                `[${QUEUE_KEYS.ASSIGN_COURT}] Scheduled group ${group[0].openPlayGroupId}`,
+                `[${QUEUE_KEYS.ASSIGN_COURT}] Scheduled group ${group[0].openPlayGroupId} on court: ${schedule?.courtName}`,
               )
               if (schedule) {
                 // Delays for start game
@@ -240,12 +240,14 @@ class QueueManager {
                       removeOnComplete: true,
                     },
                   ),
-                  // // Transition announcement
+                  // Transition announcement
                   this.addJob(
                     QUEUE_KEYS.MATCH_ANNOUNCEMENT,
                     `court:${schedule.courtId}:${schedule.courtName}:announcement`,
                     {
                       courtName: schedule.courtName,
+                      startedAt: schedule.scheduledAt,
+                      preparationAt: new Date(preparationAt),
                       players: schedule.players
                         .map((p) => p.player.playerName || "Player")
                         .sort((a, b) => a.localeCompare(b)),
