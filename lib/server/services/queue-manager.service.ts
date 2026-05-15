@@ -37,36 +37,40 @@ class QueueManager {
       console.error("[Redlock] Error:", error)
     })
 
-    this.clearStaleLocks().then(() => {
-      for (const queueName of Object.values(QUEUE_KEYS)) {
-        console.info(`[QueueManager] Creating queue: ${queueName}`)
-        this.queues[queueName] = new Queue(queueName, { connection: this.connection })
+    this.clearStaleLocks()
+      .then(() => {
+        for (const queueName of Object.values(QUEUE_KEYS)) {
+          console.info(`[QueueManager] Creating queue: ${queueName}`)
+          this.queues[queueName] = new Queue(queueName, { connection: this.connection })
 
-        console.info(`[QueueManager] Creating events: ${queueName}`)
-        this.events[queueName] = new QueueEvents(queueName, { connection: this.connection })
+          console.info(`[QueueManager] Creating events: ${queueName}`)
+          this.events[queueName] = new QueueEvents(queueName, { connection: this.connection })
 
-        this.events[queueName].on("waiting", ({ jobId }) => {
-          console.info(`[${queueName}] Job received and waiting: ${jobId}`)
-        })
+          this.events[queueName].on("waiting", ({ jobId }) => {
+            console.info(`[${queueName}] Job received and waiting: ${jobId}`)
+          })
 
-        this.events[queueName].on("completed", ({ jobId }) => {
-          console.info(`[${queueName}] Job completed: ${jobId}`)
-        })
-        this.events[queueName].on("failed", ({ jobId, failedReason }) => {
-          console.error(`[${queueName}] Job failed: ${jobId}`, failedReason)
-        })
+          this.events[queueName].on("completed", ({ jobId }) => {
+            console.info(`[${queueName}] Job completed: ${jobId}`)
+          })
+          this.events[queueName].on("failed", ({ jobId, failedReason }) => {
+            console.error(`[${queueName}] Job failed: ${jobId}`, failedReason)
+          })
 
-        this.connection.on("error", (err) => {
-          console.error("[Redis] Connection error:", err)
-        })
+          this.connection.on("error", (err) => {
+            console.error("[Redis] Connection error:", err)
+          })
 
-        this.connection.on("close", () => {
-          console.warn("[Redis] Connection closed")
-        })
+          this.connection.on("close", () => {
+            console.warn("[Redis] Connection closed")
+          })
 
-        this.registerWorker(queueName)
-      }
-    })
+          this.registerWorker(queueName)
+        }
+      })
+      .finally(() => {
+        this.periodicSweepExpiredLocks()
+      })
 
     process.on("SIGINT", async () => {
       await this.close()
@@ -202,7 +206,7 @@ class QueueManager {
             if (!group?.length) return
             const openPlayId = group[0].openPlayId
             console.info(`[Worker:${queueName}] Scheduling group for openPlay ${openPlayId}`)
-            const lock = await this.redlock.acquire([`lock:schedule:${openPlayId}`], 60000)
+            const lock = await this.redlock.acquire([`lock:schedule:${openPlayId}`], 15000)
 
             try {
               const schedule = await scheduleGroup(group)
@@ -432,6 +436,23 @@ class QueueManager {
         this.promotionLocks.delete(batchKey)
       }
     }
+  }
+
+  private periodicSweepExpiredLocks() {
+    setInterval(async () => {
+      try {
+        const keys = await this.connection.keys("lock:schedule:*")
+        for (const key of keys) {
+          const ttl = await this.connection.pttl(key)
+          if (ttl < 0) {
+            await this.connection.del(key)
+            console.info(`[QueueManager] Cleared expired lock: ${key}`)
+          }
+        }
+      } catch (err) {
+        console.error("[QueueManager] Error sweeping locks:", err)
+      }
+    }, 300000)
   }
 }
 
