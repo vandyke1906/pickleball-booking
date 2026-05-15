@@ -71,7 +71,9 @@ export default function PickleballOpenPlayQueue() {
   } = useActiveOpenPlayQueue(orgId)
 
   useEventListener(EventBusKeys.OPENPLAY_UPDATED, async ({ data }) => {
-    refetchOpenPlayData()
+    setTimeout(() => {
+      refetchOpenPlayData()
+    }, 1000) // 1 second delay
 
     if (data?.key === QUEUE_KEYS.MATCH_ANNOUNCEMENT) {
       const key = [data.courtName, ...data.players].join("|")
