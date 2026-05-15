@@ -218,9 +218,9 @@ export default function PickleballOpenPlayQueue() {
     window.addEventListener("touchstart", unlockSpeech)
   }, [])
 
-  if (isOffline) return <InternetProblemPage onRetry={refetchOpenPlayData} quality={quality} />
   if (isLoading || isLoadingOrgWithCourts) return <LoadingScreen message="Loading Queue" />
   if (!isQueueAvailable) return <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
+  if (isOffline) return <InternetProblemPage onRetry={refetchOpenPlayData} quality={quality} />
 
   return (
     <div className="fixed inset-0 h-screen w-screen text-primary font-mono">
