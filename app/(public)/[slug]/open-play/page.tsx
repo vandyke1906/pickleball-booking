@@ -71,7 +71,6 @@ export default function PickleballOpenPlayQueue() {
       if (data?.courtName && data.players?.length && !announcedKeysRef.current.has(key)) {
         announcedKeysRef.current.add(key)
         announcementsRef.current.push(text)
-        // console.info("speak")
         enqueueSpeak(text, 2, 0.5)
       }
     }
