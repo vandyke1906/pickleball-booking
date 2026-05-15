@@ -145,9 +145,7 @@ export default function PickleballOpenPlayQueue() {
   // Track unique announcements
   const announcementsRef = useRef<Announcement[]>([])
 
-  const { enqueueSpeak, stopSpeaking } = useSpeech(
-    isQueueAvailable && quality !== "offline" && quality !== "poor",
-  )
+  const { enqueueSpeak, stopSpeaking } = useSpeech(isQueueAvailable)
 
   const openPlay = openPlayData?.openPlay ?? null
   const nextTransition = openPlayData?.nextTransition
