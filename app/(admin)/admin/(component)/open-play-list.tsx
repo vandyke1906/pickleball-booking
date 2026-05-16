@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import OpenPlayDialog from "@/app/(admin)/admin/(component)/open-play-dialog"
 import { useSession } from "next-auth/react"
-import { formatDateString, formatTimeRange, PlayerSkillLabels } from "@/lib/utils"
+import { formatDateString, formatTimeRange, PlayerSkillLabels, toPhilippineTime } from "@/lib/utils"
 import Link from "next/link"
 import BadgeStatus from "@/components/common/badge-status"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -49,9 +49,11 @@ export default function OpenPlaysList() {
               href={`/admin/open-plays/${row.original.id}`}
               className="font-extrabold text-md text-primary"
             >
-              {formatDateString(
-                row.original.startTime.toLocaleString("default", { month: "short" }),
-              )}
+              {toPhilippineTime(row.original.startTime).toLocaleString("default", {
+                month: "short",
+                day: "2-digit",
+                year: "numeric",
+              })}
             </Link>
           </div>
         ),

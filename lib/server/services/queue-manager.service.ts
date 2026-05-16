@@ -6,7 +6,7 @@ import { TQueuePlayer } from "@/lib/type/openplay/openplay.type"
 import { QUEUE_KEYS } from "@/lib/type/queue/queue.type"
 import { Queue, Worker, QueueEvents, JobsOptions } from "bullmq"
 import Redis from "ioredis"
-import Redlock from "redlock"
+import crypto from "crypto"
 
 class QueueManager {
   private connection: Redis
@@ -14,11 +14,35 @@ class QueueManager {
   private events: Record<string, QueueEvents> = {}
   private workers: Record<string, Worker<any>> = {}
   private promotionLocks: Map<string, Promise<void>> = new Map()
-  private redlock: Redlock
-  private assignCourtCounter = 0
+
+  // Scheduler leadership
+  private serverId = crypto.randomUUID()
+  private lockKey = "scheduler:leader"
+  private isLeader = false
+  private heartbeatTimer?: NodeJS.Timeout
+  private schedulerWorker?: Worker
+  private schedulerQueue: Queue
+
+  // Scheduler defaults
+  private readonly concurrency = 1
+  private readonly lockTTL = 10000 // 10s
+  private readonly heartbeatInterval = 5000
 
   constructor() {
     this.connection = new Redis(redisUrl, { maxRetriesPerRequest: null })
+    this.schedulerQueue = new Queue(QUEUE_KEYS.ASSIGN_COURT, { connection: this.connection })
+
+    this.connection.on("ready", () => {
+      console.info("[Redis] Connection ready.")
+
+      for (const queueName of Object.values(QUEUE_KEYS)) {
+        console.info(`[QueueManager] Creating queue and queue-events: ${queueName}`)
+        if (queueName === QUEUE_KEYS.ASSIGN_COURT) continue // Skip ASSIGN_COURT here — it's handled by startSchedulerWorker
+        this.queues[queueName] = new Queue(queueName, { connection: this.connection })
+        this.events[queueName] = new QueueEvents(queueName, { connection: this.connection })
+        this.registerWorker(queueName)
+      }
+    })
 
     this.connection.on("error", (err) => {
       console.error("[Redis] Connection error:", err)
@@ -26,52 +50,6 @@ class QueueManager {
     this.connection.on("close", () => {
       console.warn("[Redis] Connection closed")
     })
-
-    this.redlock = new Redlock([this.connection as unknown as Redlock.CompatibleRedisClient], {
-      retryCount: 20,
-      retryDelay: 500,
-      retryJitter: 100,
-      driftFactor: 0.01,
-    })
-
-    this.redlock.on("clientError", (error: any) => {
-      console.error("[Redlock] Error:", error)
-    })
-
-    this.clearStaleLocks()
-      .then(() => {
-        for (const queueName of Object.values(QUEUE_KEYS)) {
-          console.info(`[QueueManager] Creating queue: ${queueName}`)
-          this.queues[queueName] = new Queue(queueName, { connection: this.connection })
-
-          console.info(`[QueueManager] Creating events: ${queueName}`)
-          this.events[queueName] = new QueueEvents(queueName, { connection: this.connection })
-
-          this.events[queueName].on("waiting", ({ jobId }) => {
-            console.info(`[${queueName}] Job received and waiting: ${jobId}`)
-          })
-
-          this.events[queueName].on("completed", ({ jobId }) => {
-            console.info(`[${queueName}] Job completed: ${jobId}`)
-          })
-          this.events[queueName].on("failed", ({ jobId, failedReason }) => {
-            console.error(`[${queueName}] Job failed: ${jobId}`, failedReason)
-          })
-
-          this.connection.on("error", (err) => {
-            console.error("[Redis] Connection error:", err)
-          })
-
-          this.connection.on("close", () => {
-            console.warn("[Redis] Connection closed")
-          })
-
-          this.registerWorker(queueName)
-        }
-      })
-      .finally(() => {
-        this.periodicSweepExpiredLocks()
-      })
 
     process.on("SIGINT", async () => {
       await this.close()
@@ -83,21 +61,123 @@ class QueueManager {
     })
   }
 
-  private async clearStaleLocks() {
-    try {
-      const keys = await this.connection.keys("lock:schedule:*")
-      if (keys.length > 0) {
-        await this.connection.del(...keys)
-        console.info(`[QueueManager] Cleared ${keys.length} stale locks`)
-      }
-    } catch (err) {
-      console.error("[QueueManager] Error clearing stale locks:", err)
+  /** ---------------- Scheduler Leadership ---------------- */
+  private async tryAcquireLeadership(): Promise<boolean> {
+    const result = await this.connection.set(this.lockKey, this.serverId, "PX", this.lockTTL, "NX")
+    this.isLeader = result === "OK"
+    return this.isLeader
+  }
+
+  private startHeartbeat() {
+    this.heartbeatTimer = setInterval(async () => {
+      if (!this.isLeader) return
+      await this.connection.set(this.lockKey, this.serverId, "PX", this.lockTTL, "XX")
+    }, this.heartbeatInterval)
+  }
+
+  private startSchedulerWorker() {
+    this.schedulerWorker = new Worker(
+      QUEUE_KEYS.ASSIGN_COURT,
+      async (job) => {
+        const schedule = await scheduleGroup(job.data)
+        if (schedule) {
+          const prepMs = schedule.preparationSeconds * 1000
+          const startedAt = new Date(schedule.scheduledAt).getTime() // for start game
+          const endedAt = new Date(schedule.endedAt).getTime() // for end game
+          const preparationAt = startedAt - prepMs
+
+          const now = Date.now()
+          const startDelay = Math.max(0, startedAt - now)
+          const endDelay = Math.max(0, endedAt - now)
+          const prepDelay = Math.max(0, startedAt - schedule.preparationSeconds - now)
+
+          const jobId = `job_${schedule.courtId}_${schedule.courtName}`
+          await Promise.all([
+            //start game
+            this.addJob(
+              QUEUE_KEYS.MATCH_STARTED,
+              `court:${schedule.courtId}`,
+              {
+                courtId: schedule.courtId,
+                openPlayGroupId: schedule.players[0].openPlayGroupId,
+                players: schedule.players,
+                startsAt: schedule.scheduledAt,
+              },
+              {
+                delay: startDelay,
+                jobId: `start_${jobId}`,
+                removeOnComplete: true,
+              },
+            ),
+            //end game
+            this.addJob(
+              QUEUE_KEYS.MATCH_ENDED,
+              `court:${schedule.courtId}`,
+              {
+                courtId: schedule.courtId,
+                openPlayGroupId: schedule.players[0].openPlayGroupId,
+                players: schedule.players,
+                endsAt: schedule.endedAt,
+              },
+              {
+                delay: endDelay,
+                jobId: `end_${jobId}`,
+                removeOnComplete: true,
+              },
+            ),
+            // Transition announcement
+            this.addJob(
+              QUEUE_KEYS.MATCH_ANNOUNCEMENT,
+              `court:${schedule.courtId}:${schedule.courtName}:announcement`,
+              {
+                courtName: schedule.courtName,
+                startedAt: schedule.scheduledAt,
+                preparationAt: new Date(preparationAt),
+                players: schedule.players
+                  .map((p) => p.player.playerName || "Player")
+                  .sort((a, b) => a.localeCompare(b)),
+                key: QUEUE_KEYS.MATCH_ANNOUNCEMENT,
+              },
+              prepDelay > 0
+                ? { delay: prepDelay, jobId: `announcement_${jobId}_${prepDelay}` }
+                : { jobId: `announcement_${jobId}` },
+            ),
+          ])
+        }
+
+        EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: schedule })
+      },
+      { connection: this.connection, concurrency: this.concurrency },
+    )
+  }
+
+  async startScheduler() {
+    const acquired = await this.tryAcquireLeadership()
+    if (acquired) {
+      console.log(`[Scheduler] I am the leader: ${this.serverId}`)
+      this.startSchedulerWorker()
+      this.startHeartbeat()
+    } else {
+      console.log(`[Scheduler] Standby mode: ${this.serverId}`)
+      setTimeout(() => this.startScheduler(), 3000)
     }
   }
 
+  async stopScheduler() {
+    this.isLeader = false
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer)
+    if (this.schedulerWorker) await this.schedulerWorker.close()
+    await this.connection.del(this.lockKey)
+  }
+
+  async addSchedulerJob(name: string, data: any) {
+    return this.schedulerQueue.add(name, data)
+  }
+
+  /** ---------------- QueueManager Core ---------------- */
   private safeJobId(id?: string): string | undefined {
     if (!id) return undefined
-    return id.replace(/[^a-zA-Z0-9_-]/g, "-") // Replace anything not alphanumeric, dash, or underscore
+    return id.replace(/[^a-zA-Z0-9_-]/g, "-")
   }
 
   async addJob<T>(
@@ -111,7 +191,7 @@ class QueueManager {
       removeOnFail: false,
     },
   ) {
-    if (options.jobId) options.jobId = this.safeJobId(options.jobId) // sanitize jobId if present
+    if (options.jobId) options.jobId = this.safeJobId(options.jobId)
     return this.queues[queueName].add(jobName, data, options)
   }
 
@@ -119,60 +199,36 @@ class QueueManager {
     queueName: string,
     types: ("waiting" | "active" | "completed" | "failed")[] = ["waiting", "active"],
   ) {
-    console.info(
-      `[QueueManager] Fetching jobs from queue: ${queueName}, types: ${types.join(", ")}`,
-    )
-    const jobs = await this.queues[queueName].getJobs(types)
-    console.info(`[QueueManager] Found ${jobs.length} jobs in ${queueName}`)
-    jobs.forEach((job) => {
-      console.info(
-        `[Job:${queueName}] id=${job.id}, name=${job.name}, status=${job.finishedOn ? "completed" : job.failedReason ? "failed" : "pending"}`,
-      )
-    })
-    return jobs
+    return this.queues[queueName].getJobs(types)
   }
 
   async getJobCounts(queueName: string) {
-    console.info(`[QueueManager] Fetching job counts for queue: ${queueName}`)
-    const counts = await this.queues[queueName].getJobCounts()
-    console.info(`[QueueManager] Counts for ${queueName}:`, counts)
-    return counts
+    return this.queues[queueName].getJobCounts()
   }
 
   async getJob(queueName: string, jobId: string) {
-    console.info(`[QueueManager] Fetching job ${jobId} from queue: ${queueName}`)
-    const job = await this.queues[queueName].getJob(jobId)
-    if (job) {
-      console.info(
-        `[Job:${queueName}] id=${job.id}, name=${job.name}, data=${JSON.stringify(job.data)}, status=${job.finishedOn ? "completed" : job.failedReason ? "failed" : "pending"}`,
-      )
-    } else {
-      console.warn(`[QueueManager] Job ${jobId} not found in ${queueName}`)
-    }
-    return job
+    return this.queues[queueName].getJob(jobId)
   }
 
   async clearQueue(queueName: string) {
     const queue = this.queues[queueName]
     if (!queue) throw new Error(`Queue ${queueName} not found`)
-    console.info(`[QueueManager] Pausing queue ${queueName}`)
-    await queue.pause()
 
+    await queue.pause()
     try {
-      await queue.drain() // Remove waiting + delayed jobs
-      await queue.clean(0, 1000, "completed") // Remove completed jobs
-      await queue.clean(0, 1000, "failed") // Remove failed jobs
-      console.info(`[QueueManager] Queue ${queueName} cleaned successfully`)
+      await queue.clean(0, 1000, "wait")
+      await queue.clean(0, 1000, "delayed")
+      await queue.clean(0, 1000, "active")
+      await queue.clean(0, 1000, "completed")
+      await queue.clean(0, 1000, "failed")
     } finally {
       await queue.resume()
-      console.info(`[QueueManager] Queue ${queueName} resumed`)
     }
     return true
   }
 
   private registerWorker(queueName: string) {
     if (this.workers[queueName]) return
-    console.info(`[QueueManager] Registering worker for: ${queueName}`)
 
     this.workers[queueName] = new Worker(
       queueName,
@@ -182,221 +238,23 @@ class QueueManager {
             const player: TQueuePlayer = job.data
             console.info(`[Worker:${queueName}] Player ${player.playerName} joined lineup`)
 
-            await this.aggregateBatchPlayers(
-              `batch_${player.openPlayGroupId}`, // redis batch key
-              player, // payload
-              4,
-              {
-                onPromoted: async (data) => {
-                  const playersHash = data
-                    .map((p: any) => p.id)
-                    .sort()
-                    .join(":")
-
-                  this.assignCourtCounter++ // Increment counter each time a group is promoted
-                  const delay = this.assignCourtCounter * 4000 // Delay = counter * 2000 ms
-
-                  await this.addJob(QUEUE_KEYS.ASSIGN_COURT, "assign-court", data, {
-                    jobId: `schedule_${playersHash}`,
-                    removeOnComplete: true,
-                    delay,
-                  })
-                },
-              },
-            )
-            break
-          }
-
-          case QUEUE_KEYS.ASSIGN_COURT: {
-            const group = job.data
-            if (!group?.length) return
-            const openPlayId = group[0].openPlayId
-            console.info(`[Worker:${queueName}] Scheduling group for openPlay ${openPlayId}`)
-
-            await this.withScheduleLock(this.connection, this.redlock, openPlayId, async () => {
-              const schedule = await scheduleGroup(group)
-
-              console.info(
-                `[${QUEUE_KEYS.ASSIGN_COURT}] Scheduled group ${group[0].openPlayGroupId} on court: ${schedule?.courtName}`,
-              )
-              if (schedule) {
-                // Delays for start game
-                const startedAt = new Date(schedule.scheduledAt).getTime()
-                const delayStartGame = Math.max(0, startedAt - Date.now())
-
-                // Delays for end game
-                const endedAt = new Date(schedule.endedAt).getTime()
-                const delayEndGame = Math.max(0, endedAt - Date.now())
-
-                const preparationAt = startedAt - schedule.preparationSeconds * 1000 + 1000
-                const delayPreparation = Math.max(0, preparationAt - Date.now())
-
-                await Promise.all([
-                  //start game
-                  this.addJob(
-                    QUEUE_KEYS.MATCH_STARTED,
-                    `court:${schedule.courtId}`,
-                    {
-                      courtId: schedule.courtId,
-                      openPlayGroupId: schedule.players[0].openPlayGroupId,
-                      players: schedule.players,
-                      startsAt: schedule.scheduledAt,
-                    },
-                    {
-                      delay: delayStartGame,
-                      jobId: `match-start_${schedule.courtId}:${group[0].openPlayGroupId}`,
-                      removeOnComplete: true,
-                    },
-                  ),
-                  //end game
-                  this.addJob(
-                    QUEUE_KEYS.MATCH_ENDED,
-                    `court:${schedule.courtId}`,
-                    {
-                      courtId: schedule.courtId,
-                      openPlayGroupId: schedule.players[0].openPlayGroupId,
-                      players: schedule.players,
-                      endsAt: schedule.endedAt,
-                    },
-                    {
-                      delay: delayEndGame,
-                      jobId: `match-end_${schedule.courtId}:${group[0].openPlayGroupId}`,
-                      removeOnComplete: true,
-                    },
-                  ),
-                  // Transition announcement
-                  this.addJob(
-                    QUEUE_KEYS.MATCH_ANNOUNCEMENT,
-                    `court:${schedule.courtId}:${schedule.courtName}:announcement`,
-                    {
-                      courtName: schedule.courtName,
-                      startedAt: schedule.scheduledAt,
-                      preparationAt: new Date(preparationAt),
-                      players: schedule.players
-                        .map((p) => p.player.playerName || "Player")
-                        .sort((a, b) => a.localeCompare(b)),
-                      key: QUEUE_KEYS.MATCH_ANNOUNCEMENT,
-                    },
-                    delayPreparation > 0 ? { delay: delayPreparation } : {},
-                  ),
-                ])
-              }
-
-              EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: group })
-            })
-
-            // const lock = await this.redlock.acquire([`lock:schedule:${openPlayId}`], 15000)
-            // try {
-            //   const schedule = await scheduleGroup(group)
-            //   console.info(
-            //     `[${QUEUE_KEYS.ASSIGN_COURT}] Scheduled group ${group[0].openPlayGroupId} on court: ${schedule?.courtName}`,
-            //   )
-            //   if (schedule) {
-            //     // Delays for start game
-            //     const startedAt = new Date(schedule.scheduledAt).getTime()
-            //     const delayStartGame = Math.max(0, startedAt - Date.now())
-
-            //     // Delays for end game
-            //     const endedAt = new Date(schedule.endedAt).getTime()
-            //     const delayEndGame = Math.max(0, endedAt - Date.now())
-
-            //     const preparationAt = startedAt - schedule.preparationSeconds * 1000 + 1000
-            //     const delayPreparation = Math.max(0, preparationAt - Date.now())
-
-            //     await Promise.all([
-            //       //start game
-            //       this.addJob(
-            //         QUEUE_KEYS.MATCH_STARTED,
-            //         `court:${schedule.courtId}`,
-            //         {
-            //           courtId: schedule.courtId,
-            //           openPlayGroupId: schedule.players[0].openPlayGroupId,
-            //           players: schedule.players,
-            //           startsAt: schedule.scheduledAt,
-            //         },
-            //         {
-            //           delay: delayStartGame,
-            //           jobId: `match-start_${schedule.courtId}:${group[0].openPlayGroupId}`,
-            //           removeOnComplete: true,
-            //         },
-            //       ),
-            //       //end game
-            //       this.addJob(
-            //         QUEUE_KEYS.MATCH_ENDED,
-            //         `court:${schedule.courtId}`,
-            //         {
-            //           courtId: schedule.courtId,
-            //           openPlayGroupId: schedule.players[0].openPlayGroupId,
-            //           players: schedule.players,
-            //           endsAt: schedule.endedAt,
-            //         },
-            //         {
-            //           delay: delayEndGame,
-            //           jobId: `match-end_${schedule.courtId}:${group[0].openPlayGroupId}`,
-            //           removeOnComplete: true,
-            //         },
-            //       ),
-            //       // Transition announcement
-            //       this.addJob(
-            //         QUEUE_KEYS.MATCH_ANNOUNCEMENT,
-            //         `court:${schedule.courtId}:${schedule.courtName}:announcement`,
-            //         {
-            //           courtName: schedule.courtName,
-            //           startedAt: schedule.scheduledAt,
-            //           preparationAt: new Date(preparationAt),
-            //           players: schedule.players
-            //             .map((p) => p.player.playerName || "Player")
-            //             .sort((a, b) => a.localeCompare(b)),
-            //           key: QUEUE_KEYS.MATCH_ANNOUNCEMENT,
-            //         },
-            //         delayPreparation > 0 ? { delay: delayPreparation } : {},
-            //       ),
-            //     ])
-            //   }
-
-            //   EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: group })
-            // } catch (err) {
-            //   console.error(`[${queueName}] Error scheduling group:`, err)
-            //   await this.connection.del(`lock:schedule:${openPlayId}`) //Force cleanup if lock acquisition or scheduling fails
-            // } finally {
-            //   try {
-            //     await lock.unlock()
-            //   } catch (err) {
-            //     console.error(`[Redlock] Failed to unlock:`, err)
-            //     await this.connection.del(`lock:schedule:${openPlayId}`)
-            //   }
-            // }
-
-            break
-          }
-          case QUEUE_KEYS.MATCH_STARTED:
-          case QUEUE_KEYS.MATCH_ENDED: {
-            const group = job.data
-            EventBroadcast({
-              type: BroadcastEventTypes.OPENPLAY_UPDATED,
-              data: group,
-            })
-
-            //Refresh batches for this open play
-            const openPlayId = group[0].openPlayId
-            await manager.promoteWaitingPlayers<TQueuePlayer>(`batch_${openPlayId}`, 4, {
+            await this.aggregateBatchPlayers(`batch_${player.openPlayGroupId}`, player, 4, {
               onPromoted: async (data) => {
-                await manager.addJob(QUEUE_KEYS.ASSIGN_COURT, "assign-court", data, {
-                  jobId: `schedule_trigger_${openPlayId}}_${Date.now()}`,
-                  removeOnComplete: true,
-                })
+                // console.info(`##Group promoted: ${JSON.stringify(data, null, 2)}`)
+                await this.addSchedulerJob("group-ready", data)
               },
             })
+            break
+          }
 
-            break
-          }
+          case QUEUE_KEYS.MATCH_STARTED:
+          case QUEUE_KEYS.MATCH_ENDED:
           case QUEUE_KEYS.MATCH_ANNOUNCEMENT: {
-            EventBroadcast({
-              type: BroadcastEventTypes.OPENPLAY_UPDATED,
-              data: job.data,
-            })
+            console.info("$#######broadcast", { queueName })
+            EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: job.data })
             break
           }
+
           default:
             console.warn(`[Worker:${queueName}] No processor defined`)
         }
@@ -412,28 +270,17 @@ class QueueManager {
     await Promise.all(Object.values(this.queues).map((q) => q.close()))
     await Promise.all(Object.values(this.workers).map((w) => w.close()))
     await Promise.all(Object.values(this.events).map((e) => e.close()))
+    await this.stopScheduler()
     await this.connection.quit()
   }
 
-  /**
-   * Clear/reset a batch list in Redis.
-   * @param batchKey - redis key used for batching
-   */
   async clearBatch(batchKey: string) {
-    const removed = await this.connection.del(batchKey)
-    console.log(`[QueueManager] Cleared batch ${batchKey}, removed ${removed} entries`)
-    return removed
+    return this.connection.del(batchKey)
   }
 
-  /**
-   * Inspect current batch contents without consuming them.
-   * @param batchKey - redis key used for batching
-   */
   async getBatch(batchKey: string) {
     const items = await this.connection.lrange(batchKey, 0, -1)
-    const parsed = items.map((item) => JSON.parse(item))
-    console.log(`[QueueManager] Peek batch ${batchKey}:`, parsed)
-    return parsed
+    return items.map((item) => JSON.parse(item))
   }
 
   async aggregateBatchPlayers<T>(
@@ -448,7 +295,6 @@ class QueueManager {
       local batchSize = tonumber(ARGV[2])
 
       redis.call("RPUSH", key, payload)
-
       local size = redis.call("LLEN", key)
 
       if size >= batchSize then
@@ -468,11 +314,12 @@ class QueueManager {
       batchSize.toString(),
     )
 
-    const result: string[] = Array.isArray(raw) ? (raw as string[]) : []
+    const result: string[] = Array.isArray(raw) ? raw : []
     if (result.length === 0) return
 
     const parsed: T[] = result.map((item) => JSON.parse(item))
 
+    // Promotion lock logic
     const previous = this.promotionLocks.get(batchKey) || Promise.resolve()
     let release!: () => void
     const current = new Promise<void>((resolve) => {
@@ -506,12 +353,13 @@ class QueueManager {
     const parsed: T[] = items.map((item) => JSON.parse(item))
     await this.connection.ltrim(batchKey, batchSize, -1)
 
-    // reuse promotion lock logic
+    // Promotion lock logic
     const previous = this.promotionLocks.get(batchKey) || Promise.resolve()
     let release!: () => void
     const current = new Promise<void>((resolve) => {
       release = resolve
     })
+
     this.promotionLocks.set(
       batchKey,
       previous.then(() => current),
@@ -527,54 +375,11 @@ class QueueManager {
       }
     }
   }
-
-  private periodicSweepExpiredLocks() {
-    setInterval(async () => {
-      try {
-        const keys = await this.connection.keys("lock:schedule:*")
-        for (const key of keys) {
-          const ttl = await this.connection.pttl(key)
-          if (ttl < 0) {
-            await this.connection.del(key)
-            console.info(`[QueueManager] Cleared expired lock: ${key}`)
-          }
-        }
-      } catch (err) {
-        console.error("[QueueManager] Error sweeping locks:", err)
-      }
-    }, 300000)
-  }
-
-  private async withScheduleLock<T>(
-    connection: Redis,
-    redlock: Redlock,
-    openPlayId: string,
-    fn: () => Promise<T>,
-  ): Promise<T | null> {
-    let lock: Redlock.Lock | undefined
-    try {
-      // 🔹 Short TTL (10–15s) since jobs are fast
-      lock = await redlock.acquire([`lock:schedule:${openPlayId}`], 15000)
-
-      // Run the protected logic
-      return await fn()
-    } catch (err) {
-      console.error(`[Lock] Error for ${openPlayId}:`, err)
-      // 🔹 Force cleanup if acquire or fn fails
-      await connection.del(`lock:schedule:${openPlayId}`)
-      return null
-    } finally {
-      if (lock) {
-        try {
-          await lock.unlock()
-        } catch (err) {
-          console.error(`[Lock] Failed to unlock ${openPlayId}:`, err)
-          // 🔹 Force cleanup if unlock fails
-          await connection.del(`lock:schedule:${openPlayId}`)
-        }
-      }
-    }
-  }
 }
 
 export const manager = new QueueManager()
+
+// Boot the scheduler when the app starts
+;(async () => {
+  await manager.startScheduler()
+})()

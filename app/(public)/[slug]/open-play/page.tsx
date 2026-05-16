@@ -44,6 +44,7 @@ import { PlayerSkill } from "@/.config/prisma/generated/prisma"
 import { useSpeech } from "@/lib/hooks/speech/use-speech"
 import { QUEUE_KEYS } from "@/lib/type/queue/queue.type"
 import { useNetworkStatus } from "@/lib/hooks/court/network/use-network.hook"
+import { useServerTime } from "@/lib/hooks/time/use-time.hook"
 
 type Announcement = {
   key: string
@@ -58,6 +59,7 @@ export default function PickleballOpenPlayQueue() {
   const slugParam = params.slug ?? ""
   const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam
 
+  const { serverTime } = useServerTime()
   const completeOpenPlayMutation = useCompleteOpenPlay()
   const { isOnline, isOffline, isSlow, quality } = useNetworkStatus()
 
@@ -71,14 +73,10 @@ export default function PickleballOpenPlayQueue() {
   } = useActiveOpenPlayQueue(orgId)
 
   useEventListener(EventBusKeys.OPENPLAY_UPDATED, async ({ data }) => {
-    setTimeout(() => {
-      refetchOpenPlayData()
-    }, 1000) // 1 second delay
-
+    // console.info(data)
     if (data?.key === QUEUE_KEYS.MATCH_ANNOUNCEMENT) {
       const key = [data.courtName, ...data.players].join("|")
       const text = `Attention... Next on ${data.courtName}.. Players, ${data.players.join(", ")}.`
-
       const alreadyExists = announcementsRef.current.some((a) => a.key === key)
       if (data?.courtName && data.players?.length && !alreadyExists) {
         const announcement: Announcement = {
@@ -93,40 +91,26 @@ export default function PickleballOpenPlayQueue() {
         const now = currentTime.getTime()
         const delay = prepTime - now
 
-        // console.info({ delay, announcement })
-
         if (delay <= 0) {
-          // preparationAt is now or already passed → announce immediately
           enqueueSpeak(text, 2, 0.5, () => {
-            // remove after speaking
             announcementsRef.current = announcementsRef.current.filter(
               (a) => a.key !== announcement.key,
             )
           })
         } else {
-          // preparationAt is in the future → schedule
           setTimeout(() => {
             enqueueSpeak(text, 2, 0.5, () => {
               announcementsRef.current = announcementsRef.current.filter(
                 (a) => a.key !== announcement.key,
               )
-              setTimeout(() => {
-                refetchOpenPlayData()
-              }, 2000) // 1 second delay
+              refetchOpenPlayData()
             })
           }, delay)
         }
       }
     }
-    // if (data?.key === QUEUE_KEYS.MATCH_ANNOUNCEMENT) {
-    //   const key = [data.courtName, ...data.players].join("|")
-    //   const text = `Attention... Next on ${data.courtName}.. Players, ${data.players.join(", ")}.`
-    //   if (data?.courtName && data.players?.length && !announcedKeysRef.current.has(key)) {
-    //     announcedKeysRef.current.add(key)
-    //     announcementsRef.current.push(text)
-    //     enqueueSpeak(text, 2, 0.5)
-    //   }
-    // }
+
+    refetchOpenPlayData()
   }) //Event Listener
 
   const waitingGroups = openPlayData?.waitingGroups ?? []
@@ -136,7 +120,9 @@ export default function PickleballOpenPlayQueue() {
   // =====================
   // STATE
   // =====================
-  const [currentTime, setCurrentTime] = useState(toPhilippineTime(new Date()))
+  const [currentTime, setCurrentTime] = useState(() =>
+    serverTime ? toPhilippineTime(new Date(serverTime)) : toPhilippineTime(new Date()),
+  )
   const [openLineupDialog, setOpenLineupDialog] = useState(false)
   const [prepRemaining, setPrepRemaining] = useState(0)
 
@@ -150,6 +136,13 @@ export default function PickleballOpenPlayQueue() {
   const announcementsRef = useRef<Announcement[]>([])
 
   const { enqueueSpeak, stopSpeaking } = useSpeech(isQueueAvailable)
+
+  //set timer use server time
+  useEffect(() => {
+    if (serverTime) {
+      setCurrentTime(toPhilippineTime(new Date(serverTime)))
+    }
+  }, [serverTime])
 
   const openPlay = openPlayData?.openPlay ?? null
   const nextTransition = openPlayData?.nextTransition

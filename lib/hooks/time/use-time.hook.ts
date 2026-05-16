@@ -12,20 +12,15 @@ export const qKeyTime = {
   ph: () => [...qKeyTime.all, "ph"] as const,
 }
 
-export function usePHTime() {
+export function useServerTime() {
   const query = useQuery<TServerTime>({
     queryKey: qKeyTime.ph(),
     queryFn: () => fetcher("/api/time"),
     staleTime: 0, // always consider fresh checkable
-    gcTime: 1000 * 60 * 5, // keep for 5 minutes
-    refetchInterval: 1000 * 30, // refresh every 30 seconds
-
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
   })
 
   return {
-    now: query.data?.now,
+    serverTime: query.data?.now,
     timestamp: query.data?.timestamp,
     timezone: query.data?.timezone,
 
