@@ -52,11 +52,9 @@ type AnnouncementQueueItem = {
   players: string[]
   preparationAt: string
   startedAt?: string
-  spoken?: boolean
-  alreadyAnnounce: boolean
 }
 
-const MAX_DELAY_MS = 10000
+const MAX_DELAY_MS = 15000
 
 export default function PickleballOpenPlayQueue() {
   const params = useParams()
@@ -95,6 +93,7 @@ export default function PickleballOpenPlayQueue() {
   const nextTransitionRef = useRef<Date | null>(null)
   const announcedKeysRef = useRef<Set<string>>(new Set())
   const announcementQueueRef = useRef<AnnouncementQueueItem[]>([])
+  const activeAnnouncementsRef = useRef<Set<string>>(new Set()) // Track active announcements globally
 
   const serverBaseRef = useRef(0)
   const clientBaseRef = useRef(0)
@@ -102,19 +101,37 @@ export default function PickleballOpenPlayQueue() {
   const { enqueueSpeak, stopSpeaking } = useSpeech(isQueueAvailable)
 
   //event listener
-
   const handleOpenPlayUpdate: any = useCallback(
     async ({ data }: { data: any }) => {
+      console.group("handleOpenPlayUpdate")
+      console.info("Incoming data:", data)
+
+      // Always refetch to keep openPlayData fresh
       refetchOpenPlayData()
 
-      console.info({ data })
+      // Guard: only process announcements
+      if (data?.key !== QUEUE_KEYS.MATCH_ANNOUNCEMENT) {
+        console.debug("Skipping non-announcement event:", data?.key)
+        console.groupEnd()
+        return
+      }
 
-      if (data?.key !== QUEUE_KEYS.MATCH_ANNOUNCEMENT) return
-      if (!data?.courtName || !data?.players?.length) return
+      if (!data?.courtName || !data?.players?.length) {
+        console.warn("Invalid announcement payload, missing courtName/players")
+        console.groupEnd()
+        return
+      }
 
+      // Build a stable unique ID
       const id = [data.courtName, ...data.players, data.preparationAt].join("|")
-      console.info({ id, alreadyAnnounce: announcedKeysRef.current.has(id) })
-      if (announcedKeysRef.current.has(id)) return // 🚫 already announced → ignore even after refetch
+
+      // 🚫 Guard: skip if already queued OR currently active
+      if (announcedKeysRef.current.has(id) || activeAnnouncementsRef.current.has(id)) {
+        console.debug("🚫 Duplicate announcement ignored:", id)
+        console.groupEnd()
+        return
+      }
+
       announcedKeysRef.current.add(id)
 
       announcementQueueRef.current.push({
@@ -123,58 +140,96 @@ export default function PickleballOpenPlayQueue() {
         players: data.players,
         preparationAt: data.preparationAt,
         startedAt: data.startedAt,
-        alreadyAnnounce: false,
       })
 
-      // sort by prep time
       announcementQueueRef.current.sort(
         (a, b) => new Date(a.preparationAt).getTime() - new Date(b.preparationAt).getTime(),
       )
 
-      // const text =
-      //   `Attention... Next on ${data.courtName}. ` + `Players: ${data.players.join(", ")}.`
-      // enqueueSpeak(text)
+      console.info("✅ Announcement queued:", id)
+      console.groupEnd()
     },
-    [refetchOpenPlayData, enqueueSpeak, isQueueAvailable],
+    [refetchOpenPlayData],
   )
 
-  const processAnnouncementQueue = useCallback(
-    (now: Date) => {
-      const nowTime = now.getTime()
-      if (!announcementQueueRef.current.length) return
+  const speakAnnouncement = (announcement: AnnouncementQueueItem) => {
+    const voice = window.speechSynthesis
+      .getVoices()
+      .find((v) => v.lang.toLowerCase().includes("en-us"))
 
-      let i = 0
-      while (i < announcementQueueRef.current.length) {
-        const announcement = announcementQueueRef.current[i]
-        const prepTime = toPhilippineTime(new Date(announcement.preparationAt)).getTime()
-        const diff = nowTime - prepTime
-        const readyToAnnounce = diff >= 0 && diff <= MAX_DELAY_MS
+    const utterance = new SpeechSynthesisUtterance(
+      `Attention... Next on ${announcement.courtName}. Players: ${announcement.players.join(", ")}.`,
+    )
+    utterance.voice = voice || null
+    utterance.rate = 1.1
+    utterance.pitch = 1
+    utterance.volume = 1
 
-        console.info({ announcement, prepTime, now, readyToAnnounce, diff })
+    utterance.onstart = () => {
+      activeAnnouncementsRef.current.add(announcement.id)
+      console.info("🔊 Started speaking:", announcement.id)
+    }
 
-        if (readyToAnnounce) {
-          const text =
-            `Attention... Next on ${announcement.courtName}. ` +
-            `Players: ${announcement.players.join(", ")}.`
+    utterance.onend = () => {
+      activeAnnouncementsRef.current.delete(announcement.id)
 
-          enqueueSpeak(text)
+      // Clean up queue defensively
+      announcementQueueRef.current = announcementQueueRef.current.filter(
+        (a) => a.id !== announcement.id,
+      )
 
-          // remove once spoken
-          announcementQueueRef.current.splice(i, 1)
-          continue
-        }
+      console.info("✅ Finished speaking:", announcement.id)
+      console.info("🗑️ Queue after cleanup:", announcementQueueRef.current)
 
-        if (diff > MAX_DELAY_MS) {
-          // stale -> remove
-          announcementQueueRef.current.splice(i, 1)
-          continue
-        }
-
-        i++
+      // 🚫 Flush speech engine if nothing left
+      if (!announcementQueueRef.current.length && !activeAnnouncementsRef.current.size) {
+        window.speechSynthesis.cancel()
+        console.info("🛑 Speech engine flushed after last utterance")
       }
-    },
-    [enqueueSpeak],
-  )
+    }
+
+    window.speechSynthesis.speak(utterance)
+  }
+
+  const processAnnouncementQueue = useCallback((now: Date) => {
+    const nowTime = now.getTime()
+    const queue = announcementQueueRef.current
+
+    console.group("processAnnouncementQueue tick")
+    console.info("Queue length:", queue.length, activeAnnouncementsRef.current)
+
+    if (!queue.length) {
+      if (!activeAnnouncementsRef.current.size) {
+        // 🚫 Flush speech engine when nothing left
+        window.speechSynthesis.cancel()
+        console.info("🛑 Queue empty, cancelled speech engine")
+      }
+      console.groupEnd()
+      return
+    }
+
+    let i = 0
+    while (i < queue.length) {
+      const announcement = queue[i]
+      const prepTime = toPhilippineTime(new Date(announcement.preparationAt)).getTime()
+      const diff = nowTime - prepTime
+      const readyToAnnounce = diff >= 0 && diff <= MAX_DELAY_MS
+
+      if (readyToAnnounce && !activeAnnouncementsRef.current.has(announcement.id)) {
+        speakAnnouncement(announcement)
+      }
+
+      if (diff > MAX_DELAY_MS && !activeAnnouncementsRef.current.has(announcement.id)) {
+        console.warn("⚠️ Stale announcement removed:", announcement.id)
+        queue.splice(i, 1)
+        continue
+      }
+
+      i++
+    }
+
+    console.groupEnd()
+  }, [])
 
   useEventListener(EventBusKeys.OPENPLAY_UPDATED, handleOpenPlayUpdate) //Event Listener
 
@@ -203,29 +258,51 @@ export default function PickleballOpenPlayQueue() {
   const handleManualAnnouncement = useCallback(() => {
     if (!openPlayData?.courts?.length) return
 
-    const messages: string[] = []
+    const announcements: AnnouncementQueueItem[] = []
 
     openPlayData.courts.forEach((court) => {
       // ✅ Current game announcement
       if (court.currentGame?.players?.length) {
-        const names =
-          court.currentGame.players.map((p: any) => p.playerName).join(", ") || "all players"
-        messages.push(`${court.name}.. Currently playing: ${names}.`)
+        const names = court.currentGame.players.map((p: any) => p.playerName)
+        announcements.push({
+          id: `${court.id}|current|${Date.now()}`,
+          courtName: court.name,
+          players: names,
+          preparationAt: new Date().toISOString(),
+          startedAt: court.currentGame.startTime,
+        })
       }
 
       // ✅ Next queue announcement (preparation)
       if (court.nextGame?.players?.length) {
-        const names =
-          court.nextGame.players.map((p: any) => p.playerName).join(", ") || "all players"
-        messages.push(`${court.name}.. Next scheduled: ${names}. Please prepare.`)
+        const names = court.nextGame.players.map((p: any) => p.playerName)
+        announcements.push({
+          id: `${court.id}|next|${Date.now()}`,
+          courtName: court.name,
+          players: names,
+          preparationAt: new Date().toISOString(),
+          startedAt: court.nextGame.scheduledAt,
+        })
       }
     })
 
-    if (!messages.length) return
+    if (!announcements.length) return
 
-    const groupedMessage = messages.join(" ")
-    enqueueSpeak(`Attention... ${groupedMessage}`)
-  }, [openPlayData?.courts, enqueueSpeak])
+    // Push into queue and sort
+    announcements.forEach((a) => {
+      if (!announcedKeysRef.current.has(a.id)) {
+        announcedKeysRef.current.add(a.id)
+        announcementQueueRef.current.push(a)
+      }
+    })
+
+    announcementQueueRef.current.sort(
+      (a, b) => new Date(a.preparationAt).getTime() - new Date(b.preparationAt).getTime(),
+    )
+
+    // Immediately speak the grouped announcements
+    announcements.forEach((a) => speakAnnouncement(a))
+  }, [openPlayData?.courts])
 
   // =====================
   // SINGLE INTERVAL LOOP

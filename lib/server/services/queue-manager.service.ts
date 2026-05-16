@@ -1,13 +1,12 @@
 import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { redisUrl } from "@/lib/redis/redis"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
-import { scheduleGroup } from "@/lib/server/action/openplay.action"
+import { isOpenPlayActive, scheduleGroup } from "@/lib/server/action/openplay.action"
 import { TQueuePlayer } from "@/lib/type/openplay/openplay.type"
 import { QUEUE_KEYS } from "@/lib/type/queue/queue.type"
 import { Queue, Worker, QueueEvents, JobsOptions } from "bullmq"
 import Redis from "ioredis"
 import crypto from "crypto"
-import { toPhilippineTime } from "@/lib/utils"
 import { differenceInMilliseconds, subSeconds } from "date-fns"
 
 class QueueManager {
@@ -135,6 +134,7 @@ class QueueManager {
               `court:${schedule.courtId}:${schedule.courtName}:announcement`,
               {
                 courtName: schedule.courtName,
+                openPlayId: schedule.openPlayId,
                 startedAt: schedule.scheduledAt,
                 preparationAt: new Date(preparationTime),
                 players: schedule.players
@@ -252,8 +252,10 @@ class QueueManager {
           case QUEUE_KEYS.MATCH_STARTED:
           case QUEUE_KEYS.MATCH_ENDED:
           case QUEUE_KEYS.MATCH_ANNOUNCEMENT: {
-            if (queueName === QUEUE_KEYS.MATCH_ANNOUNCEMENT)
-              console.info("#######broadcast", job.data, new Date())
+            if (queueName === QUEUE_KEYS.MATCH_ANNOUNCEMENT) {
+              const isActive = await isOpenPlayActive(job.data.openPlayId)
+              if (!isActive) break
+            }
             EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: job.data })
             break
           }

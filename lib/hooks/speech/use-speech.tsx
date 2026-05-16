@@ -1,139 +1,140 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
-
-type SpeakOptions = {
-  repeats?: number
-  delaySec?: number
-  rate?: number
-  pitch?: number
-  volume?: number
-}
-
-type QueueItem = {
-  text: string
-  repeats: number
-  delaySec: number
-}
+import { useEffect, useRef, useState } from "react"
 
 export const useSpeech = (isQueueAvailable: boolean) => {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null)
   const [voicesReady, setVoicesReady] = useState(false)
 
-  const queueRef = useRef<QueueItem[]>([])
+  const speechQueueRef = useRef<string[]>([])
   const speakingRef = useRef(false)
 
-  /** Load voices */
+  /** Load voices once and retry until available */
   useEffect(() => {
-    const load = () => {
-      const v = window.speechSynthesis.getVoices()
-      if (!v.length) return setTimeout(load, 200)
-
-      setVoices(v)
-
+    const loadVoices = () => {
+      const available = window.speechSynthesis.getVoices()
+      if (!available.length) {
+        setTimeout(loadVoices, 250)
+        return
+      }
+      setVoices(available)
       const voice =
-        v.find((x) => x.lang.includes("en-US")) ||
-        v.find((x) => x.lang.includes("en-GB")) ||
-        v.find((x) => x.lang.includes("en")) ||
-        v[0]
-
+        available.find((v) => v.lang.toLowerCase().includes("en-us")) ||
+        available.find((v) => v.lang.toLowerCase().includes("en-gb")) ||
+        available.find((v) => v.lang.toLowerCase().includes("en")) ||
+        available.find((v) => v.lang.toLowerCase().includes("fil-ph")) ||
+        available.find((v) => v.lang.toLowerCase().includes("en-ph")) ||
+        available[0]
       setSelectedVoice(voice || null)
       setVoicesReady(true)
     }
 
-    window.speechSynthesis.onvoiceschanged = load
-    load()
+    window.speechSynthesis.onvoiceschanged = loadVoices
+    loadVoices()
   }, [])
 
-  /** Core speak */
-  const speak = useCallback(
-    (item: QueueItem) => {
-      const { text, repeats, delaySec } = item
+  /** Core speak function */
+  const speak = (
+    text: string,
+    repeats = 1,
+    delaySec = 2,
+    onComplete?: () => void,
+    options?: { rate?: number; pitch?: number; volume?: number },
+  ) => {
+    if (!("speechSynthesis" in window)) {
+      console.warn("Speech synthesis not supported")
+      return
+    }
 
-      let count = 0
+    let count = 0
+    const speakOnce = () => {
+      if (count >= repeats) return
 
-      const run = () => {
-        if (!text) return
-
-        const voice = selectedVoice || voices[0]
-        if (!voice) return setTimeout(run, 200)
-
-        const utterance = new SpeechSynthesisUtterance(text)
-        utterance.voice = voice
-        utterance.lang = "en-US"
-
-        utterance.onstart = () => {
-          speakingRef.current = true
-        }
-
-        utterance.onend = () => {
-          count++
-          speakingRef.current = false
-
-          if (count < repeats) {
-            setTimeout(run, delaySec * 1000)
-          } else {
-            processQueue()
-          }
-        }
-
-        window.speechSynthesis.speak(utterance)
-      }
-
-      run()
-    },
-    [voices, selectedVoice],
-  )
-
-  /** Process queue */
-  const processQueue = useCallback(() => {
-    if (!isQueueAvailable || speakingRef.current) return
-
-    const next = queueRef.current.shift()
-    if (!next) return
-
-    speak(next)
-  }, [isQueueAvailable, speak])
-
-  /** Public API */
-  const enqueueSpeak = useCallback(
-    (text: string, options: SpeakOptions = {}) => {
-      if (!voicesReady) return
-
-      if (!isQueueAvailable) {
-        window.speechSynthesis.cancel()
-        queueRef.current = []
+      const voice = selectedVoice || voices[0]
+      if (!voice) {
+        console.warn("No voices yet, retrying...")
+        setTimeout(speakOnce, 300)
         return
       }
 
-      const item: QueueItem = {
-        text,
-        repeats: options.repeats ?? 1,
-        delaySec: options.delaySec ?? 2,
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.voice = voice
+      utterance.lang = "en-US"
+      utterance.rate = options?.rate ?? 1.1
+      utterance.pitch = options?.pitch ?? 1
+      utterance.volume = options?.volume ?? 1
+
+      utterance.onstart = () => {
+        speakingRef.current = true
+        console.info("🔊 Started speaking:", text)
+      }
+      utterance.onend = () => {
+        console.info("####end utterance")
+        speakingRef.current = false
+        count++
+        console.info("✅ Finished speaking:", text, "repeat", count, "/", repeats)
+
+        if (count < repeats) {
+          setTimeout(speakOnce, delaySec * 1000)
+        } else {
+          // onComplete?.() // only call onComplete after final repeat
+          // processQueue() // continue with next queued item
+        }
       }
 
-      queueRef.current.push(item)
+      window.speechSynthesis.speak(utterance)
+    }
 
-      if (!speakingRef.current) {
-        processQueue()
-      }
-    },
-    [voicesReady, isQueueAvailable, processQueue],
-  )
-
-  /** Stop */
-  const stopSpeaking = useCallback(() => {
-    window.speechSynthesis.cancel()
-    queueRef.current = []
-    speakingRef.current = false
-  }, [])
-
-  return {
-    voices,
-    selectedVoice,
-    setSelectedVoice,
-    enqueueSpeak,
-    stopSpeaking,
+    speakOnce()
   }
+
+  /** Queue processor */
+  const processQueue = () => {
+    if (!isQueueAvailable || speakingRef.current) return
+
+    const item = speechQueueRef.current.shift()
+    if (!item) return
+    const [text, repeatsStr, delayStr] = item.split("|||")
+
+    console.info("➡️ Processing queued item:", text)
+    speak(text, Number(repeatsStr ?? 1), Number(delayStr ?? 2), () => {
+      console.info("🗑️ Completed queued item:", text)
+    })
+  }
+
+  /** Public enqueue function */
+  const enqueueSpeak = (text: string, repeats = 1, delaySec = 2, onComplete?: () => void) => {
+    if (!voicesReady) {
+      console.warn("Voices not ready yet")
+      setTimeout(() => enqueueSpeak(text, repeats, delaySec, onComplete), 500)
+      return
+    }
+
+    if (!isQueueAvailable) {
+      stopSpeaking()
+      return
+    }
+
+    const encoded = `${text}|||${repeats}|||${delaySec}`
+    if (speechQueueRef.current.includes(encoded)) return
+    speechQueueRef.current.push(encoded)
+
+    console.info("📥 Enqueued:", text)
+
+    if (!speakingRef.current) processQueue()
+
+    // ❌ removed immediate onComplete call
+    // ✅ completion handled inside speak.onend
+  }
+
+  /** Stop everything immediately */
+  const stopSpeaking = () => {
+    window.speechSynthesis.cancel()
+    speechQueueRef.current = []
+    speakingRef.current = false
+    console.warn("⏹️ Speech stopped and queue cleared")
+  }
+
+  return { voices, selectedVoice, setSelectedVoice, enqueueSpeak, stopSpeaking }
 }

@@ -1,6 +1,12 @@
 "use server"
 
-import { OpenPlayPlayer, PlayerSkill, Prisma, QueueStatus } from "@/.config/prisma/generated/prisma"
+import {
+  OpenPlayPlayer,
+  OpenPlayStatus,
+  PlayerSkill,
+  Prisma,
+  QueueStatus,
+} from "@/.config/prisma/generated/prisma"
 import { prisma } from "@/lib/prisma"
 import { manager } from "@/lib/server/services/queue-manager.service"
 import { TCurrentGame, TQueueGroup, TQueuePlayer } from "@/lib/type/openplay/openplay.type"
@@ -344,6 +350,7 @@ export async function scheduleGroup(group: any[], tx?: TPrismaTransaction) {
   }
 
   return {
+    openPlayId: openPlayId,
     courtId: selectedCourtId,
     courtName: courtName,
     scheduledAt: startAt,
@@ -854,6 +861,17 @@ export async function getOpenPlaySchedules(
     waitingPlayers,
     nextTransition,
   }
+}
+
+export async function isOpenPlayActive(id: string) {
+  if (!id) return false
+  const activeOpenPlay = await prisma.openPlay.findUnique({
+    where: { id },
+    select: {
+      status: true,
+    },
+  })
+  return activeOpenPlay?.status === OpenPlayStatus.active
 }
 
 function skillsKey(skills: PlayerSkill[]): string {
