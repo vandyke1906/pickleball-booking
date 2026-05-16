@@ -141,7 +141,6 @@ export default function PickleballOpenPlayQueue() {
   const processAnnouncementQueue = useCallback(
     (now: Date) => {
       const nowTime = now.getTime()
-
       if (!announcementQueueRef.current.length) return
 
       let i = 0
@@ -151,24 +150,17 @@ export default function PickleballOpenPlayQueue() {
         const diff = nowTime - prepTime
         const readyToAnnounce = diff >= 0 && diff <= MAX_DELAY_MS
 
-        console.info({
-          announcement,
-          prepTime,
-          now,
-          readyToAnnounce,
-          diff,
-        })
+        console.info({ announcement, prepTime, now, readyToAnnounce, diff })
 
-        if (readyToAnnounce && !announcement.alreadyAnnounce) {
+        if (readyToAnnounce) {
           const text =
             `Attention... Next on ${announcement.courtName}. ` +
             `Players: ${announcement.players.join(", ")}.`
 
           enqueueSpeak(text)
 
-          // ✅ mark instead of removing immediately
-          announcement.alreadyAnnounce = true
-          i++
+          // remove once spoken
+          announcementQueueRef.current.splice(i, 1)
           continue
         }
 
@@ -180,9 +172,6 @@ export default function PickleballOpenPlayQueue() {
 
         i++
       }
-
-      // cleanup: drop all items that were already announced
-      announcementQueueRef.current = announcementQueueRef.current.filter((a) => !a.alreadyAnnounce)
     },
     [enqueueSpeak],
   )
