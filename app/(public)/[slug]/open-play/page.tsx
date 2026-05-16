@@ -266,8 +266,8 @@ export default function PickleballOpenPlayQueue() {
 
   useEffect(() => {
     const unlockSpeech = () => {
-      const u = new SpeechSynthesisUtterance(" ")
-      u.volume = 0 // silent
+      const u = new SpeechSynthesisUtterance("Pickle Digos!")
+      u.volume = 1 // silent
       u.rate = 1
       u.pitch = 1
       window.speechSynthesis.speak(u)
