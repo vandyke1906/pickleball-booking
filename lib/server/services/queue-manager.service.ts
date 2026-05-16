@@ -7,6 +7,8 @@ import { QUEUE_KEYS } from "@/lib/type/queue/queue.type"
 import { Queue, Worker, QueueEvents, JobsOptions } from "bullmq"
 import Redis from "ioredis"
 import crypto from "crypto"
+import { toPhilippineTime } from "@/lib/utils"
+import { differenceInMilliseconds, subSeconds } from "date-fns"
 
 class QueueManager {
   private connection: Redis
@@ -82,17 +84,18 @@ class QueueManager {
         const schedule = await scheduleGroup(job.data)
         if (schedule) {
           EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: schedule })
-          const prepMs = schedule.preparationSeconds * 1000
-          const startedAt = new Date(schedule.scheduledAt).getTime() // for start game
-          const endedAt = new Date(schedule.endedAt).getTime() // for end game
-          const preparationAt = startedAt - prepMs
 
-          const now = Date.now()
-          const startDelay = Math.max(0, startedAt - now)
-          const endDelay = Math.max(0, endedAt - now)
-          const prepDelay = Math.max(0, startedAt - schedule.preparationSeconds - now)
+          const startedAt = new Date(schedule.scheduledAt)
+          const endedAt = new Date(schedule.endedAt)
+          const preparationTime = subSeconds(startedAt, schedule.preparationSeconds || 0)
 
-          const jobId = `job_${schedule.courtId}_${schedule.courtName}`
+          const now = new Date()
+
+          const startDelay = Math.max(0, differenceInMilliseconds(startedAt, now)) // delay before game starts
+          const endDelay = Math.max(0, differenceInMilliseconds(endedAt, now)) // delay before game ends
+          const prepDelay = Math.max(0, differenceInMilliseconds(preparationTime, now)) // delay before preparation/announcement
+
+          const jobId = `job_${schedule.courtId}_${schedule.courtName}_${schedule.scheduledAt}`
           await Promise.all([
             //start game
             this.addJob(
@@ -133,14 +136,14 @@ class QueueManager {
               {
                 courtName: schedule.courtName,
                 startedAt: schedule.scheduledAt,
-                preparationAt: new Date(preparationAt),
+                preparationAt: new Date(preparationTime),
                 players: schedule.players
                   .map((p) => p.player.playerName || "Player")
                   .sort((a, b) => a.localeCompare(b)),
                 key: QUEUE_KEYS.MATCH_ANNOUNCEMENT,
               },
               prepDelay > 0
-                ? { delay: prepDelay, jobId: `announcement_${jobId}_${prepDelay}` }
+                ? { delay: prepDelay, jobId: `announcement_${jobId}_${prepDelay}_${new Date()}` }
                 : { jobId: `announcement_${jobId}` },
             ),
           ])
@@ -249,7 +252,8 @@ class QueueManager {
           case QUEUE_KEYS.MATCH_STARTED:
           case QUEUE_KEYS.MATCH_ENDED:
           case QUEUE_KEYS.MATCH_ANNOUNCEMENT: {
-            console.info("#######broadcast", { queueName, data: JSON.stringify(job.data, null, 2) })
+            if (queueName === QUEUE_KEYS.MATCH_ANNOUNCEMENT)
+              console.info("#######broadcast", job.data, new Date())
             EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: job.data })
             break
           }

@@ -90,13 +90,13 @@ export async function initializeLineup(tx: TPrismaTransaction, openPlayId: strin
   if (players.length === 0) throw new Error("No available registered player!")
 
   // // safer: sequential cleanup
-  // for (const key of [
-  //   QUEUE_KEYS.MATCH_STARTED,
-  //   QUEUE_KEYS.MATCH_ENDED,
-  //   QUEUE_KEYS.MATCH_ANNOUNCEMENT,
-  // ]) {
-  //   await manager.clearQueue(key)
-  // }
+  for (const key of [
+    QUEUE_KEYS.MATCH_STARTED,
+    QUEUE_KEYS.MATCH_ENDED,
+    QUEUE_KEYS.MATCH_ANNOUNCEMENT,
+  ]) {
+    await manager.clearQueue(key)
+  }
 
   await createLineupEntries(tx, playersGroup)
 
