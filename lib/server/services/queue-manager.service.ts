@@ -250,7 +250,7 @@ class QueueManager {
           case QUEUE_KEYS.MATCH_STARTED:
           case QUEUE_KEYS.MATCH_ENDED:
           case QUEUE_KEYS.MATCH_ANNOUNCEMENT: {
-            console.info("$#######broadcast", { queueName })
+            console.info("#######broadcast", { queueName, data: job.data })
             EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: job.data })
             break
           }
