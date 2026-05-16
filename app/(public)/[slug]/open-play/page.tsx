@@ -143,8 +143,10 @@ export default function PickleballOpenPlayQueue() {
 
       if (!announcementQueueRef.current.length) return
 
-      // Build a new queue by filtering out stale or already-announced items
-      announcementQueueRef.current = announcementQueueRef.current.filter((announcement) => {
+      // iterate with while loop so we can mutate safely
+      let i = 0
+      while (i < announcementQueueRef.current.length) {
+        const announcement = announcementQueueRef.current[i]
         const prepTime = toPhilippineTime(new Date(announcement.preparationAt)).getTime()
         const diff = nowTime - prepTime
         const readyToAnnounce = diff >= 0 && diff <= MAX_DELAY_MS
@@ -164,18 +166,19 @@ export default function PickleballOpenPlayQueue() {
 
           enqueueSpeak(text)
 
-          // 🔴 Explicit removal: returning false drops this item from the queue
-          return false
+          // 🔴 remove once spoken
+          announcementQueueRef.current.splice(i, 1)
+          continue // don’t increment i, because we removed current index
         }
 
         if (diff > MAX_DELAY_MS) {
           // stale -> remove
-          return false
+          announcementQueueRef.current.splice(i, 1)
+          continue
         }
 
-        // keep if not yet ready
-        return true
-      })
+        i++ // only advance if we didn’t remove
+      }
     },
     [enqueueSpeak],
   )
