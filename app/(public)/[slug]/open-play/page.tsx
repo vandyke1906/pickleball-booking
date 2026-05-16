@@ -53,6 +53,7 @@ type AnnouncementQueueItem = {
   preparationAt: string
   startedAt?: string
   spoken?: boolean
+  alreadyAnnounce: boolean
 }
 
 const GUARD_MS = 5000
@@ -122,6 +123,7 @@ export default function PickleballOpenPlayQueue() {
         players: data.players,
         preparationAt: data.preparationAt,
         startedAt: data.startedAt,
+        alreadyAnnounce: false,
       })
 
       // sort by prep time
@@ -143,7 +145,6 @@ export default function PickleballOpenPlayQueue() {
 
       if (!announcementQueueRef.current.length) return
 
-      // iterate with while loop so we can mutate safely
       let i = 0
       while (i < announcementQueueRef.current.length) {
         const announcement = announcementQueueRef.current[i]
@@ -159,16 +160,17 @@ export default function PickleballOpenPlayQueue() {
           diff,
         })
 
-        if (readyToAnnounce) {
+        if (readyToAnnounce && !announcement.alreadyAnnounce) {
           const text =
             `Attention... Next on ${announcement.courtName}. ` +
             `Players: ${announcement.players.join(", ")}.`
 
           enqueueSpeak(text)
 
-          // 🔴 remove once spoken
-          announcementQueueRef.current.splice(i, 1)
-          continue // don’t increment i, because we removed current index
+          // ✅ mark instead of removing immediately
+          announcement.alreadyAnnounce = true
+          i++
+          continue
         }
 
         if (diff > MAX_DELAY_MS) {
@@ -177,8 +179,11 @@ export default function PickleballOpenPlayQueue() {
           continue
         }
 
-        i++ // only advance if we didn’t remove
+        i++
       }
+
+      // cleanup: drop all items that were already announced
+      announcementQueueRef.current = announcementQueueRef.current.filter((a) => !a.alreadyAnnounce)
     },
     [enqueueSpeak],
   )
