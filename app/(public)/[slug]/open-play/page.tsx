@@ -73,11 +73,11 @@ export default function PickleballOpenPlayQueue() {
   } = useActiveOpenPlayQueue(orgId)
 
   useEventListener(EventBusKeys.OPENPLAY_UPDATED, async ({ data }) => {
-    // console.info(data)
     if (data?.key === QUEUE_KEYS.MATCH_ANNOUNCEMENT) {
       const key = [data.courtName, ...data.players].join("|")
       const text = `Attention... Next on ${data.courtName}.. Players, ${data.players.join(", ")}.`
       const alreadyExists = announcementsRef.current.some((a) => a.key === key)
+      console.info({ alreadyExists, text })
       if (data?.courtName && data.players?.length && !alreadyExists) {
         const announcement: Announcement = {
           key,
@@ -103,7 +103,6 @@ export default function PickleballOpenPlayQueue() {
               announcementsRef.current = announcementsRef.current.filter(
                 (a) => a.key !== announcement.key,
               )
-              refetchOpenPlayData()
             })
           }, delay)
         }
