@@ -521,7 +521,7 @@ export function useCompleteOpenPlay() {
       if (context?.previousOpenPlay) {
         queryClient.setQueryData(["open-play", id], context.previousOpenPlay)
       }
-      toast.error("Completion failed", { description: (error as Error).message })
+      // toast.error("Completion failed", { description: (error as Error).message })
     },
 
     onSuccess: (_data) => {
@@ -530,9 +530,9 @@ export function useCompleteOpenPlay() {
         description: "The open play has been marked as completed.",
       } as const
 
-      toast.success(config?.title ?? "Status Updated", {
-        description: config?.description ?? "The open play status has been completed.",
-      })
+      // toast.success(config?.title ?? "Status Updated", {
+      //   description: config?.description ?? "The open play status has been completed.",
+      // })
     },
 
     onSettled: (_data, _error) => {
