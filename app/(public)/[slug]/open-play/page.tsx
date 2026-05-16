@@ -218,9 +218,9 @@ export default function PickleballOpenPlayQueue() {
 
           if (diff <= 0 && lastRefetchRef.current !== nextTransitionValue.getTime()) {
             lastRefetchRef.current = nextTransitionValue.getTime()
-            setTimeout(() => {
-              refetchOpenPlayData()
-            }, 1000) // 1 second delay
+            // setTimeout(() => {
+            //   refetchOpenPlayData()
+            // }, 1000) // 1 second delay
           }
         }
       } else {
@@ -230,27 +230,27 @@ export default function PickleballOpenPlayQueue() {
         // }
       }
 
-      // --- Auto announce ---
-      if (openPlayData?.queues?.length && nextTransition) {
-        const leadMinutes = openPlayData.openPlay?.announcementMinutesBeforeTransition ?? 0
-        const leadMs = leadMinutes * 60 * 1000
-        const nowSec = normalizeToPhilippineTimeSeconds(new Date())
-        const transitionKey = nextTransition.toISOString()
+      // // --- Auto announce ---
+      // if (openPlayData?.queues?.length && nextTransition) {
+      //   const leadMinutes = openPlayData.openPlay?.announcementMinutesBeforeTransition ?? 0
+      //   const leadMs = leadMinutes * 60 * 1000
+      //   const nowSec = normalizeToPhilippineTimeSeconds(new Date())
+      //   const transitionKey = nextTransition.toISOString()
 
-        refetchOpenPlayData?.()
+      //   refetchOpenPlayData?.()
 
-        if (
-          lastAnnouncedRef.current !== transitionKey &&
-          nowSec - ((window as any).lastAnnounceTime || 0) >= GUARD_MS
-        ) {
-          const transitionTime = normalizeToPhilippineTimeSeconds(nextTransition)
-          const diff = transitionTime - nowSec
-          if (diff <= leadMs) {
-            lastAnnouncedRef.current = transitionKey
-            ;(window as any).lastAnnounceTime = nowSec
-          }
-        }
-      }
+      //   if (
+      //     lastAnnouncedRef.current !== transitionKey &&
+      //     nowSec - ((window as any).lastAnnounceTime || 0) >= GUARD_MS
+      //   ) {
+      //     const transitionTime = normalizeToPhilippineTimeSeconds(nextTransition)
+      //     const diff = transitionTime - nowSec
+      //     if (diff <= leadMs) {
+      //       lastAnnouncedRef.current = transitionKey
+      //       ;(window as any).lastAnnounceTime = nowSec
+      //     }
+      //   }
+      // }
     }, 1000)
     return () => clearInterval(interval)
   }, [
