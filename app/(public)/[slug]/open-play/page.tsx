@@ -56,7 +56,7 @@ type AnnouncementQueueItem = {
   alreadyAnnounce: boolean
 }
 
-const GUARD_MS = 5000
+const MAX_DELAY_MS = 10000
 
 export default function PickleballOpenPlayQueue() {
   const params = useParams()
@@ -141,7 +141,6 @@ export default function PickleballOpenPlayQueue() {
   const processAnnouncementQueue = useCallback(
     (now: Date) => {
       const nowTime = now.getTime()
-      const MAX_DELAY_MS = 5000
 
       if (!announcementQueueRef.current.length) return
 
