@@ -81,6 +81,7 @@ class QueueManager {
       async (job) => {
         const schedule = await scheduleGroup(job.data)
         if (schedule) {
+          EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: schedule })
           const prepMs = schedule.preparationSeconds * 1000
           const startedAt = new Date(schedule.scheduledAt).getTime() // for start game
           const endedAt = new Date(schedule.endedAt).getTime() // for end game
@@ -144,8 +145,6 @@ class QueueManager {
             ),
           ])
         }
-
-        EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: schedule })
       },
       { connection: this.connection, concurrency: this.concurrency },
     )
@@ -250,7 +249,7 @@ class QueueManager {
           case QUEUE_KEYS.MATCH_STARTED:
           case QUEUE_KEYS.MATCH_ENDED:
           case QUEUE_KEYS.MATCH_ANNOUNCEMENT: {
-            console.info("#######broadcast", { queueName, data: job.data })
+            console.info("#######broadcast", { queueName, data: JSON.stringify(job.data, null, 2) })
             EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: job.data })
             break
           }

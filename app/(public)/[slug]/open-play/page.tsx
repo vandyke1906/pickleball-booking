@@ -264,28 +264,28 @@ export default function PickleballOpenPlayQueue() {
     openPlayData?.lastUpdate,
   ])
 
-  useEffect(() => {
-    const unlockSpeech = () => {
-      const u = new SpeechSynthesisUtterance("Pickle Digos!")
-      u.volume = 1 // silent
-      u.rate = 1
-      u.pitch = 1
-      window.speechSynthesis.speak(u)
+  // useEffect(() => {
+  //   const unlockSpeech = () => {
+  //     const u = new SpeechSynthesisUtterance("Pickle Digos!")
+  //     u.volume = 1 // silent
+  //     u.rate = 1
+  //     u.pitch = 1
+  //     window.speechSynthesis.speak(u)
 
-      // remove listeners after first unlock
-      window.removeEventListener("click", unlockSpeech)
-      window.removeEventListener("touchstart", unlockSpeech)
-    }
+  //     // remove listeners after first unlock
+  //     window.removeEventListener("click", unlockSpeech)
+  //     window.removeEventListener("touchstart", unlockSpeech)
+  //   }
 
-    // wait for first user gesture
-    window.addEventListener("click", unlockSpeech)
-    window.addEventListener("touchstart", unlockSpeech)
-  }, [])
+  //   // wait for first user gesture
+  //   window.addEventListener("click", unlockSpeech)
+  //   window.addEventListener("touchstart", unlockSpeech)
+  // }, [])
 
-  useEffect(() => {
-    const stored = localStorage.getItem("announcements")
-    if (stored) announcementsRef.current = JSON.parse(stored)
-  }, [])
+  // useEffect(() => {
+  //   const stored = localStorage.getItem("announcements")
+  //   if (stored) announcementsRef.current = JSON.parse(stored)
+  // }, [])
 
   const clearAnnouncements = () => {
     announcementsRef.current = []
