@@ -143,38 +143,39 @@ export default function PickleballOpenPlayQueue() {
 
       if (!announcementQueueRef.current.length) return
 
-      const nextAnnouncement = announcementQueueRef.current[0]
+      // Build a new queue by filtering out stale or already-announced items
+      announcementQueueRef.current = announcementQueueRef.current.filter((announcement) => {
+        const prepTime = toPhilippineTime(new Date(announcement.preparationAt)).getTime()
+        const diff = nowTime - prepTime
+        const readyToAnnounce = diff >= 0 && diff <= MAX_DELAY_MS
 
-      const prepTime = toPhilippineTime(new Date(nextAnnouncement.preparationAt)).getTime()
+        console.info({
+          announcement,
+          prepTime,
+          now,
+          readyToAnnounce,
+          diff,
+        })
 
-      const diff = nowTime - prepTime
+        if (readyToAnnounce) {
+          const text =
+            `Attention... Next on ${announcement.courtName}. ` +
+            `Players: ${announcement.players.join(", ")}.`
 
-      const readyToAnnounce = diff >= 0 && diff <= MAX_DELAY_MS
+          enqueueSpeak(text)
 
-      console.info({
-        announcement: nextAnnouncement,
-        prepTime,
-        now,
-        readyToAnnounce,
-        diff,
+          // 🔴 Explicit removal: returning false drops this item from the queue
+          return false
+        }
+
+        if (diff > MAX_DELAY_MS) {
+          // stale -> remove
+          return false
+        }
+
+        // keep if not yet ready
+        return true
       })
-
-      // stale -> remove
-      if (diff > MAX_DELAY_MS) {
-        announcementQueueRef.current.shift()
-        return
-      }
-
-      // not yet ready
-      if (!readyToAnnounce) return
-
-      const text =
-        `Attention... Next on ${nextAnnouncement.courtName}. ` +
-        `Players: ${nextAnnouncement.players.join(", ")}.`
-
-      enqueueSpeak(text)
-
-      announcementQueueRef.current.shift() // remove only the processed item
     },
     [enqueueSpeak],
   )
