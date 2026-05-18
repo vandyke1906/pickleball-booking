@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma"
 import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { initializeLineup } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
+import { manager } from "@/lib/server/services/queue-manager.service"
+import { QUEUE_KEYS } from "@/lib/type/queue/queue.type"
 import { NextRequest, NextResponse } from "next/server"
 
 export const POST = withRateLimit(
@@ -50,6 +52,11 @@ export const POST = withRateLimit(
         }
 
         if (status === OpenPlayStatus.active || status === OpenPlayStatus.completed) {
+          // safer: sequential cleanup
+          for (const key of [ QUEUE_KEYS.MATCH_STARTED, QUEUE_KEYS.MATCH_ENDED, QUEUE_KEYS.MATCH_ANNOUNCEMENT, ]) {
+            await manager.clearJobsByPrefix(key, `delayed_job_`)
+          }
+
           if (status === OpenPlayStatus.active) {
             await initializeLineup(tx, openPlay.id)
           }

@@ -94,7 +94,7 @@ class QueueManager {
           const endDelay = Math.max(0, differenceInMilliseconds(endedAt, now)) // delay before game ends
           const prepDelay = Math.max(0, differenceInMilliseconds(preparationTime, now)) // delay before preparation/announcement
 
-          const jobId = `job_${schedule.courtId}_${schedule.courtName}_${schedule.scheduledAt}`
+          const jobId = `${schedule.courtId}_${schedule.courtName}_${schedule.scheduledAt}`
           await Promise.all([
             //start game
             this.addJob(
@@ -108,7 +108,7 @@ class QueueManager {
               },
               {
                 delay: startDelay,
-                jobId: `start_${jobId}`,
+                jobId: `delayed_job_match_start_${jobId}`,
                 removeOnComplete: true,
               },
             ),
@@ -124,7 +124,7 @@ class QueueManager {
               },
               {
                 delay: endDelay,
-                jobId: `end_${jobId}`,
+                jobId: `delayed_job_match_end_${jobId}`,
                 removeOnComplete: true,
               },
             ),
@@ -143,7 +143,7 @@ class QueueManager {
                 key: QUEUE_KEYS.MATCH_ANNOUNCEMENT,
               },
               prepDelay > 0
-                ? { delay: prepDelay, jobId: `announcement_${jobId}_${prepDelay}_${new Date()}` }
+                ? { delay: prepDelay, jobId: `delayed_job_announcement_${jobId}_${prepDelay}_${new Date()}` }
                 : { jobId: `announcement_${jobId}` },
             ),
           ])
@@ -208,6 +208,10 @@ class QueueManager {
     return this.queues[queueName].getJobCounts()
   }
 
+  async getQueue(queueName: string) {
+    return this.queues[queueName]
+  }
+
   async getJob(queueName: string, jobId: string) {
     return this.queues[queueName].getJob(jobId)
   }
@@ -227,6 +231,29 @@ class QueueManager {
       await queue.resume()
     }
     return true
+  }
+
+  async clearJobsByPrefix(queueName: string, prefix: string) {
+  const queue = await this.getQueue(queueName) 
+  if (!queue) return false
+
+  const jobs = await queue.getJobs([
+    "delayed",
+    "waiting",
+    "prioritized",
+  ])
+
+  await Promise.all(
+    jobs
+      .filter((job: any) => job.id?.startsWith(prefix))
+      .map((job: any) => job.remove())
+  )
+
+  return true
+}
+
+  async getDelayedJobs(queue: Queue){
+    return await queue.getDelayed()
   }
 
   private registerWorker(queueName: string) {

@@ -103,9 +103,6 @@ export default function PickleballOpenPlayQueue() {
   //event listener
   const handleOpenPlayUpdate: any = useCallback(
     async ({ data }: { data: any }) => {
-      console.group("handleOpenPlayUpdate")
-      console.info("Incoming data:", data)
-
       // Always refetch to keep openPlayData fresh
       refetchOpenPlayData()
 
@@ -344,10 +341,11 @@ export default function PickleballOpenPlayQueue() {
             lastRefetchRef.current = nextTransitionValue.getTime()
           }
         }
+
+        // --- Announcement Scheduler ---
+        processAnnouncementQueue(now)
       }
 
-      // --- Announcement Scheduler ---
-      processAnnouncementQueue(now)
     }, 1000)
     return () => clearInterval(interval)
   }, [
