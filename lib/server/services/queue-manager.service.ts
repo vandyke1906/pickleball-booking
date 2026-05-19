@@ -30,8 +30,16 @@ class QueueManager {
   private readonly heartbeatInterval = 5000
 
   constructor() {
-    this.connection = new Redis(redisUrl, { maxRetriesPerRequest: null })
-    this.schedulerQueue = new Queue(QUEUE_KEYS.ASSIGN_COURT, { connection: this.connection })
+    this.connection = new Redis(redisUrl, { maxRetriesPerRequest: null, enableReadyCheck: true })
+    this.schedulerQueue = new Queue(QUEUE_KEYS.ASSIGN_COURT, {
+      connection: this.connection,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: "exponential", delay: 5000 },
+        removeOnComplete: { age: 86400 },
+        removeOnFail: { age: 86400 * 7 },
+      },
+    })
 
     this.connection.on("ready", () => {
       console.info("[Redis] Connection ready.")
@@ -72,7 +80,21 @@ class QueueManager {
   private startHeartbeat() {
     this.heartbeatTimer = setInterval(async () => {
       if (!this.isLeader) return
-      await this.connection.set(this.lockKey, this.serverId, "PX", this.lockTTL, "XX")
+      const result = await this.connection.set(
+        this.lockKey,
+        this.serverId,
+        "PX",
+        this.lockTTL,
+        "XX",
+      )
+      if (result !== "OK") {
+        console.warn(`[Scheduler] Lost leadership!`)
+        this.isLeader = false
+        if (this.schedulerWorker) {
+          await this.schedulerWorker.close()
+        }
+        setTimeout(() => this.startScheduler(), 1500) // Immediately try to re-acquire
+      }
     }, this.heartbeatInterval)
   }
 
@@ -80,8 +102,10 @@ class QueueManager {
     this.schedulerWorker = new Worker(
       QUEUE_KEYS.ASSIGN_COURT,
       async (job) => {
-        const schedule = await scheduleGroup(job.data)
-        if (schedule) {
+        try {
+          const schedule = await scheduleGroup(job.data)
+          if (!schedule) throw new Error("No court available")
+
           EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: schedule })
 
           const startedAt = new Date(schedule.scheduledAt)
@@ -110,6 +134,7 @@ class QueueManager {
                 delay: startDelay,
                 jobId: `delayed_job_match_start_${jobId}`,
                 removeOnComplete: true,
+                removeOnFail: { age: 86400 },
               },
             ),
             //end game
@@ -126,6 +151,7 @@ class QueueManager {
                 delay: endDelay,
                 jobId: `delayed_job_match_end_${jobId}`,
                 removeOnComplete: true,
+                removeOnFail: { age: 86400 },
               },
             ),
             // Transition announcement
@@ -142,11 +168,17 @@ class QueueManager {
                   .sort((a, b) => a.localeCompare(b)),
                 key: QUEUE_KEYS.MATCH_ANNOUNCEMENT,
               },
-              prepDelay > 0
-                ? { delay: prepDelay, jobId: `delayed_job_announcement_${jobId}_${prepDelay}_${new Date()}` }
-                : { jobId: `announcement_${jobId}` },
+              {
+                delay: prepDelay > 0 ? prepDelay : undefined,
+                jobId: `announcement_${jobId}`,
+                removeOnComplete: true,
+                removeOnFail: true,
+              },
             ),
           ])
+        } catch (error) {
+          console.error(`[Scheduler] Failed to schedule group`, error)
+          throw error // let BullMQ retry
         }
       },
       { connection: this.connection, concurrency: this.concurrency },
@@ -154,6 +186,7 @@ class QueueManager {
   }
 
   async startScheduler() {
+    if (this.isLeader) return
     const acquired = await this.tryAcquireLeadership()
     if (acquired) {
       console.log(`[Scheduler] I am the leader: ${this.serverId}`)
@@ -161,7 +194,7 @@ class QueueManager {
       this.startHeartbeat()
     } else {
       console.log(`[Scheduler] Standby mode: ${this.serverId}`)
-      setTimeout(() => this.startScheduler(), 3000)
+      setTimeout(() => this.startScheduler(), 1500)
     }
   }
 
@@ -234,25 +267,19 @@ class QueueManager {
   }
 
   async clearJobsByPrefix(queueName: string, prefix: string) {
-  const queue = await this.getQueue(queueName) 
-  if (!queue) return false
+    const queue = await this.getQueue(queueName)
+    if (!queue) return false
 
-  const jobs = await queue.getJobs([
-    "delayed",
-    "waiting",
-    "prioritized",
-  ])
+    const jobs = await queue.getJobs(["delayed", "waiting", "prioritized"])
 
-  await Promise.all(
-    jobs
-      .filter((job: any) => job.id?.startsWith(prefix))
-      .map((job: any) => job.remove())
-  )
+    await Promise.all(
+      jobs.filter((job: any) => job.id?.startsWith(prefix)).map((job: any) => job.remove()),
+    )
 
-  return true
-}
+    return true
+  }
 
-  async getDelayedJobs(queue: Queue){
+  async getDelayedJobs(queue: Queue) {
     return await queue.getDelayed()
   }
 
@@ -262,38 +289,42 @@ class QueueManager {
     this.workers[queueName] = new Worker(
       queueName,
       async (job) => {
-        switch (queueName) {
-          case QUEUE_KEYS.LINEUP_PLAYER: {
-            const player: TQueuePlayer = job.data
-            console.info(`[Worker:${queueName}] Player ${player.playerName} joined lineup`)
+        try {
+          switch (queueName) {
+            case QUEUE_KEYS.LINEUP_PLAYER: {
+              const player: TQueuePlayer = job.data
+              console.info(`[Worker:${queueName}] Player ${player.playerName} joined lineup`)
 
-            await this.aggregateBatchPlayers(`batch_${player.openPlayGroupId}`, player, 4, {
-              onPromoted: async (data) => {
-                // console.info(`##Group promoted: ${JSON.stringify(data, null, 2)}`)
-                await this.addSchedulerJob("group-ready", data)
-              },
-            })
-            break
-          }
-
-          case QUEUE_KEYS.MATCH_STARTED:
-          case QUEUE_KEYS.MATCH_ENDED:
-          case QUEUE_KEYS.MATCH_ANNOUNCEMENT: {
-            if (queueName === QUEUE_KEYS.MATCH_ANNOUNCEMENT) {
-              const isActive = await isOpenPlayActive(job.data.openPlayId)
-              if (!isActive) break
+              await this.aggregateBatchPlayers(`batch_${player.openPlayGroupId}`, player, 4, {
+                onPromoted: async (data) => {
+                  await this.addSchedulerJob("group-ready", data)
+                },
+              })
+              break
             }
-            EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: job.data })
-            break
-          }
 
-          default:
-            console.warn(`[Worker:${queueName}] No processor defined`)
+            case QUEUE_KEYS.MATCH_STARTED:
+            case QUEUE_KEYS.MATCH_ENDED:
+            case QUEUE_KEYS.MATCH_ANNOUNCEMENT: {
+              if (queueName === QUEUE_KEYS.MATCH_ANNOUNCEMENT) {
+                const isActive = await isOpenPlayActive(job.data.openPlayId)
+                if (!isActive) break
+              }
+              EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: job.data })
+              break
+            }
+
+            default:
+              console.warn(`[Worker:${queueName}] No processor defined`)
+          }
+        } catch (error) {
+          console.error(`[Worker:${queueName}] Job ${job.id} failed:`, error)
+          throw error
         }
       },
       {
         connection: this.connection,
-        concurrency: [QUEUE_KEYS.ASSIGN_COURT].includes(queueName as any) ? 1 : 5,
+        concurrency: queueName === QUEUE_KEYS.ASSIGN_COURT ? 1 : 5,
       },
     )
   }
@@ -365,6 +396,9 @@ class QueueManager {
     await previous
 
     try {
+      if (parsed.length !== batchSize)
+        console.warn(`[Batch] Unexpected group size: ${parsed.length}`)
+
       await options?.onPromoted?.(parsed)
     } finally {
       release()

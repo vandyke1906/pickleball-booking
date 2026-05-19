@@ -195,7 +195,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
               <div className="space-y-2">
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   {/* Date */}
-                  <div className="rounded w-full space-y-2">
+                  <div className="rounded w-full space-y-2 col-span-2">
                     <Label className="font-semibold text-slate-700">Date</Label>
                     <Popover>
                       <PopoverTrigger asChild>
@@ -263,7 +263,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
                     )}
                   </div>
 
-                  <div className="rounded w-full space-y-2">
+                  {/* <div className="rounded w-full space-y-2">
                     <Label className="font-semibold text-slate-700">
                       Announcement Minutes Before Transition
                     </Label>
@@ -282,7 +282,7 @@ export default function OpenPlayDialog({ open, onOpenChange, onClose, initialDat
                         {form.formState.errors.announcementMinutesBeforeTransition.message}
                       </p>
                     )}
-                  </div>
+                  </div> */}
 
                   {/* Start Time */}
                   <div className="rounded w-full space-y-2">
