@@ -163,17 +163,10 @@ export async function submitLineup(
   })
 
   // Add job to manager
-  await manager.addJob(
-    QUEUE_KEYS.LINEUP_PLAYER,
-    opGroup.id,
-    {
-      ...player,
-      openPlayGroupId: opGroup.id,
-    },
-    {
-      jobId: `lineup_${player.code}-${player.playerName}`,
-    },
-  )
+  await manager.addJob(QUEUE_KEYS.LINEUP_PLAYER, "lineup-player", {
+    ...player,
+    openPlayGroupId: opGroup.id,
+  })
 }
 
 // Check if player still has allowance based on elapsed time

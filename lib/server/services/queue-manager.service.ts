@@ -193,7 +193,7 @@ class QueueManager {
       this.startSchedulerWorker()
       this.startHeartbeat()
     } else {
-      console.log(`[Scheduler] Standby mode: ${this.serverId}`)
+      // console.log(`[Scheduler] Standby mode: ${this.serverId}`)
       setTimeout(() => this.startScheduler(), 1500)
     }
   }
