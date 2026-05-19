@@ -27,6 +27,7 @@ type Props = {
   PlayerSkill: any
   onReorder?: (players: any[]) => void
   isLoading?: boolean
+  isOpenPlayActive?: boolean
 }
 
 export default function DraggablePlayersList({
@@ -37,6 +38,7 @@ export default function DraggablePlayersList({
   PlayerSkill,
   onReorder,
   isLoading = false,
+  isOpenPlayActive = false,
 }: Props) {
   const [players, setPlayers] = useState<any[]>([])
 
@@ -45,6 +47,7 @@ export default function DraggablePlayersList({
   }, [group])
 
   function handleDragEnd(event: DragEndEvent) {
+    if (isOpenPlayActive) return
     const { active, over } = event
 
     if (!over || active.id === over.id) return
@@ -87,6 +90,7 @@ export default function DraggablePlayersList({
                 onDeletePlayer={onDeletePlayer}
                 PlayerSkillLabels={PlayerSkillLabels}
                 PlayerSkill={PlayerSkill}
+                isOpenPlayActive={isOpenPlayActive}
               />
             ))
           ) : (
@@ -109,9 +113,11 @@ function SortablePlayerRow({
   onDeletePlayer,
   PlayerSkillLabels,
   PlayerSkill,
+  isOpenPlayActive = false,
 }: any) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: player.id,
+    disabled: isOpenPlayActive,
   })
 
   const style = {
@@ -122,7 +128,7 @@ function SortablePlayerRow({
   return (
     <div
       style={style}
-      {...attributes}
+      {...(!isOpenPlayActive ? attributes : {})}
       className={`flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 shadow-sm gap-2 ${
         isDragging ? "opacity-50" : ""
       }`}
@@ -136,14 +142,18 @@ function SortablePlayerRow({
               <TooltipTrigger asChild>
                 <div
                   ref={setNodeRef}
-                  {...listeners}
+                  {...(!isOpenPlayActive ? listeners : {})}
                   className="w-7 h-7 flex items-center justify-center rounded-full bg-primary text-white text-xs font-semibold  cursor-grab active:cursor-grabbing"
                 >
                   {index + 1}
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Drag to move player</p>
+                <p>
+                  {isOpenPlayActive
+                    ? "Reordering disabled while open play is active"
+                    : "Drag to move player"}
+                </p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -192,9 +202,11 @@ function SortablePlayerRow({
           Edit
         </Button>
 
-        <Button size="sm" variant="destructive" onClick={() => onDeletePlayer(player)}>
-          Delete
-        </Button>
+        {!isOpenPlayActive && (
+          <Button size="sm" variant="destructive" onClick={() => onDeletePlayer(player)}>
+            Delete
+          </Button>
+        )}
       </div>
     </div>
   )

@@ -141,7 +141,7 @@ export default function OpenPlayPage() {
     },
   })
 
-    const filteredSkills = useMemo(() => {
+  const filteredSkills = useMemo(() => {
     if (!openPlay?.groups) return []
 
     return openPlay.groups.flatMap((group: any) => group.skills)
@@ -468,17 +468,18 @@ export default function OpenPlayPage() {
             <span className="font-medium">{openPlay?.transitionMinutes} minutes</span>
           </div>
 
-
           {/*  Switch Preparation Minutes */}
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground"> Switch Preparation Time</span>
             <span className="font-medium">{openPlay?.preparationSeconds} seconds</span>
           </div>
 
-           {/* Announcement Minutes Before Transition */}
+          {/* Announcement Minutes Before Transition */}
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Announcement Minutes Before Transition</span>
-            <span className="font-medium">{openPlay?.announcementMinutesBeforeTransition} minutes</span>
+            <span className="font-medium">
+              {openPlay?.announcementMinutesBeforeTransition} minutes
+            </span>
           </div>
 
           <Separator />
@@ -633,10 +634,10 @@ export default function OpenPlayPage() {
                           </SelectTrigger>
                           <SelectContent>
                             {filteredSkills.map((skill) => (
-                        <SelectItem key={skill} value={skill}>
-                          {PlayerSkillLabels[skill as PlayerSkill]}
-                        </SelectItem>
-                      ))}
+                              <SelectItem key={skill} value={skill}>
+                                {PlayerSkillLabels[skill as PlayerSkill]}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         {form.formState.errors.skill && (
@@ -722,11 +723,11 @@ export default function OpenPlayPage() {
                           PlayerSkillLabels={PlayerSkillLabels}
                           PlayerSkill={PlayerSkill}
                           onReorder={(newOrder: any) => {
-                            // console.log("New order:", newOrder)
                             const playerIds = newOrder.map((p: any) => p.id)
                             setReOrderPlayerList(playerIds)
                             setConfirmReOrder(true)
                           }}
+                          isOpenPlayActive={isOpenPlayActive}
                         />
                       </div>
                     </div>
