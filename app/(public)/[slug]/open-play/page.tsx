@@ -94,6 +94,7 @@ export default function PickleballOpenPlayQueue() {
   const announcedKeysRef = useRef<Set<string>>(new Set())
   const announcementQueueRef = useRef<AnnouncementQueueItem[]>([])
   const activeAnnouncementsRef = useRef<Set<string>>(new Set()) // Track active announcements globally
+  const selectedVoiceRef = useRef<SpeechSynthesisVoice | null>(null)
 
   const serverBaseRef = useRef(0)
   const clientBaseRef = useRef(0)
@@ -149,9 +150,19 @@ export default function PickleballOpenPlayQueue() {
   )
 
   const speakAnnouncement = (announcement: AnnouncementQueueItem) => {
-    const voice = window.speechSynthesis
-      .getVoices()
-      .find((v) => v.lang.toLowerCase().includes("en-us"))
+    let voice = selectedVoiceRef.current
+
+    if (!voice) {
+      const voices = window.speechSynthesis.getVoices()
+      voice =
+        voices.find((v) => {
+          const lang = v.lang.toLowerCase()
+          return lang.includes("fil") || lang.includes("tl")
+        }) ||
+        voices.find((v) => v.lang.toLowerCase().includes("en-us")) ||
+        voices[0] ||
+        null
+    }
 
     const utterance = new SpeechSynthesisUtterance(
       `Attention... Next on ${announcement.courtName}. Players: ${announcement.players.join(", ")}.`,
@@ -228,6 +239,37 @@ export default function PickleballOpenPlayQueue() {
   }, [])
 
   useEventListener(EventBusKeys.OPENPLAY_UPDATED, handleOpenPlayUpdate) //Event Listener
+
+  //voice selection
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return
+
+    const determineVoice = () => {
+      const voices = window.speechSynthesis.getVoices()
+      if (!voices.length) return
+
+      const targetVoice =
+        voices.find((v) => {
+          const lang = v.lang.toLowerCase()
+          return lang.includes("fil") || lang.includes("tl")
+        }) ||
+        voices.find((v) => v.lang.toLowerCase().includes("en-us")) ||
+        voices[0]
+
+      selectedVoiceRef.current = targetVoice || null
+      console.log("Selected Voice Initialized:", targetVoice?.name)
+    }
+
+    // Run immediately in case voices are already loaded
+    determineVoice()
+
+    // Handle async loading
+    window.speechSynthesis.onvoiceschanged = determineVoice
+
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null
+    }
+  }, [])
 
   //set timer use server time
   useEffect(() => {
