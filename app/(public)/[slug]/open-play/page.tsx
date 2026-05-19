@@ -103,8 +103,7 @@ export default function PickleballOpenPlayQueue() {
   //event listener
   const handleOpenPlayUpdate: any = useCallback(
     async ({ data }: { data: any }) => {
-      // Always refetch to keep openPlayData fresh
-      refetchOpenPlayData()
+      refetchOpenPlayData() // Always refetch to keep openPlayData fresh
 
       // Guard: only process announcements
       if (data?.key !== QUEUE_KEYS.MATCH_ANNOUNCEMENT) {
@@ -345,7 +344,6 @@ export default function PickleballOpenPlayQueue() {
         // --- Announcement Scheduler ---
         processAnnouncementQueue(now)
       }
-
     }, 1000)
     return () => clearInterval(interval)
   }, [

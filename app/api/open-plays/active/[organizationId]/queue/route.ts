@@ -1,5 +1,7 @@
 import { OpenPlayStatus } from "@/.config/prisma/generated/prisma"
+import { BroadcastEventTypes } from "@/lib/event-broadcaster.type"
 import { prisma } from "@/lib/prisma"
+import { EventBroadcast } from "@/lib/server-event/broadcaster.event"
 import { deleteQueuedPlayers, getNewOpenPlaySchedules } from "@/lib/server/action/openplay.action"
 import { withRateLimit } from "@/lib/server/rate-limiter"
 import { manager } from "@/lib/server/services/queue-manager.service"
@@ -28,7 +30,7 @@ export const GET = withRateLimit(
             const playerIds = game.players.map((p) => p.playerId)
             const result = await deleteQueuedPlayers(playerIds)
             console.info("Deleted queued players:", result.count)
-            // EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: activeOpenPlay })
+            EventBroadcast({ type: BroadcastEventTypes.OPENPLAY_UPDATED, data: activeOpenPlay })
           } catch (error) {
             console.error("Error deleting queued players:", error)
           }
