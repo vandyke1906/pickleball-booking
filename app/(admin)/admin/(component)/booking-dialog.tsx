@@ -165,6 +165,27 @@ export function BookingDialog({ open, onOpenChange, booking, onClose }: BookingD
               </>
             )}
 
+            {booking.status === "reserved" && (
+              <Button
+                variant="success"
+                disabled={mutation.isPending}
+                onClick={() => {
+                  setIsDelete(false)
+                  setAcceptBooking(true)
+                  setOpenConfirmDialog(true)
+                }}
+              >
+                {mutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Please wait...
+                  </>
+                ) : (
+                  "Confirm Reserved Booking"
+                )}
+              </Button>
+            )}
+
             {["cancelled", "reserved"].includes(booking.status) && (
               <Button
                 variant="destructive"
