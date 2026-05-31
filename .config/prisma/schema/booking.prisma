@@ -10,7 +10,8 @@ model Booking {
   startTime     DateTime
   endTime       DateTime
 
-  status String @default("pending") // pending, confirmed, cancelled
+  status String @default("pending") // pending, confirmed, cancelled, reserved
+  isPaid Boolean  @default(true)
 
   totalPrice         Float?
   proofOfPaymentLink String

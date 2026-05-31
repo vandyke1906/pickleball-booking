@@ -42,6 +42,7 @@ import { format, startOfDay } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
+import { Switch } from "@/components/ui/switch"
 
 interface DialogProps {
   organizationSlug: string
@@ -69,6 +70,7 @@ export function ReserveBookingDialog({
       contactNumber: "",
       emailAddress: "",
       notes: "",
+      isPaid: true,
     },
   })
 
@@ -393,6 +395,21 @@ export function ReserveBookingDialog({
                         {form.formState.errors.emailAddress.message}
                       </p>
                     )}
+                  </div>
+
+                  <div className="lg:col-span-2 flex items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="isPaid" className="font-semibold text-slate-700">
+                        Paid
+                      </Label>
+                      <p className="text-sm text-muted-foreground">Mark this booking as paid.</p>
+                    </div>
+
+                    <Switch
+                      id="isPaid"
+                      checked={form.watch("isPaid")}
+                      onCheckedChange={(checked) => form.setValue("isPaid", checked)}
+                    />
                   </div>
 
                   {/* notes */}

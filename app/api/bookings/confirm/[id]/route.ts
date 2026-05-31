@@ -18,15 +18,32 @@ export const POST = withRateLimit(
       const body = await request.json()
       const { accept } = body
 
-      const result = await prisma.booking.update({
+      const booking = await prisma.booking.findFirst({
         where: { id, status: { in: ["pending", "confirmed", "reserved"] } },
-        data: {
-          status: accept ? "confirmed" : "cancelled",
-        },
-        include: { courts: true },
+        select: { status: true },
       })
 
-      
+      if (!booking) throw new Error("Booking not found")
+
+      const result = await prisma.booking.update({
+        where: { id },
+        data: {
+          status: accept ? "confirmed" : "cancelled",
+          ...(booking.status === "reserved" && accept ? { isPaid: true } : {}),
+        },
+        include: {
+          courts: true,
+        },
+      })
+
+      // const result = await prisma.booking.update({
+      //   where: { id, status: { in: ["pending", "confirmed", "reserved"] } },
+      //   data: {
+      //     status: accept ? "confirmed" : "cancelled",
+      //   },
+      //   include: { courts: true },
+      // })
+
       //update ui of all clients
       EventBroadcast({
         type: BroadcastEventTypes.BOOKING_CANCELLED,
