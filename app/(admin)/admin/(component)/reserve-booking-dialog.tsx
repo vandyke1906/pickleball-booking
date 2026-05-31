@@ -398,7 +398,7 @@ export function ReserveBookingDialog({
                   {/* notes */}
                   <div className="lg:col-span-2 space-y-2">
                     <Label htmlFor="notes" className="font-semibold text-slate-700">
-                      Full Name
+                      Notes
                     </Label>
                     <Textarea
                       id="notes"
