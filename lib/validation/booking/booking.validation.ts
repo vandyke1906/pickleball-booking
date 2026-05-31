@@ -25,5 +25,6 @@ export const adminBookingSchema = z.object({
   fullName: z.string().min(2, "Full name is required"),
   contactNumber: z.string().optional(),
   emailAddress: z.string().optional(),
+  notes: z.string().max(150),
 })
 export type AdminBookingPayload = z.infer<typeof adminBookingSchema>
