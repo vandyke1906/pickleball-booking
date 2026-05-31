@@ -20,6 +20,7 @@ export type TBookingDetails = {
   code: string
   status: string
   notes: string
+  isPaid?: boolean
   bookedBy: string
   contactNumber: string
   emailAddress: string
@@ -101,6 +102,7 @@ export default function DashboardAdminPage() {
           code: booking.code,
           status: booking.status,
           notes: booking.notes,
+          isPaid: booking.isPaid,
           title: `${booking.fullName ?? ""}`,
           bookedBy: `${booking.fullName ?? ""}`,
           contactNumber: `${booking.contactNumber ?? ""}`,
@@ -120,10 +122,13 @@ export default function DashboardAdminPage() {
   }, [courtBookings, orgWithCourts])
 
   const getEventClassNames = (event: any) => {
+    console.info({ event })
     switch (event.status) {
       case "confirmed":
-      case "reserved":
+      case "reserved": {
+        if (!event.isPaid) return { className: "pending" }
         return { className: "confirmed" }
+      }
       case "pending":
         return { className: "pending" }
       case "cancelled":

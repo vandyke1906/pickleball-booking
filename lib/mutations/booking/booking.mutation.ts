@@ -50,6 +50,7 @@ async function reserveBooking(payload: AdminBookingPayload) {
   formData.append("contactNumber", parsed.contactNumber ?? "")
   formData.append("emailAddress", parsed.emailAddress ?? "")
   formData.append("notes", parsed.notes ?? "")
+  formData.append("isPaid", String(parsed.isPaid))
 
   const response = await fetch("/api/bookings/reservation", {
     method: "POST",

@@ -26,5 +26,6 @@ export const adminBookingSchema = z.object({
   contactNumber: z.string().optional(),
   emailAddress: z.string().optional(),
   notes: z.string().max(150),
+  isPaid: z.boolean(),
 })
 export type AdminBookingPayload = z.infer<typeof adminBookingSchema>

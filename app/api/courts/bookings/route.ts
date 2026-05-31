@@ -101,6 +101,7 @@ export const GET = withRateLimit(async (request: Request) => {
             status: true,
             ...(all && {
               notes: true,
+              isPaid: true,
               courts: { select: { id: true, name: true, location: true } },
             }),
           },
@@ -149,6 +150,7 @@ export const GET = withRateLimit(async (request: Request) => {
         endTime: b.endTime,
         ...(all && {
           notes: b.notes ?? "",
+          isPaid: b.isPaid,
           courts: b.courts.map((c) => ({
             id: c.id,
             name: c.name,

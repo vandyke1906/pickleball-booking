@@ -95,7 +95,12 @@ export function BookingDialog({ open, onOpenChange, booking, onClose }: BookingD
             )}
 
             <div>
-              <p className="text-sm font-medium">Total Price</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium">Total Price</p>
+
+                {!booking.isPaid && <Badge variant="destructive">Unpaid</Badge>}
+              </div>
+
               <p className="text-sm text-muted-foreground">{formatFloat(booking.totalPrice)}</p>
             </div>
 
@@ -181,7 +186,7 @@ export function BookingDialog({ open, onOpenChange, booking, onClose }: BookingD
                     Please wait...
                   </>
                 ) : (
-                  "Confirm Reserved Booking"
+                  "Confirm/Paid Reserved Booking"
                 )}
               </Button>
             )}
