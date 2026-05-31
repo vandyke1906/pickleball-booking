@@ -22,6 +22,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
   const fullName = formData.get("fullName") as string
   const contactNumber = formData.get("contactNumber") as string
   const emailAddress = formData.get("emailAddress") as string
+  const notes = formData.get("notes") as string
 
   const { start, end } = makeBookingDate(date, startTime, duration)
   console.info("Reservation Details: ", { date, startTime, duration })
@@ -84,7 +85,7 @@ export const POST = withRateLimit(async (req: NextRequest) => {
           startTime: start,
           endTime: end,
           status: "reserved",
-          notes: "Admin Reservation",
+          notes: notes || "Admin Reservation",
           proofOfPaymentLink: "",
           totalPrice,
           courts: {

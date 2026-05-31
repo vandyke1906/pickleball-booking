@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
-import "./globals.css"
 import Providers from "@/lib/providers/app-provider"
+import "./globals.css"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,6 +20,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://pickleballbook.vercel.app"),
   title: "Pickleball Booking",
   description: "Online Pickleball Booking System",
   openGraph: {

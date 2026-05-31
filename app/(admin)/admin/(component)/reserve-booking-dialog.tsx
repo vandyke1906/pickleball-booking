@@ -41,6 +41,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format, startOfDay } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Textarea } from "@/components/ui/textarea"
 
 interface DialogProps {
   organizationSlug: string
@@ -67,6 +68,7 @@ export function ReserveBookingDialog({
       fullName: "",
       contactNumber: "",
       emailAddress: "",
+      notes: "",
     },
   })
 
@@ -390,6 +392,22 @@ export function ReserveBookingDialog({
                       <p className="text-sm text-red-600">
                         {form.formState.errors.emailAddress.message}
                       </p>
+                    )}
+                  </div>
+
+                  {/* notes */}
+                  <div className="lg:col-span-2 space-y-2">
+                    <Label htmlFor="notes" className="font-semibold text-slate-700">
+                      Full Name
+                    </Label>
+                    <Textarea
+                      id="notes"
+                      placeholder="Notes"
+                      className="min-h-24"
+                      {...form.register("notes")}
+                    />
+                    {form.formState.errors.notes && (
+                      <p className="text-sm text-red-600">{form.formState.errors.notes.message}</p>
                     )}
                   </div>
                 </div>
