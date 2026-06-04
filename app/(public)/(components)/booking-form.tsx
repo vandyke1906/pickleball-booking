@@ -198,13 +198,31 @@ export default function BookingPage({ slug }: { slug: string }) {
     if (saved) form.reset(JSON.parse(saved))
 
     const subscription = form.watch((values) => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(values))
+      const defaultValues = {
+        ...values,
+        date: undefined,
+        startTime: undefined,
+        duration: 1,
+        courtIds: [],
+        proofOfPayment: undefined
+
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultValues))
     })
 
     // 3. Cleanup: save one last time before unmount
     return () => {
       const currentValues = form.getValues()
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(currentValues))
+      const defaultValues = {
+        ...currentValues,
+        date: undefined,
+        startTime: undefined,
+        duration: 1,
+        courtIds: [],
+        proofOfPayment: undefined
+
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultValues))
       subscription.unsubscribe()
     }
   }, [form])
