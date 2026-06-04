@@ -1,5 +1,6 @@
 "use client"
 
+import { Court } from "@/.config/prisma/generated/prisma"
 import { BookingDialog } from "@/app/(admin)/admin/(component)/booking-dialog"
 import { CalendarSkeleton } from "@/app/(admin)/admin/(component)/calendar-skeleton"
 import { ReserveBookingDialog } from "@/app/(admin)/admin/(component)/reserve-booking-dialog"
@@ -10,7 +11,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useCourtBookings, useOrganizationCourts } from "@/lib/hooks/court/court.hook"
 import { useGetBookingByCode } from "@/lib/mutations/booking/booking.mutation"
 import { formatDateTime, toPhilippineTime } from "@/lib/utils"
-import { Court } from "@prisma/client"
 import { useSession } from "next-auth/react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -169,7 +169,7 @@ export default function DashboardAdminPage() {
         </Button>
       </header>
       <main style={{ flex: 1 }} className="relative">
-        <BigCalendar
+        {(isLoadingOrgWithCourts || isLoadingCourtBookings) ? <CalendarSkeleton /> : <BigCalendar
           className="rbc-calendar"
           showMultiDayTimes
           eventPropGetter={getEventClassNames}
@@ -212,9 +212,7 @@ export default function DashboardAdminPage() {
             setSelectedBooking(selected)
             setOpenEventDialog(true)
           }}
-        />
-
-        {(isLoadingOrgWithCourts || isLoadingCourtBookings) && <CalendarSkeleton />}
+        />}
       </main>
 
       {selectedBooking && (

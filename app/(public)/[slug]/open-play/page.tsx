@@ -45,6 +45,7 @@ import { useSpeech } from "@/lib/hooks/speech/use-speech"
 import { QUEUE_KEYS } from "@/lib/type/queue/queue.type"
 import { useNetworkStatus } from "@/lib/hooks/court/network/use-network.hook"
 import { useServerTime } from "@/lib/hooks/time/use-time.hook"
+import { AudioInitializer } from "@/app/(public)/(components)/audio-initializer"
 
 type AnnouncementQueueItem = {
   id: string
@@ -54,7 +55,14 @@ type AnnouncementQueueItem = {
   startedAt?: string
 }
 
+const DELAY_CHIME_MS = parseInt(
+  process.env.NEXT_PUBLIC_DELAY_CHIME_MS ?? "2000",
+  10
+);
 const MAX_DELAY_MS = 15000
+if (typeof window !== 'undefined' && window.audioUnlocked === undefined) {
+  window.audioUnlocked = false;
+}
 
 export default function PickleballOpenPlayQueue() {
   const params = useParams()
@@ -95,6 +103,7 @@ export default function PickleballOpenPlayQueue() {
   const announcementQueueRef = useRef<AnnouncementQueueItem[]>([])
   const activeAnnouncementsRef = useRef<Set<string>>(new Set()) // Track active announcements globally
   const selectedVoiceRef = useRef<SpeechSynthesisVoice | null>(null)
+  const chimeRef = useRef<HTMLAudioElement | null>(null);
 
   const serverBaseRef = useRef(0)
   const clientBaseRef = useRef(0)
@@ -195,7 +204,25 @@ export default function PickleballOpenPlayQueue() {
       }
     }
 
-    window.speechSynthesis.speak(utterance)
+    // window.speechSynthesis.speak(utterance)
+    if (window.audioUnlocked && chimeRef.current) {
+      chimeRef.current.pause();
+      chimeRef.current.currentTime = 0;
+
+      chimeRef.current.onended = () => {
+        setTimeout(() => {
+        window.speechSynthesis.speak(utterance);
+        }, DELAY_CHIME_MS)
+      };
+
+      chimeRef.current.play().catch(() => {
+        setTimeout(() => {
+          window.speechSynthesis.speak(utterance)
+        }, DELAY_CHIME_MS)
+      })
+    } else {
+      window.speechSynthesis.speak(utterance)
+    }
   }
 
   const processAnnouncementQueue = useCallback((now: Date) => {
@@ -223,6 +250,7 @@ export default function PickleballOpenPlayQueue() {
       const readyToAnnounce = diff >= 0 && diff <= MAX_DELAY_MS
 
       if (readyToAnnounce && !activeAnnouncementsRef.current.has(announcement.id)) {
+        activeAnnouncementsRef.current.add(announcement.id)
         speakAnnouncement(announcement)
       }
 
@@ -239,6 +267,12 @@ export default function PickleballOpenPlayQueue() {
   }, [])
 
   useEventListener(EventBusKeys.OPENPLAY_UPDATED, handleOpenPlayUpdate) //Event Listener
+
+  //chime initialize
+  useEffect(() => {
+    chimeRef.current = new Audio('/audio/chime-sound.mp3');
+    chimeRef.current.load();
+  }, []);
 
   //voice selection
   useEffect(() => {
@@ -418,11 +452,15 @@ export default function PickleballOpenPlayQueue() {
   }, [])
 
   if (isLoading || isLoadingOrgWithCourts) return <LoadingScreen message="Loading Queue" />
-  if (!isQueueAvailable) return <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
+  if (!isQueueAvailable) return <>
+  <AudioInitializer />
+  <OpenPlayUnavailable onRetry={refetchOpenPlayData} />
+  </>
   if (isOffline) return <InternetProblemPage onRetry={refetchOpenPlayData} quality={quality} />
 
   return (
     <div className="fixed inset-0 h-screen w-screen text-primary font-mono">
+      <AudioInitializer />
       {/* Grid layout: stacked on mobile/tablet, split on large */}
       <div className="grid h-full w-full grid-cols-1 lg:grid-cols-4 overflow-y-auto">
         {/* Sidebar */}
